@@ -27,15 +27,15 @@ model User {
   phone            String?
   loanBalance      Float         @default(0)
   hasLoan          Boolean       @default(false)
-  adminLoanBalance Float?        @db.Float
+  adminLoanBalance Float?        @db.DoublePrecision
   isLoggedIn       Boolean       @default(false)
   isSuspended      Boolean       @default(false)
   refundedTotal    Float         @default(0)
   storefrontSlug   String?       @unique @db.VarChar(100) // Unique storefront URL slug
   cart             Cart?
-  orders           Order[]
-  orderBatches     OrderBatch[]
-  TopUp            TopUp[]
+  orders           Order[]       @relation("UserToOrder")
+  orderBatches     OrderBatch[]  @relation("UserToOrderBatch")
+  TopUp            TopUp[]       @relation("UserToTopUp")
   transactions     Transaction[]
   storefrontProducts StorefrontProduct[] @relation("AgentStorefront")
   referralOrders     ReferralOrder[]     @relation("AgentReferrals")
@@ -51,11 +51,11 @@ model CartItem {
   price        Float
   productId    Int
   mobileNumber String?
-  cart         Cart    @relation(fields: [cartId], references: [id], onDelete: NoAction)
-  product      Product @relation(fields: [productId], references: [id], onDelete: NoAction)
+  cart         Cart    @relation("CartToCartItem", fields: [cartId], references: [id], onDelete: NoAction)
+  product      Product @relation("ProductToCartItem", fields: [productId], references: [id], onDelete: NoAction)
 
-  @@index([cartId], map: "CartItem_cartId_fkey")
-  @@index([productId], map: "CartItem_productId_fkey")
+  @@index([cartId])
+  @@index([productId])
   @@map("CartItem")
 }
 
@@ -71,8 +71,8 @@ model Product {
   shopStockClosed Boolean     @default(false)
   showForAgents   Boolean     @default(true)
   createdAt       DateTime    @default(now())
-  CartItem        CartItem[]
-  OrderItem       OrderItem[]
+  CartItem        CartItem[]  @relation("ProductToCartItem")
+  OrderItem       OrderItem[] @relation("ProductToOrderItem")
   storefrontProducts StorefrontProduct[]
   referralOrders     ReferralOrder[]
 
@@ -90,11 +90,11 @@ model OrderBatch {
   status      String      @default("Pending")
   network     String?     @db.VarChar(50)
   createdAt   DateTime    @default(now())
-  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  orders      Order[]
-  items       OrderItem[]
+  user        User        @relation("UserToOrderBatch", fields: [userId], references: [id], onDelete: Cascade)
+  orders      Order[]     @relation("OrderBatchToOrder")
+  items       OrderItem[] @relation("OrderBatchToOrderItem")
 
-  @@index([userId], map: "OrderBatch_userId_fkey")
+  @@index([userId])
   @@map("OrderBatch")
 }
 
@@ -105,13 +105,13 @@ model Order {
   status       String       @default("Pending")
   mobileNumber String?
   batchId      Int?
-  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  batch        OrderBatch?  @relation(fields: [batchId], references: [id], onDelete: SetNull)
-  items        OrderItem[]
+  user         User         @relation("UserToOrder", fields: [userId], references: [id], onDelete: Cascade)
+  batch        OrderBatch?  @relation("OrderBatchToOrder", fields: [batchId], references: [id], onDelete: SetNull)
+  items        OrderItem[]  @relation("OrderToOrderItem")
 
-  @@index([userId], map: "Order_userId_fkey")
+  @@index([userId])
   @@index([userId, createdAt])
-  @@index([batchId], map: "Order_batchId_fkey")
+  @@index([batchId])
   @@map("Order")
 }
 
@@ -127,12 +127,12 @@ model OrderItem {
   productDescription String?
   batchId            Int?
   updatedAt          DateTime?   @updatedAt
-  order              Order       @relation(fields: [orderId], references: [id], onDelete: NoAction)
-  product            Product     @relation(fields: [productId], references: [id], onDelete: NoAction)
-  batch              OrderBatch? @relation(fields: [batchId], references: [id])
+  order              Order       @relation("OrderToOrderItem", fields: [orderId], references: [id], onDelete: NoAction)
+  product            Product     @relation("ProductToOrderItem", fields: [productId], references: [id], onDelete: NoAction)
+  batch              OrderBatch? @relation("OrderBatchToOrderItem", fields: [batchId], references: [id])
 
-  @@index([orderId], map: "OrderItem_orderId_fkey")
-  @@index([productId], map: "OrderItem_productId_fkey")
+  @@index([orderId])
+  @@index([productId])
   @@index([status], map: "OrderItem_status_idx")
   @@index([batchId])
   @@map("OrderItem")
@@ -146,9 +146,9 @@ model TopUp {
   status      String   @default("Pending")
   submittedBy String
   createdAt   DateTime @default(now())
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user        User     @relation("UserToTopUp", fields: [userId], references: [id], onDelete: Cascade)
 
-  @@index([userId], map: "TopUp_userId_fkey")
+  @@index([userId])
   @@map("TopUp")
 }
 
@@ -156,7 +156,7 @@ model Upload {
   id         Int        @id @default(autoincrement())
   filename   String     @db.VarChar(255)
   filePath   String?    @db.VarChar(255)
-  uploadedAt DateTime?  @db.DateTime(0)
+  uploadedAt DateTime?  @db.Timestamp(0)
   userId     String?    @db.VarChar(255)
   purchases  Purchase[]
 
@@ -187,7 +187,7 @@ model Transaction {
   previousBalance Float     @default(0)
   user            User      @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_user_transaction")
 
-  @@index([userId], map: "fk_user_transaction")
+  @@index([userId])
   @@map("Transaction")
 }
 
