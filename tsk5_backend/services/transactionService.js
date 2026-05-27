@@ -38,8 +38,8 @@ const parseDateBounds = (startDate, endDate) => {
  * reflect only the selected network.
  *
  * @param {string|null} network
- * @returns {string[]} list of case-insensitive substrings (MySQL default
- *   collation is case-insensitive so no `mode` flag is needed).
+ * @returns {string[]} list of case-insensitive substrings (PostgreSQL
+ *   collation is case-insensitive by default).
  */
 const parseNetworkTerms = (network) => {
   if (!network) return [];
