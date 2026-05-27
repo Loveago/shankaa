@@ -12,7 +12,7 @@ model Cart {
   userId       Int        @unique
   mobileNumber String?
   user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  items        CartItem[]
+  items        CartItem[] @relation("CartToCartItem")
 
   @@map("Cart")
 }
