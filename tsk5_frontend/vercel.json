@@ -2,11 +2,11 @@
   "rewrites": [
     {
       "source": "/api/:match*",
-      "destination": "https://shank-backend.onrender.com/api/:match*"
+      "destination": "https://shankaa.onrender.com/api/:match*"
     },
     {
       "source": "/socket.io/:match*",
-      "destination": "https://shank-backend.onrender.com/socket.io/:match*"
+      "destination": "https://shankaa.onrender.com/socket.io/:match*"
     },
     {
       "source": "/(.*)",
