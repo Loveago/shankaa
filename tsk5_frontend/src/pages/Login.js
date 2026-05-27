@@ -67,10 +67,11 @@ const Login = () => {
       redirectToDashboard(user.role);
     } catch (err) {
       setLoading(false);
+      const serverMsg = err.response?.data?.message;
       if (err.response?.status === 403) {
-        toast.warn("This account is currently in use. Please log out from other devices.");
+        toast.warn(serverMsg || "This account is currently in use. Please log out from other devices.");
       }
-      setError("Invalid email or password");
+      setError(serverMsg || "Invalid email or password");
     }
   };
 

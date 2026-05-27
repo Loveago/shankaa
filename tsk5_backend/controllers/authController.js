@@ -108,6 +108,7 @@
 
 
 const { PrismaClient } = require('@prisma/client');
+const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 require('dotenv').config();
 
@@ -116,7 +117,7 @@ const prisma = new PrismaClient();
 const loginUser = async (req, res) => {
   try {
     const { email, password } = req.body;
-        
+         
     ////////////////////////////////1️⃣ Check if user exists  --- GODFREY ///////////////////////////////
     const user = await prisma.user.findUnique({
       where: { email: email }
@@ -125,18 +126,40 @@ const loginUser = async (req, res) => {
     if (!user) {
       return res.status(400).json({ message: "Invalid email or password" });
     }
-        
-    /////////////////////////////// 2️⃣ Compare passwords (WITHOUT HASHING) --- GODFREY ////////////////////////////////
-    if (user.password !== password) {
+         
+    /////////////////////////////// 2️⃣ Compare passwords (with bcrypt + legacy plaintext fallback) ////////////////////////////////
+    let passwordValid = false;
+    
+    // Try bcrypt compare first (for hashed passwords)
+    try {
+      passwordValid = await bcrypt.compare(password, user.password);
+    } catch {
+      passwordValid = false;
+    }
+    
+    // Fallback to direct comparison for legacy plaintext passwords
+    if (!passwordValid && user.password === password) {
+      passwordValid = true;
+      // Upgrade: hash the plaintext password immediately
+      const SALT_ROUNDS = 12;
+      const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { password: hashedPassword }
+      });
+      console.log(`[Auth] Upgraded password to bcrypt for user: ${email}`);
+    }
+    
+    if (!passwordValid) {
       return res.status(400).json({ message: "Invalid email or password" });
     }
     
-    /////////////////////////////// 3️⃣ Check if user is already logged in using database flag ///////////////////////////////
-    // if (user.isLoggedIn === true) {
-    //   return res.status(403).json({ message: "This account is currently in use. Please log out from other devices first." });
-    // }
-        
-    /////////////////////////////// 4️⃣ Generate JWT token --- GODFREY /////////////////////////////////////
+    /////////////////////////////// 3️⃣ Check if user is suspended ///////////////////////////////
+    if (user.isSuspended) {
+      return res.status(403).json({ message: "Account is suspended. Contact support." });
+    }
+
+    /////////////////////////////// 4️⃣ Generate JWT token /////////////////////////////////////
     const token = jwt.sign(
       { id: user.id, email: user.email, role: user.role },
       process.env.JWT_SECRET,
@@ -148,7 +171,7 @@ const loginUser = async (req, res) => {
       where: { id: user.id },
       data: { isLoggedIn: true }
     });
-        
+         
     res.status(200).json({ message: "Login successful", token, user: { ...user, isLoggedIn: true } });
   } catch (error) {
     console.error('Login error:', error);
