@@ -25,6 +25,10 @@ exports.pasteAndProcessOrders = async (req, res) => {
     let errorReport = [];
     let productsToAdd = [];
 
+    // Track duplicates across rows (phone + product combo)
+    const seenEntries = new Set();
+    let duplicateWarning = null;
+
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i].trim();
       const parts = line.split(/\s+/);
@@ -36,10 +40,23 @@ exports.pasteAndProcessOrders = async (req, res) => {
         continue;
       }
 
-      const [phoneNumber, bundleAmount] = parts;
+      let [phoneNumber, bundleAmount] = parts;
 
       if (!phoneNumber) rowErrors.push('Missing phone number.');
       if (!bundleAmount || isNaN(parseFloat(bundleAmount))) rowErrors.push('Invalid or missing bundle amount.');
+
+      // Normalize phone number: strip non-digits
+      if (phoneNumber) {
+        phoneNumber = phoneNumber.replace(/\D/g, '');
+        // If 9 digits (e.g. 257467983), prepend 0 to make it 0257467983
+        if (phoneNumber.length === 9) {
+          phoneNumber = '0' + phoneNumber;
+        }
+        // If international format starting with 233 (12 digits), convert to local
+        if (phoneNumber.length === 12 && phoneNumber.startsWith('233')) {
+          phoneNumber = '0' + phoneNumber.substring(3);
+        }
+      }
 
       if (rowErrors.length > 0) {
         errorReport.push({ row: i + 1, errors: rowErrors });
@@ -66,6 +83,14 @@ exports.pasteAndProcessOrders = async (req, res) => {
       } else if (product.stock <= 0) {
         rowErrors.push(`Product with bundle ${productDescription} and network ${network} is out of stock.`);
       } else {
+        // Check for duplicate phone + product combo within this paste
+        const entryKey = `${phoneNumber}_${product.id}`;
+        if (seenEntries.has(entryKey)) {
+          if (!duplicateWarning) duplicateWarning = [];
+          duplicateWarning.push(`Row ${i + 1}: Duplicate entry for ${phoneNumber} with ${bundleAmount}GB — skipped.`);
+          continue; // Skip this duplicate row silently
+        }
+        seenEntries.add(entryKey);
         productsToAdd.push({ product, quantity: 1, phoneNumber });
       }
 
@@ -82,7 +107,12 @@ exports.pasteAndProcessOrders = async (req, res) => {
       await cartService.addItemToCart(agent.id, item.product.id, item.quantity, item.phoneNumber);
     }
 
-    return res.json({ success: true, message: `${productsToAdd.length} products added to cart.` });
+    let responseMessage = `${productsToAdd.length} products added to cart.`;
+    if (duplicateWarning) {
+      responseMessage += ` ${duplicateWarning.length} duplicate(s) were removed: ${duplicateWarning.join(' ')}`;
+    }
+
+    return res.json({ success: true, message: responseMessage });
 
   } catch (err) {
     console.log('ERROR in pasteAndProcessOrders:', err);
