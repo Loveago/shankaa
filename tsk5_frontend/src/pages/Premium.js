@@ -127,22 +127,37 @@ const Premium = () => {
 
   const handleCategorySelect = (category) => setSelectedCategory(category);
 
+  // Map a product name to its carrier category (case-insensitive)
+  const getCarrierCategory = (name) => {
+    const upper = (name || '').toUpperCase();
+    if (upper.startsWith('MTN')) return 'MTN - PREMIUM';
+    if (upper.startsWith('TELECEL')) return 'TELECEL - PREMIUM';
+    if (upper.startsWith('AIRTEL')) return 'AIRTEL TIGO - PREMIUM';
+    return 'OTHER';
+  };
+
   const filteredProducts = useMemo(() => {
-    const allowedPrefixes = ['MTN - PREMIUM', 'TELECEL - PREMIUM', 'AIRTEL TIGO - PREMIUM'];
+    const carrierMapping = [
+      { prefix: 'MTN', category: 'MTN - PREMIUM' },
+      { prefix: 'TELECEL', category: 'TELECEL - PREMIUM' },
+      { prefix: 'AIRTEL', category: 'AIRTEL TIGO - PREMIUM' }
+    ];
     const nameOrder = { 'MTN - PREMIUM': 0, 'TELECEL - PREMIUM': 1, 'AIRTEL TIGO - PREMIUM': 2 };
-    let filtered = (Array.isArray(products) ? products : []).filter(p => allowedPrefixes.some(prefix => p.name?.startsWith(prefix)));
+    let filtered = (Array.isArray(products) ? products : [])
+      .filter(p => carrierMapping.some(c => (p.name || '').toUpperCase().startsWith(c.prefix)));
     if (selectedCategory) {
       // Map category selection to PREMIUM tagged version
-      const premiumCategory = selectedCategory === 'MTN' ? 'MTN - PREMIUM'
-        : selectedCategory === 'TELECEL' ? 'TELECEL - PREMIUM'
-        : selectedCategory === 'AIRTEL TIGO' ? 'AIRTEL TIGO - PREMIUM'
-        : selectedCategory;
-      filtered = filtered.filter(p => p.name?.startsWith(premiumCategory));
+      const match = carrierMapping.find(c => c.category.includes(selectedCategory));
+      if (match) {
+        filtered = filtered.filter(p => (p.name || '').toUpperCase().startsWith(match.prefix));
+      }
     }
     // Sort: in-stock first, then by name (MTN first) and description
     return filtered.sort((a, b) => {
       if ((a.stock > 0) !== (b.stock > 0)) return b.stock > 0 ? 1 : -1;
-      if (a.name !== b.name) return (nameOrder[a.name] ?? 99) - (nameOrder[b.name] ?? 99);
+      const catA = getCarrierCategory(a.name);
+      const catB = getCarrierCategory(b.name);
+      if (catA !== catB) return (nameOrder[catA] ?? 99) - (nameOrder[catB] ?? 99);
       return parseFloat(a.description?.match(/\d+/)?.[0] || 0) - parseFloat(b.description?.match(/\d+/)?.[0] || 0);
     });
   }, [products, selectedCategory]);

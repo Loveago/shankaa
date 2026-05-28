@@ -127,22 +127,37 @@ const SuperAgent = () => {
 
   const handleCategorySelect = (category) => setSelectedCategory(category);
 
+  // Map a product name to its carrier category (case-insensitive)
+  const getCarrierCategory = (name) => {
+    const upper = (name || '').toUpperCase();
+    if (upper.startsWith('MTN')) return 'MTN - SUPER';
+    if (upper.startsWith('TELECEL')) return 'TELECEL - SUPER';
+    if (upper.startsWith('AIRTEL')) return 'AIRTEL TIGO - SUPER';
+    return 'OTHER';
+  };
+
   const filteredProducts = useMemo(() => {
-    const allowedPrefixes = ['MTN - SUPER', 'TELECEL - SUPER', 'AIRTEL TIGO - SUPER'];
+    const carrierMapping = [
+      { prefix: 'MTN', category: 'MTN - SUPER' },
+      { prefix: 'TELECEL', category: 'TELECEL - SUPER' },
+      { prefix: 'AIRTEL', category: 'AIRTEL TIGO - SUPER' }
+    ];
     const nameOrder = { 'MTN - SUPER': 0, 'TELECEL - SUPER': 1, 'AIRTEL TIGO - SUPER': 2 };
-    let filtered = (Array.isArray(products) ? products : []).filter(p => allowedPrefixes.some(prefix => p.name?.startsWith(prefix)));
+    let filtered = (Array.isArray(products) ? products : [])
+      .filter(p => carrierMapping.some(c => (p.name || '').toUpperCase().startsWith(c.prefix)));
     if (selectedCategory) {
       // Map category selection to SUPER tagged version
-      const superCategory = selectedCategory === 'MTN' ? 'MTN - SUPER'
-        : selectedCategory === 'TELECEL' ? 'TELECEL - SUPER'
-        : selectedCategory === 'AIRTEL TIGO' ? 'AIRTEL TIGO - SUPER'
-        : selectedCategory;
-      filtered = filtered.filter(p => p.name?.startsWith(superCategory));
+      const match = carrierMapping.find(c => c.category.includes(selectedCategory));
+      if (match) {
+        filtered = filtered.filter(p => (p.name || '').toUpperCase().startsWith(match.prefix));
+      }
     }
     // Sort: in-stock first, then by name (MTN first) and description
     return filtered.sort((a, b) => {
       if ((a.stock > 0) !== (b.stock > 0)) return b.stock > 0 ? 1 : -1;
-      if (a.name !== b.name) return (nameOrder[a.name] ?? 99) - (nameOrder[b.name] ?? 99);
+      const catA = getCarrierCategory(a.name);
+      const catB = getCarrierCategory(b.name);
+      if (catA !== catB) return (nameOrder[catA] ?? 99) - (nameOrder[catB] ?? 99);
       return parseFloat(a.description?.match(/\d+/)?.[0] || 0) - parseFloat(b.description?.match(/\d+/)?.[0] || 0);
     });
   }, [products, selectedCategory]);

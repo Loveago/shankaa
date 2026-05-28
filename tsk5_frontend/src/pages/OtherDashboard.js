@@ -130,23 +130,37 @@ const OtherDashboard = () => {
 
   const handleCategorySelect = (category) => setSelectedCategory(category);
 
+  // Map a product name to its carrier category (case-insensitive)
+  const getCarrierCategory = (name) => {
+    const upper = (name || '').toUpperCase();
+    if (upper.startsWith('MTN')) return 'MTN - OTHER';
+    if (upper.startsWith('TELECEL')) return 'TELECEL - OTHER';
+    if (upper.startsWith('AIRTEL')) return 'AIRTEL TIGO - OTHER';
+    return 'OTHER';
+  };
+
   const filteredProducts = useMemo(() => {
-    const allowedPrefixes = ['MTN - OTHER', 'TELECEL - OTHER', 'AIRTEL TIGO - OTHER'];
+    const carrierMapping = [
+      { prefix: 'MTN', category: 'MTN - OTHER' },
+      { prefix: 'TELECEL', category: 'TELECEL - OTHER' },
+      { prefix: 'AIRTEL', category: 'AIRTEL TIGO - OTHER' }
+    ];
     const nameOrder = { 'MTN - OTHER': 0, 'TELECEL - OTHER': 1, 'AIRTEL TIGO - OTHER': 2 };
     let filtered = (Array.isArray(products) ? products : [])
-      .filter(p => allowedPrefixes.some(prefix => p.name?.startsWith(prefix)));
+      .filter(p => carrierMapping.some(c => (p.name || '').toUpperCase().startsWith(c.prefix)));
     if (selectedCategory) {
       // Map category selection to OTHER tagged version
-      const otherCategory = selectedCategory === 'MTN' ? 'MTN - OTHER'
-        : selectedCategory === 'TELECEL' ? 'TELECEL - OTHER'
-        : selectedCategory === 'AIRTEL TIGO' ? 'AIRTEL TIGO - OTHER'
-        : selectedCategory;
-      filtered = filtered.filter(p => p.name?.startsWith(otherCategory));
+      const match = carrierMapping.find(c => c.category.includes(selectedCategory));
+      if (match) {
+        filtered = filtered.filter(p => (p.name || '').toUpperCase().startsWith(match.prefix));
+      }
     }
     // Sort: in-stock first, then by name (MTN first) and description
     return filtered.sort((a, b) => {
       if ((a.stock > 0) !== (b.stock > 0)) return b.stock > 0 ? 1 : -1;
-      if (a.name !== b.name) return (nameOrder[a.name] ?? 99) - (nameOrder[b.name] ?? 99);
+      const catA = getCarrierCategory(a.name);
+      const catB = getCarrierCategory(b.name);
+      if (catA !== catB) return (nameOrder[catA] ?? 99) - (nameOrder[catB] ?? 99);
       const aNum = parseFloat(a.description?.match(/\d+/)?.[0] || 0);
       const bNum = parseFloat(b.description?.match(/\d+/)?.[0] || 0);
       return aNum - bNum;
