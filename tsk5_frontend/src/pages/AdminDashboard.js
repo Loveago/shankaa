@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import Swal from 'sweetalert2';
-import { Menu, X, Users, Package, ShoppingCart, Bell, RefreshCw, Loader2, Search, Plus, Edit, Trash2, CheckCircle, XCircle, BarChart3, Wallet, User, LogOut, RotateCcw, Eye, EyeOff, Save, Banknote, DollarSign, Table2, Key, AlertTriangle, Wifi, FileText } from 'lucide-react';
+import { Menu, X, Users, Package, ShoppingCart, Bell, RefreshCw, Loader2, Search, Plus, Edit, Trash2, CheckCircle, XCircle, BarChart3, Wallet, User, LogOut, RotateCcw, Eye, EyeOff, Save, Banknote, DollarSign, Table2, Key, AlertTriangle, Wifi, FileText, Landmark } from 'lucide-react';
 import BASE_URL from '../endpoints/endpoints';
 import { io as socketIO } from 'socket.io-client';
 import ProductDialog from '../components/ProductDialog';
