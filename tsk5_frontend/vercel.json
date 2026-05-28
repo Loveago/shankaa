@@ -5,6 +5,14 @@
       "destination": "https://shankaa.onrender.com/api/:match*"
     },
     {
+      "source": "/products/:match*",
+      "destination": "https://shankaa.onrender.com/products/:match*"
+    },
+    {
+      "source": "/order/:match*",
+      "destination": "https://shankaa.onrender.com/order/:match*"
+    },
+    {
       "source": "/socket.io/:match*",
       "destination": "https://shankaa.onrender.com/socket.io/:match*"
     },

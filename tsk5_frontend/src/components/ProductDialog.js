@@ -226,9 +226,10 @@ const ProductDialog = ({ isOpen, onClose }) => {
     setIsLoading(true);
     try {
       const response = await axios.get(`${BASE_URL}/products`, { headers: getAuthHeaders() });
-      setProducts(response.data);
+      setProducts(Array.isArray(response.data) ? response.data : []);
     } catch (error) {
       console.error('Error fetching products:', error);
+      setProducts([]);
     } finally {
       setIsLoading(false);
     }
