@@ -8,8 +8,19 @@ const makeInclude = () => ({
 });
 
 const addProduct = async (name, description, price, stock, promoPrice = null) => {
+  const existingProducts = await prisma.product.findMany({
+    select: { id: true },
+    orderBy: { id: 'asc' },
+  });
+
+  let nextProductId = 1;
+  for (const product of existingProducts) {
+    if (product.id !== nextProductId) break;
+    nextProductId += 1;
+  }
+
   return await prisma.product.create({
-    data: { name, description, price, stock, promoPrice },
+    data: { id: nextProductId, name, description, price, stock, promoPrice },
     include: makeInclude(),
   });
 };

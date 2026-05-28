@@ -20,7 +20,7 @@ exports.pasteAndProcessOrders = async (req, res) => {
     if (!agent) {
       return res.status(400).json({ success: false, message: 'Agent not found.' });
     }
-    const userRole = agent.role;
+    const userRole = (agent.role || '').toUpperCase();
 
     let errorReport = [];
     let productsToAdd = [];
@@ -63,11 +63,16 @@ exports.pasteAndProcessOrders = async (req, res) => {
         continue;
       }
 
-      const productDescription = `${bundleAmount}GB`;
+      const parsedBundle = parseFloat(bundleAmount);
+      const normalizedBundle = Number.isInteger(parsedBundle) ? String(parsedBundle) : String(parsedBundle);
+      const productDescription = `${normalizedBundle}GB`;
+      const productName = userRole === 'USER'
+        ? network.toUpperCase()
+        : `${network.toUpperCase()} - ${userRole}`;
 
       const product = await prisma.product.findFirst({
         where: {
-          name: { contains: network.toUpperCase() },
+          name: productName,
           description: productDescription,
         },
       });

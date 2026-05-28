@@ -237,14 +237,20 @@ const createApiOrder = async (userId, items, apiKeyId) => {
   // Validate items
   for (let i = 0; i < items.length; i++) {
     const item = items[i];
-    if (!item.productId) throw new Error(`Item ${i}: productId is required`);
+    const hasProductId = item.productId !== undefined && item.productId !== null && String(item.productId).trim() !== '';
+    const hasNetworkAndBundle = item.network && (item.bundleAmount !== undefined || item.productDescription);
+    if (!hasProductId && !hasNetworkAndBundle) {
+      throw new Error(`Item ${i}: provide productId, or provide network with bundleAmount/productDescription`);
+    }
     if (!item.mobileNumber) throw new Error(`Item ${i}: mobileNumber is required`);
     if (!item.quantity || parseInt(item.quantity) < 1) throw new Error(`Item ${i}: invalid quantity`);
   }
 
   return await prisma.$transaction(async (tx) => {
     // Fetch all products with role prices
-    const productIds = items.map(i => parseInt(i.productId));
+    const productIds = items
+      .map(i => parseInt(i.productId))
+      .filter(id => Number.isInteger(id) && id > 0);
     const products = await tx.product.findMany({
       where: { id: { in: productIds } },
       include: { rolePrices: { select: { role: true, price: true } } },
@@ -266,12 +272,88 @@ const createApiOrder = async (userId, items, apiKeyId) => {
     const orderItems = [];
 
     for (const item of items) {
-      const product = productMap[parseInt(item.productId)];
-      if (!product) throw new Error(`Product ID ${item.productId} not found`);
-      if (product.stock < 1) throw new Error(`Product "${product.name}" is out of stock`);
+      const quantity = parseInt(item.quantity) || 1;
+      let product = null;
+
+      if (item.productId !== undefined && item.productId !== null && String(item.productId).trim() !== '') {
+        const parsedProductId = parseInt(item.productId);
+        product = productMap[parsedProductId];
+        if (!product) throw new Error(`Product ID ${item.productId} not found`);
+      } else {
+        const networkUpper = String(item.network || '').trim().toUpperCase();
+        const bundleValue = item.bundleAmount !== undefined && item.bundleAmount !== null
+          ? String(item.bundleAmount).trim()
+          : null;
+        const normalizedBundle = bundleValue && !Number.isNaN(parseFloat(bundleValue))
+          ? String(parseFloat(bundleValue))
+          : null;
+        const requestedDescription = item.productDescription
+          ? String(item.productDescription).trim().toUpperCase()
+          : (normalizedBundle ? `${normalizedBundle.toUpperCase()}GB` : null);
+
+        if (!networkUpper || !requestedDescription) {
+          throw new Error('When productId is omitted, network and bundleAmount/productDescription are required');
+        }
+
+        const roleUpper = String(userRole || '').toUpperCase();
+        const productName = roleUpper === 'USER'
+          ? networkUpper
+          : `${networkUpper} - ${roleUpper}`;
+
+        product = await tx.product.findFirst({
+          where: {
+            name: productName,
+            description: requestedDescription,
+            showForAgents: true,
+          },
+          include: { rolePrices: { select: { role: true, price: true } } },
+        });
+
+        if (!product) {
+          throw new Error(`No product found for ${productName} ${requestedDescription}`);
+        }
+      }
+
+      if (item.network) {
+        const expectedNetwork = String(item.network).trim().toUpperCase();
+        if (!String(product.name || '').toUpperCase().startsWith(expectedNetwork)) {
+          throw new Error(
+            `Item network mismatch: requested ${expectedNetwork}, but product ${product.id} is ${product.name}`
+          );
+        }
+      }
+
+      if (item.productName) {
+        const expectedName = String(item.productName).trim().toUpperCase();
+        if (String(product.name || '').toUpperCase() !== expectedName) {
+          throw new Error(
+            `Item productName mismatch: requested "${item.productName}", but product ${product.id} is "${product.name}"`
+          );
+        }
+      }
+
+      if (item.productDescription) {
+        const expectedDescription = String(item.productDescription).trim().toUpperCase();
+        if (String(product.description || '').toUpperCase() !== expectedDescription) {
+          throw new Error(
+            `Item description mismatch: requested "${item.productDescription}", but product ${product.id} is "${product.description || ''}"`
+          );
+        }
+      }
+
+      if (item.bundleAmount !== undefined && item.bundleAmount !== null && String(item.bundleAmount).trim() !== '') {
+        const requestedBundle = parseFloat(String(item.bundleAmount).trim());
+        const productBundle = parseFloat(String(product.description || '').replace(/[^0-9.]/g, ''));
+        if (!Number.isNaN(requestedBundle) && !Number.isNaN(productBundle) && requestedBundle !== productBundle) {
+          throw new Error(
+            `Item bundle mismatch: requested ${requestedBundle}GB, but product ${product.id} is ${productBundle}GB`
+          );
+        }
+      }
+
+      if (product.stock < quantity) throw new Error(`Product "${product.name}" is out of stock`);
 
       const effectivePrice = resolvePrice(product, userRole);
-      const quantity = parseInt(item.quantity) || 1;
       totalPrice += effectivePrice * quantity;
 
       orderItems.push({

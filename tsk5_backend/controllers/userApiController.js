@@ -72,7 +72,7 @@ exports.deleteApiKey = async (req, res) => {
 
 exports.getProducts = async (req, res) => {
   try {
-    const products = await userApiService.getAvailableProducts();
+    const products = await userApiService.getAvailableProducts(req.user.role);
     res.json({ success: true, data: products });
   } catch (error) {
     console.error('User API getProducts error:', error);

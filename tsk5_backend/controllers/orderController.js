@@ -16,6 +16,27 @@ const {
 const orderService = require('../services/orderService');
 const path = require('path');
 
+const formatOrderExportWorksheet = (ws) => {
+  ws['!cols'] = [{ wch: 18 }, { wch: 14 }];
+
+  if (!ws['!ref']) return;
+  const range = xlsx.utils.decode_range(ws['!ref']);
+  for (let row = range.s.r + 1; row <= range.e.r; row++) {
+    const phoneCellRef = xlsx.utils.encode_cell({ r: row, c: 0 });
+    const cell = ws[phoneCellRef];
+    if (!cell) continue;
+    cell.t = 's';
+    cell.z = '@';
+    if (cell.v != null) cell.v = String(cell.v);
+    cell.s = {
+      alignment: {
+        horizontal: 'left',
+        vertical: 'center',
+      },
+    };
+  }
+};
+
 exports.submitCart = async (req, res) => {
   try {
     const { userId, mobileNumber } = req.body;
@@ -363,7 +384,7 @@ exports.uploadExcelOrders = async (req, res) => {
     // All validations passed, add to cart
     let added = 0;
     for (const item of productsToAdd) {
-      await cartService.addItemToCart(agent.id, item.product.id, item.quantity, item.phoneNumber);
+      await cartService.addItemToCart(agent.id, item.product.id, item.quantity, item.phoneNumber, agent.role);
       added++;
     }
     fs.unlinkSync(filePath);
@@ -509,7 +530,7 @@ exports.uploadSimplifiedExcelOrders = async (req, res) => {
 
     let added = 0;
     for (const item of productsToAdd) {
-      await cartService.addItemToCart(agent.id, item.product.id, item.quantity || 1, item.phoneNumber);
+      await cartService.addItemToCart(agent.id, item.product.id, item.quantity || 1, item.phoneNumber, agent.role);
       added++;
     }
 
@@ -756,6 +777,7 @@ exports.exportPendingOrders = async (req, res) => {
 
     const wb = xlsx.utils.book_new();
     const ws = xlsx.utils.json_to_sheet(worksheetData);
+    formatOrderExportWorksheet(ws);
     xlsx.utils.book_append_sheet(wb, ws, 'Orders');
     const buffer = xlsx.write(wb, { type: 'buffer', bookType: 'xlsx' });
 
@@ -824,6 +846,7 @@ exports.downloadBatch = async (req, res) => {
 
     const wb = xlsx.utils.book_new();
     const ws = xlsx.utils.json_to_sheet(worksheetData);
+    formatOrderExportWorksheet(ws);
     xlsx.utils.book_append_sheet(wb, ws, 'Orders');
     const buffer = xlsx.write(wb, { type: 'buffer', bookType: 'xlsx' });
 
