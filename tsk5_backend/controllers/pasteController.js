@@ -64,22 +64,16 @@ exports.pasteAndProcessOrders = async (req, res) => {
       }
 
       const productDescription = `${bundleAmount}GB`;
-      let productName;
-      if (userRole.toUpperCase() === 'USER') {
-        productName = network.toUpperCase();
-      } else {
-        productName = `${network.toUpperCase()} - ${userRole.toUpperCase()}`;
-      }
 
       const product = await prisma.product.findFirst({
         where: {
-          name: productName,
+          name: { contains: network.toUpperCase() },
           description: productDescription,
         },
       });
 
       if (!product) {
-        rowErrors.push(`Product not found for your user type (${userRole}) with bundle ${productDescription} and network ${network}.`);
+        rowErrors.push(`Product not found for network ${network} with bundle ${productDescription}.`);
       } else if (product.stock <= 0) {
         rowErrors.push(`Product with bundle ${productDescription} and network ${network} is out of stock.`);
       } else {
