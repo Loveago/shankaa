@@ -13,10 +13,31 @@
  * @param {string} role - User role (USER, PREMIUM, NORMAL, SUPER, OTHER)
  * @returns {number}
  */
+const SUPPORTED_ROLES = new Set(['USER', 'PREMIUM', 'NORMAL', 'SUPER', 'OTHER']);
+
+const normalizeRole = (value) => {
+  if (typeof value !== 'string') return null;
+
+  const raw = value.trim().toUpperCase();
+  if (!raw) return null;
+  if (SUPPORTED_ROLES.has(raw)) return raw;
+
+  const separators = /[_\-\s/]+/;
+  const tokens = raw.split(separators).filter(Boolean);
+
+  for (let i = tokens.length - 1; i >= 0; i -= 1) {
+    if (SUPPORTED_ROLES.has(tokens[i])) {
+      return tokens[i];
+    }
+  }
+
+  return null;
+};
+
 const resolvePrice = (product, role) => {
   if (!product) return 0;
 
-  const normalizedRole = typeof role === 'string' ? role.trim().toUpperCase() : null;
+  const normalizedRole = normalizeRole(role);
 
   // USER pricing is always the base price.
   if (normalizedRole === 'USER') {
@@ -26,7 +47,7 @@ const resolvePrice = (product, role) => {
   // 1. Role-specific price
   if (normalizedRole && product.rolePrices && Array.isArray(product.rolePrices)) {
     const match = product.rolePrices.find((rp) => {
-      const rpRole = typeof rp.role === 'string' ? rp.role.trim().toUpperCase() : '';
+      const rpRole = normalizeRole(rp.role);
       return rpRole === normalizedRole;
     });
     if (match && typeof match.price === 'number' && match.price >= 0) {
@@ -82,6 +103,7 @@ const productWithPricesSelect = (extraFields = {}) => ({
 });
 
 module.exports = {
+  normalizeRole,
   resolvePrice,
   attachResolvedPrice,
   rolePriceInclude,

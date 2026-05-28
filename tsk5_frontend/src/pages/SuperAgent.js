@@ -16,6 +16,23 @@ import Storefront from '../components/Storefront';
 import FloatingChatButton from '../components/FloatingChatButton';
 import UserApiKeys from '../components/UserApiKeys';
 
+const SUPPORTED_ROLES = new Set(['USER', 'PREMIUM', 'NORMAL', 'SUPER', 'OTHER']);
+
+const normalizeRole = (value) => {
+  if (typeof value !== 'string') return null;
+
+  const raw = value.trim().toUpperCase();
+  if (!raw) return null;
+  if (SUPPORTED_ROLES.has(raw)) return raw;
+
+  const tokens = raw.split(/[_\-\s/]+/).filter(Boolean);
+  for (let i = tokens.length - 1; i >= 0; i -= 1) {
+    if (SUPPORTED_ROLES.has(tokens[i])) return tokens[i];
+  }
+
+  return null;
+};
+
 const SuperAgent = () => {
   const navigate = useNavigate();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -40,7 +57,28 @@ const SuperAgent = () => {
   const [isSuspended, setIsSuspended] = useState(localStorage.getItem('isSuspended') === 'true');
 
   const userName = localStorage.getItem('name') || 'Super Agent';
+  const userRole = normalizeRole(localStorage.getItem('role')) || 'USER';
   const getAuthHeaders = () => ({ Authorization: `Bearer ${localStorage.getItem('token')}` });
+
+  const resolveRolePrice = useCallback((product) => {
+    if (!product) return 0;
+
+    if (userRole === 'USER') {
+      return product.price || 0;
+    }
+
+    const roleMatch = product.rolePrices?.find((rp) => normalizeRole(rp?.role) === userRole);
+
+    if (roleMatch && roleMatch.price != null && roleMatch.price >= 0) {
+      return roleMatch.price;
+    }
+
+    if (product.usePromoPrice && product.promoPrice != null) {
+      return product.promoPrice;
+    }
+
+    return product.price || 0;
+  }, [userRole]);
 
   const fetchLoanBalance = useCallback(async () => {
     const userId = localStorage.getItem('userId');
@@ -97,7 +135,7 @@ const SuperAgent = () => {
   }, [fetchProducts, fetchLoanBalance, fetchCart, fetchOrderHistory]);
 
   useEffect(() => {
-    const role = localStorage.getItem('role');
+    const role = normalizeRole(localStorage.getItem('role'));
     if (role !== 'SUPER') navigate('/login');
     fetchData();
     const userId = localStorage.getItem('userId');
@@ -217,13 +255,11 @@ const SuperAgent = () => {
     }
 
     const currentBalance = Math.abs(parseFloat(loanBalance?.loanBalance || 0));
-    const getEffectivePrice = (p) => {
-      const match = p.rolePrices?.find(rp => rp.role === 'SUPER');
-      if (match && match.price != null && match.price >= 0) return match.price;
-      return (p.usePromoPrice && p.promoPrice != null) ? p.promoPrice : p.price;
-    };
-    const currentCartTotal = cart.reduce((total, item) => total + (getEffectivePrice(item.product || {}) || 0) * (item.quantity || 1), 0);
-    if (currentCartTotal + getEffectivePrice(product) > currentBalance) {
+    const currentCartTotal = cart.reduce((total, item) => {
+      if (typeof item.price === 'number') return total + item.price;
+      return total + (resolveRolePrice(item.product || {}) || 0) * (item.quantity || 1);
+    }, 0);
+    if (currentCartTotal + resolveRolePrice(product) > currentBalance) {
       Swal.fire({ icon: 'warning', title: 'Insufficient Balance', background: '#1e293b', color: '#f1f5f9' });
       addingToCartRef.current = false;
       return;
@@ -265,10 +301,8 @@ const SuperAgent = () => {
   };
 
   const cartTotal = cart.reduce((sum, item) => {
-    const p = item.product || {};
-    const match = p.rolePrices?.find(rp => rp.role === 'SUPER');
-    const effectivePrice = (match && match.price != null && match.price >= 0) ? match.price : ((p.usePromoPrice && p.promoPrice != null) ? p.promoPrice : (p.price || 0));
-    return sum + effectivePrice * (item.quantity || 1);
+    if (typeof item.price === 'number') return sum + item.price;
+    return sum + resolveRolePrice(item.product || {}) * (item.quantity || 1);
   }, 0);
 
   const submitCart = async () => {
@@ -422,7 +456,7 @@ const SuperAgent = () => {
                         {product.stock === 0 && <span className="text-xs text-red-300 font-semibold">Out of Stock</span>}
                       </div>
                       <h3 className="text-lg sm:text-xl font-bold text-white mb-2">{product.description}</h3>
-                      <div className="flex items-baseline gap-1 mb-3 sm:mb-4"><span className="text-xs sm:text-sm text-white/70">GHS</span><span className="text-xl sm:text-2xl font-bold text-white">{(() => { const m = product.rolePrices?.find(rp => rp.role === 'SUPER'); return (m && m.price != null && m.price >= 0) ? m.price : ((product.usePromoPrice && product.promoPrice != null) ? product.promoPrice : product.price); })()}</span></div>
+                      <div className="flex items-baseline gap-1 mb-3 sm:mb-4"><span className="text-xs sm:text-sm text-white/70">GHS</span><span className="text-xl sm:text-2xl font-bold text-white">{resolveRolePrice(product)}</span></div>
                       <div className="space-y-2">
                         <input type="tel" inputMode="numeric" placeholder="Enter mobile number" value={mobileNumbers[product.id] || ''} onChange={(e) => handleMobileNumberChange(product.id, e.target.value)}
                           className={`w-full px-3 sm:px-4 py-2.5 sm:py-3 bg-white/90 backdrop-blur-sm border-2 ${errors[product.id] ? 'border-red-400' : 'border-transparent'} rounded-xl text-slate-800 placeholder-slate-400 focus:outline-none text-base`} maxLength={10} />
@@ -464,7 +498,13 @@ const SuperAgent = () => {
                       <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center flex-shrink-0 ${item.product?.name?.includes('MTN') ? 'bg-yellow-500/20' : item.product?.name?.includes('TELECEL') ? 'bg-red-500/20' : 'bg-emerald-500/20'}`}>
                         <span className="text-base sm:text-lg font-bold text-white">{item.product?.name?.includes('MTN') ? 'M' : item.product?.name?.includes('TELECEL') ? 'T' : 'A'}</span>
                       </div>
-                      <div className="flex-1 min-w-0"><h3 className="font-semibold text-white text-sm sm:text-base truncate">{item.product?.name} - {item.product?.description}</h3><p className="text-dark-400 text-xs sm:text-sm">{item.mobileNumber}</p><p className="text-dark-300 text-xs sm:text-sm font-medium">GHS {(item.product?.usePromoPrice && item.product?.promoPrice != null) ? item.product.promoPrice : item.product?.price}</p></div>
+                      <div className="flex-1 min-w-0"><h3 className="font-semibold text-white text-sm sm:text-base truncate">{item.product?.name} - {item.product?.description}</h3><p className="text-dark-400 text-xs sm:text-sm">{item.mobileNumber}</p><p className="text-dark-300 text-xs sm:text-sm font-medium">GHS {(() => {
+                        if (typeof item.price === 'number') {
+                          const qty = item.quantity || 1;
+                          return (item.price / qty).toFixed(2);
+                        }
+                        return resolveRolePrice(item.product || {}).toFixed(2);
+                      })()}</p></div>
                       <button onClick={() => removeFromCart(item.id)} className="p-2 text-red-400 hover:bg-red-500/20 rounded-lg active:scale-95 transition-transform flex-shrink-0"><Trash2 className="w-4 h-4 sm:w-5 sm:h-5" /></button>
                     </div>
                   ))}

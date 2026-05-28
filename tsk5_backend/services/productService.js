@@ -1,5 +1,5 @@
 const prisma = require("../config/db");
-const { productWithPricesSelect } = require("../utils/priceRouter");
+const { normalizeRole, productWithPricesSelect } = require("../utils/priceRouter");
 
 const makeInclude = () => ({
   rolePrices: {
@@ -116,9 +116,12 @@ const deleteProduct = async (id) => {
  * Creates if missing, updates if exists.
  */
 const upsertRolePrice = async (productId, role, price) => {
+  const normalizedRole = normalizeRole(role);
+  if (!normalizedRole) throw new Error("Invalid role for role price");
+
   return await prisma.rolePrice.upsert({
-    where: { productId_role: { productId, role } },
-    create: { productId, role, price },
+    where: { productId_role: { productId, role: normalizedRole } },
+    create: { productId, role: normalizedRole, price },
     update: { price },
   });
 };
@@ -127,8 +130,11 @@ const upsertRolePrice = async (productId, role, price) => {
  * Delete a single role-price row by productId + role.
  */
 const deleteRolePrice = async (productId, role) => {
+  const normalizedRole = normalizeRole(role);
+  if (!normalizedRole) throw new Error("Invalid role for role price");
+
   return await prisma.rolePrice.deleteMany({
-    where: { productId, role },
+    where: { productId, role: normalizedRole },
   });
 };
 
@@ -138,11 +144,22 @@ const deleteRolePrice = async (productId, role) => {
  */
 const setRolePrices = async (productId, rolePrices) => {
   if (!Array.isArray(rolePrices)) throw new Error("rolePrices must be an array");
+
+  const normalizedRolePrices = rolePrices.map((rp) => {
+    const normalizedRole = normalizeRole(rp.role);
+    if (!normalizedRole) throw new Error(`Invalid role for role price: ${rp.role}`);
+
+    return {
+      role: normalizedRole,
+      price: rp.price,
+    };
+  });
+
   return await prisma.$transaction(async (tx) => {
     await tx.rolePrice.deleteMany({ where: { productId } });
-    if (rolePrices.length > 0) {
+    if (normalizedRolePrices.length > 0) {
       await tx.rolePrice.createMany({
-        data: rolePrices.map((rp) => ({
+        data: normalizedRolePrices.map((rp) => ({
           productId,
           role: rp.role,
           price: rp.price,

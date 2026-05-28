@@ -42,7 +42,11 @@ const getUserCart = async (userId) => {
     include: {
       items: {
         include: {
-          product: true,
+          product: {
+            include: {
+              rolePrices: { select: { role: true, price: true } },
+            },
+          },
         },
       },
     },

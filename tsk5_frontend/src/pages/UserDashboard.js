@@ -16,6 +16,23 @@ import Storefront from '../components/Storefront';
 import UserApiKeys from '../components/UserApiKeys';
 import FloatingChatButton from '../components/FloatingChatButton';
 
+const SUPPORTED_ROLES = new Set(['USER', 'PREMIUM', 'NORMAL', 'SUPER', 'OTHER']);
+
+const normalizeRole = (value) => {
+  if (typeof value !== 'string') return null;
+
+  const raw = value.trim().toUpperCase();
+  if (!raw) return null;
+  if (SUPPORTED_ROLES.has(raw)) return raw;
+
+  const tokens = raw.split(/[_\-\s/]+/).filter(Boolean);
+  for (let i = tokens.length - 1; i >= 0; i -= 1) {
+    if (SUPPORTED_ROLES.has(tokens[i])) return tokens[i];
+  }
+
+  return null;
+};
+
 const UserDashboard = () => {
   const navigate = useNavigate();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -40,7 +57,7 @@ const UserDashboard = () => {
   const [isSuspended, setIsSuspended] = useState(localStorage.getItem('isSuspended') === 'true');
 
   const userName = localStorage.getItem('name') || 'User';
-  const userRole = (localStorage.getItem('role') || '').trim().toUpperCase();
+  const userRole = normalizeRole(localStorage.getItem('role')) || 'USER';
   const getAuthHeaders = () => ({ Authorization: `Bearer ${localStorage.getItem('token')}` });
 
   const resolveRolePrice = useCallback((product) => {
@@ -50,9 +67,7 @@ const UserDashboard = () => {
       return product.price || 0;
     }
 
-    const roleMatch = product.rolePrices?.find((rp) =>
-      String(rp?.role || '').trim().toUpperCase() === userRole
-    );
+    const roleMatch = product.rolePrices?.find((rp) => normalizeRole(rp?.role) === userRole);
 
     if (roleMatch && roleMatch.price != null && roleMatch.price >= 0) {
       return roleMatch.price;
@@ -121,7 +136,7 @@ const UserDashboard = () => {
   }, [fetchProducts, fetchLoanBalance, fetchCart, fetchOrderHistory]);
 
   useEffect(() => {
-    const role = localStorage.getItem('role');
+    const role = normalizeRole(localStorage.getItem('role'));
     if (role !== 'USER') navigate('/login');
     fetchData();
     // Check suspension status from server
