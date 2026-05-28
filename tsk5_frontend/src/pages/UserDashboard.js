@@ -40,7 +40,30 @@ const UserDashboard = () => {
   const [isSuspended, setIsSuspended] = useState(localStorage.getItem('isSuspended') === 'true');
 
   const userName = localStorage.getItem('name') || 'User';
+  const userRole = (localStorage.getItem('role') || '').trim().toUpperCase();
   const getAuthHeaders = () => ({ Authorization: `Bearer ${localStorage.getItem('token')}` });
+
+  const resolveRolePrice = useCallback((product) => {
+    if (!product) return 0;
+
+    if (userRole === 'USER') {
+      return product.price || 0;
+    }
+
+    const roleMatch = product.rolePrices?.find((rp) =>
+      String(rp?.role || '').trim().toUpperCase() === userRole
+    );
+
+    if (roleMatch && roleMatch.price != null && roleMatch.price >= 0) {
+      return roleMatch.price;
+    }
+
+    if (product.usePromoPrice && product.promoPrice != null) {
+      return product.promoPrice;
+    }
+
+    return product.price || 0;
+  }, [userRole]);
 
   const fetchLoanBalance = useCallback(async () => {
     const userId = localStorage.getItem('userId');
@@ -228,13 +251,11 @@ const UserDashboard = () => {
     }
 
     const currentBalance = Math.abs(parseFloat(loanBalance?.loanBalance || 0));
-    const getEffectivePrice = (p) => {
-      const match = p.rolePrices?.find(rp => rp.role === 'USER');
-      if (match && match.price != null && match.price >= 0) return match.price;
-      return (p.usePromoPrice && p.promoPrice != null) ? p.promoPrice : p.price;
-    };
-    const currentCartTotal = cart.reduce((total, item) => total + (getEffectivePrice(item.product || {}) || 0) * (item.quantity || 1), 0);
-    const newTotal = currentCartTotal + getEffectivePrice(product);
+    const currentCartTotal = cart.reduce((total, item) => {
+      if (typeof item.price === 'number') return total + item.price;
+      return total + (resolveRolePrice(item.product || {}) || 0) * (item.quantity || 1);
+    }, 0);
+    const newTotal = currentCartTotal + resolveRolePrice(product);
 
     if (newTotal > currentBalance) {
       Swal.fire({
@@ -328,10 +349,8 @@ const UserDashboard = () => {
   };
 
   const cartTotal = cart.reduce((sum, item) => {
-    const p = item.product || {};
-    const match = p.rolePrices?.find(rp => rp.role === 'USER');
-    const effectivePrice = (match && match.price != null && match.price >= 0) ? match.price : ((p.usePromoPrice && p.promoPrice != null) ? p.promoPrice : (p.price || 0));
-    return sum + effectivePrice * (item.quantity || 1);
+    if (typeof item.price === 'number') return sum + item.price;
+    return sum + resolveRolePrice(item.product || {}) * (item.quantity || 1);
   }, 0);
 
   const submitCart = async () => {
@@ -603,7 +622,7 @@ const UserDashboard = () => {
                       <h3 className="text-lg sm:text-xl font-bold text-white mb-2">{product.description}</h3>
                       <div className="flex items-baseline gap-1 mb-3 sm:mb-4">
                         <span className="text-xs sm:text-sm text-white/70">GHS</span>
-                        <span className="text-xl sm:text-2xl font-bold text-white">{(() => { const m = product.rolePrices?.find(rp => rp.role === 'USER'); return (m && m.price != null && m.price >= 0) ? m.price : ((product.usePromoPrice && product.promoPrice != null) ? product.promoPrice : product.price); })()}</span>
+                        <span className="text-xl sm:text-2xl font-bold text-white">{resolveRolePrice(product)}</span>
                       </div>
 
                       <div className="space-y-2">
@@ -695,7 +714,13 @@ const UserDashboard = () => {
                       <div className="flex-1 min-w-0">
                         <h3 className="font-semibold text-white text-sm sm:text-base truncate">{item.product?.name} - {item.product?.description}</h3>
                         <p className="text-dark-400 text-xs sm:text-sm">{item.mobileNumber}</p>
-                        <p className="text-dark-300 text-xs sm:text-sm font-medium">GHS {(item.product?.usePromoPrice && item.product?.promoPrice != null) ? item.product.promoPrice : item.product?.price}</p>
+                        <p className="text-dark-300 text-xs sm:text-sm font-medium">GHS {(() => {
+                          if (typeof item.price === 'number') {
+                            const qty = item.quantity || 1;
+                            return (item.price / qty).toFixed(2);
+                          }
+                          return resolveRolePrice(item.product || {}).toFixed(2);
+                        })()}</p>
                       </div>
                       <button onClick={() => removeFromCart(item.id)} className="p-2 text-red-400 hover:bg-red-500/20 rounded-lg active:scale-95 transition-transform flex-shrink-0">
                         <Trash2 className="w-4 h-4 sm:w-5 sm:h-5" />
