@@ -1,9 +1,13 @@
 const prisma = require('../config/db');
 const { createTransaction } = require('./transactionService');
+const { resolvePrice } = require('../utils/priceRouter');
 
 
-const addItemToCart = async (userId, productId, quantity, mobileNumber = null) => {
-  const product = await prisma.product.findUnique({ where: { id: productId } });
+const addItemToCart = async (userId, productId, quantity, mobileNumber = null, role = null) => {
+  const product = await prisma.product.findUnique({
+    where: { id: productId },
+    include: { rolePrices: { select: { role: true, price: true } } },
+  });
   if (!product) throw new Error("Product not found");
   if (product.stock <= 0) throw new Error("Product is out of stock");
   
@@ -14,8 +18,8 @@ const addItemToCart = async (userId, productId, quantity, mobileNumber = null) =
     });
   }
    
-  // Calculate total price for this cart item using effective price (promo if active)
-  const effectivePrice = (product.usePromoPrice && product.promoPrice != null) ? product.promoPrice : product.price;
+  // Calculate total price using role-aware price resolution
+  const effectivePrice = resolvePrice(product, role);
   const totalPrice = effectivePrice * quantity;
   
   // Create cart item

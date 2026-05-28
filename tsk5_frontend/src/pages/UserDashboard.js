@@ -228,7 +228,11 @@ const UserDashboard = () => {
     }
 
     const currentBalance = Math.abs(parseFloat(loanBalance?.loanBalance || 0));
-    const getEffectivePrice = (p) => (p.usePromoPrice && p.promoPrice != null) ? p.promoPrice : p.price;
+    const getEffectivePrice = (p) => {
+      const match = p.rolePrices?.find(rp => rp.role === 'USER');
+      if (match && match.price != null && match.price >= 0) return match.price;
+      return (p.usePromoPrice && p.promoPrice != null) ? p.promoPrice : p.price;
+    };
     const currentCartTotal = cart.reduce((total, item) => total + (getEffectivePrice(item.product || {}) || 0) * (item.quantity || 1), 0);
     const newTotal = currentCartTotal + getEffectivePrice(product);
 
@@ -325,7 +329,8 @@ const UserDashboard = () => {
 
   const cartTotal = cart.reduce((sum, item) => {
     const p = item.product || {};
-    const effectivePrice = (p.usePromoPrice && p.promoPrice != null) ? p.promoPrice : (p.price || 0);
+    const match = p.rolePrices?.find(rp => rp.role === 'USER');
+    const effectivePrice = (match && match.price != null && match.price >= 0) ? match.price : ((p.usePromoPrice && p.promoPrice != null) ? p.promoPrice : (p.price || 0));
     return sum + effectivePrice * (item.quantity || 1);
   }, 0);
 
@@ -598,7 +603,7 @@ const UserDashboard = () => {
                       <h3 className="text-lg sm:text-xl font-bold text-white mb-2">{product.description}</h3>
                       <div className="flex items-baseline gap-1 mb-3 sm:mb-4">
                         <span className="text-xs sm:text-sm text-white/70">GHS</span>
-                        <span className="text-xl sm:text-2xl font-bold text-white">{(product.usePromoPrice && product.promoPrice != null) ? product.promoPrice : product.price}</span>
+                        <span className="text-xl sm:text-2xl font-bold text-white">{(() => { const m = product.rolePrices?.find(rp => rp.role === 'USER'); return (m && m.price != null && m.price >= 0) ? m.price : ((product.usePromoPrice && product.promoPrice != null) ? product.promoPrice : product.price); })()}</span>
                       </div>
 
                       <div className="space-y-2">

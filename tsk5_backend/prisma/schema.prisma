@@ -76,6 +76,7 @@ model Product {
   OrderItem       OrderItem[] @relation("ProductToOrderItem")
   storefrontProducts StorefrontProduct[]
   referralOrders     ReferralOrder[]
+  rolePrices      RolePrice[]
 
   @@index([name], map: "Product_name_idx")
   @@index([name, description], map: "Product_name_description_idx")
@@ -374,6 +375,21 @@ model ChatMessage {
   @@index([senderId], map: "ChatMessage_senderId_idx")
   @@index([replyToId], map: "ChatMessage_replyToId_idx")
   @@map("ChatMessage")
+}
+
+// Per-role pricing — each account type (USER, PREMIUM, NORMAL, SUPER, OTHER) can have its own price.
+// Resolution priority: role price → promo price → base price.
+model RolePrice {
+  id        Int     @id @default(autoincrement())
+  productId Int
+  role      String  @db.VarChar(20)
+  price     Float
+
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, role])
+  @@index([productId])
+  @@map("RolePrice")
 }
 
 // Shop Chat Conversations between admin and shop customers (identified by phone)

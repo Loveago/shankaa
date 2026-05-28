@@ -16,6 +16,10 @@ const ProductForm = memo(({ editingProduct, onSave, onCancel, isSaving }) => {
   const [stock, setStock] = useState('');
   const [promoPrice, setPromoPrice] = useState('');
 
+  // Per-account-type pricing (USER, PREMIUM, NORMAL, SUPER, OTHER)
+  const initialRolePrices = { USER: '', PREMIUM: '', NORMAL: '', SUPER: '', OTHER: '' };
+  const [rolePrices, setRolePrices] = useState(initialRolePrices);
+
   // When parent selects a product for editing, hydrate local form state once.
   useEffect(() => {
     if (editingProduct) {
@@ -24,12 +28,21 @@ const ProductForm = memo(({ editingProduct, onSave, onCancel, isSaving }) => {
       setPrice(editingProduct.price ?? '');
       setStock(editingProduct.stock ?? '');
       setPromoPrice(editingProduct.promoPrice ?? '');
+      // Hydrate rolePrices from the product's rolePrices array
+      const rp = { ...initialRolePrices };
+      if (Array.isArray(editingProduct.rolePrices)) {
+        editingProduct.rolePrices.forEach(({ role, price }) => {
+          if (role in rp) rp[role] = price ?? '';
+        });
+      }
+      setRolePrices(rp);
     } else {
       setProductName('');
       setDescription('');
       setPrice('');
       setStock('');
       setPromoPrice('');
+      setRolePrices(initialRolePrices);
     }
   }, [editingProduct]);
 
@@ -38,13 +51,18 @@ const ProductForm = memo(({ editingProduct, onSave, onCancel, isSaving }) => {
       Swal.fire({ title: 'Validation Error', text: 'Please fill in all fields', icon: 'error', background: '#1e293b', color: '#f1f5f9' });
       return;
     }
+    // Build rolePrices array from the per-role inputs (only roles with a non-empty value)
+    const rolePricesArr = Object.entries(rolePrices)
+      .filter(([, v]) => v !== '' && v != null)
+      .map(([role, v]) => ({ role, price: parseFloat(v) }));
     onSave({
       id: editingProduct?.id || null,
       name: productName,
       description,
       price: parseFloat(price),
       stock: parseInt(stock, 10),
-      promoPrice: promoPrice !== '' ? parseFloat(promoPrice) : null
+      promoPrice: promoPrice !== '' ? parseFloat(promoPrice) : null,
+      rolePrices: rolePricesArr.length > 0 ? rolePricesArr : undefined
     });
   };
 
@@ -80,6 +98,27 @@ const ProductForm = memo(({ editingProduct, onSave, onCancel, isSaving }) => {
           <label className="block text-[10px] font-semibold text-orange-400/70 mb-1 uppercase tracking-widest">Promo (GHS)</label>
           <input type="number" placeholder="Optional" value={promoPrice} onChange={(e) => setPromoPrice(e.target.value)}
             className="w-full bg-slate-900/50 border border-orange-500/20 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-600 focus:border-orange-500/50 focus:ring-1 focus:ring-orange-500/20 focus:outline-none transition-all" />
+        </div>
+      </div>
+      {/* Per-account-type pricing */}
+      <div className="mt-4 pt-3 border-t border-slate-700/20">
+        <div className="flex items-center gap-2 mb-3">
+          <div className="w-1.5 h-5 rounded-full bg-violet-500"></div>
+          <h4 className="text-xs font-semibold text-white">Per-Account-Type Pricing</h4>
+          <span className="text-[10px] text-slate-500">Leave blank to use base/promo price</span>
+        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+          {Object.keys(rolePrices).map((role) => (
+            <div key={role}>
+              <label className="block text-[10px] font-semibold text-violet-400/70 mb-1 uppercase tracking-widest">{role}</label>
+              <input
+                type="number" step="0.01" placeholder="—"
+                value={rolePrices[role]}
+                onChange={(e) => setRolePrices((prev) => ({ ...prev, [role]: e.target.value }))}
+                className="w-full bg-slate-900/50 border border-violet-500/20 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-600 focus:border-violet-500/50 focus:ring-1 focus:ring-violet-500/20 focus:outline-none transition-all"
+              />
+            </div>
+          ))}
         </div>
       </div>
       <div className="flex items-center gap-2.5 mt-4 pt-3 border-t border-slate-700/20">
@@ -249,6 +288,9 @@ const ProductDialog = ({ isOpen, onClose }) => {
         stock: data.stock,
         promoPrice: data.promoPrice
       };
+      if (data.rolePrices && data.rolePrices.length > 0) {
+        productData.rolePrices = data.rolePrices;
+      }
       if (data.id) {
         await axios.put(`${BASE_URL}/products/update/${data.id}`, productData, { headers: getAuthHeaders() });
         Swal.fire({ title: 'Updated!', text: 'Product updated successfully.', icon: 'success', background: '#1e293b', color: '#f1f5f9', timer: 1500 });

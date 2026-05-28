@@ -1,7 +1,7 @@
 const productService = require("../services/productService");
 
 const addProduct = async (req, res) => {
-  const { name, description, price, stock, promoPrice } = req.body;
+  const { name, description, price, stock, promoPrice, rolePrices } = req.body;
   try {
     const product = await productService.addProduct(
       name,
@@ -10,6 +10,11 @@ const addProduct = async (req, res) => {
       stock,
       promoPrice !== undefined ? promoPrice : null
     );
+    // If rolePrices provided, set them
+    if (Array.isArray(rolePrices) && rolePrices.length > 0) {
+      const updated = await productService.setRolePrices(product.id, rolePrices);
+      return res.json(updated);
+    }
     res.json(product);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -38,13 +43,19 @@ const getProductById = async (req, res) => {
 
 const updateProduct = async (req, res) => {
   try {
+    const { rolePrices, ...productData } = req.body;
     const product = await productService.updateProduct(
       parseInt(req.params.id),
-      req.body
+      productData
     );
+    // If rolePrices provided, update them
+    let result = product;
+    if (Array.isArray(rolePrices)) {
+      result = await productService.setRolePrices(parseInt(req.params.id), rolePrices);
+    }
     const io = req.app.get('io');
     if (io) io.emit('product:stock-update', { type: 'update', productId: product.id });
-    res.json(product);
+    res.json(result);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -81,10 +92,6 @@ const resetAllProductStock = async (req, res) => {
 
   try {
     const result = await productService.setAllProductStockToZero(stock);
-    // res.status(200).json({
-    //   message: 'All product stocks have been set to 0.',
-    //   updatedCount: result.count,
-    // });
     const io = req.app.get('io');
     if (io) io.emit('product:stock-update', { type: 'bulk-reset', stock });
     res.status(200).json({
@@ -223,6 +230,53 @@ const bulkTogglePromoPrice = async (req, res) => {
   }
 };
 
+// ===== Role-price admin endpoints =====
+
+/**
+ * Upsert a single role price.
+ */
+const upsertRolePrice = async (req, res) => {
+  try {
+    const { role, price } = req.body;
+    if (!role || typeof price !== 'number') {
+      return res.status(400).json({ error: 'role (string) and price (number) are required' });
+    }
+    const result = await productService.upsertRolePrice(parseInt(req.params.id), role, price);
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+/**
+ * Delete a single role price.
+ */
+const deleteRolePrice = async (req, res) => {
+  try {
+    const { role } = req.params;
+    await productService.deleteRolePrice(parseInt(req.params.id), role);
+    res.json({ message: `Role price for '${role}' deleted` });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+/**
+ * Replace all role prices for a product.
+ */
+const setRolePrices = async (req, res) => {
+  try {
+    const { rolePrices } = req.body;
+    if (!Array.isArray(rolePrices)) {
+      return res.status(400).json({ error: 'rolePrices must be an array of { role, price }' });
+    }
+    const product = await productService.setRolePrices(parseInt(req.params.id), rolePrices);
+    res.json(product);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
 module.exports = {
   addProduct,
   getAllProducts,
@@ -239,5 +293,8 @@ module.exports = {
   bulkUpdateAgentVisibility,
   getAgentProducts,
   togglePromoPrice,
-  bulkTogglePromoPrice
+  bulkTogglePromoPrice,
+  upsertRolePrice,
+  deleteRolePrice,
+  setRolePrices
 };

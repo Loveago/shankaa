@@ -1,4 +1,5 @@
 const prisma = require('../config/db');
+const { resolvePrice } = require('../utils/priceRouter');
 const crypto = require('crypto');
 
 // Generate a secure API key
@@ -61,7 +62,7 @@ const deleteApiKey = async (id) => {
 };
 
 // Get available products for external partners
-const getAvailableProducts = async () => {
+const getAvailableProducts = async (role = null) => {
   const products = await prisma.product.findMany({
     where: { showForAgents: true },
     select: {
@@ -71,7 +72,8 @@ const getAvailableProducts = async () => {
       price: true,
       promoPrice: true,
       usePromoPrice: true,
-      stock: true
+      stock: true,
+      rolePrices: { select: { role: true, price: true } },
     },
     orderBy: { name: 'asc' }
   });
@@ -80,7 +82,7 @@ const getAvailableProducts = async () => {
     id: p.id,
     name: p.name,
     description: p.description,
-    price: (p.usePromoPrice && p.promoPrice != null) ? p.promoPrice : p.price,
+    price: resolvePrice(p, role),
     stock: p.stock
   }));
 };
@@ -91,7 +93,8 @@ const createExternalOrder = async (partnerId, items) => {
     // Validate all products exist and calculate total
     const productIds = items.map(i => parseInt(i.productId));
     const products = await tx.product.findMany({
-      where: { id: { in: productIds } }
+      where: { id: { in: productIds } },
+      include: { rolePrices: { select: { role: true, price: true } } },
     });
 
     const productMap = {};
@@ -109,7 +112,8 @@ const createExternalOrder = async (partnerId, items) => {
         throw new Error(`Product with ID ${item.productId} not found`);
       }
 
-      const effectivePrice = (product.usePromoPrice && product.promoPrice != null) ? product.promoPrice : product.price;
+      // External partners use base pricing (no role)
+      const effectivePrice = resolvePrice(product, null);
       const quantity = parseInt(item.quantity) || 1;
       const itemTotal = effectivePrice * quantity;
       totalPrice += itemTotal;

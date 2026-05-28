@@ -1,4 +1,5 @@
 const prisma = require("../config/db");
+const { resolvePrice } = require("../utils/priceRouter");
 const cache = require("../utils/cache");
 
 const { createTransaction } = require("./transactionService");
@@ -6,9 +7,15 @@ const userService = require("./userService");
 const { fireOrderUpdated } = require("./userApiWebhook");
 
 const submitCart = async (userId, mobileNumber = null, retries = 3) => {
+  // Look up user role for role-based price resolution
+  const userRole = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { role: true },
+  }).then(u => u?.role);
+
   for (let attempt = 1; attempt <= retries; attempt++) {
     try {
-      return await submitCartInner(userId, mobileNumber);
+      return await submitCartInner(userId, mobileNumber, userRole);
     } catch (error) {
       const isDeadlock = error.message?.includes('deadlock') || error.code === 'P2034';
       if (isDeadlock && attempt < retries) {
@@ -20,13 +27,19 @@ const submitCart = async (userId, mobileNumber = null, retries = 3) => {
   }
 };
 
-const submitCartInner = async (userId, mobileNumber = null) => {
+const submitCartInner = async (userId, mobileNumber = null, userRole = null) => {
   // Use a transaction to ensure atomicity
   return await prisma.$transaction(async (tx) => {
     const cart = await tx.cart.findUnique({
       where: { userId },
       include: {
-        items: { include: { product: true } },
+        items: {
+          include: {
+            product: {
+              include: { rolePrices: { select: { role: true, price: true } } },
+            },
+          },
+        },
       },
     });
 
@@ -34,9 +47,9 @@ const submitCartInner = async (userId, mobileNumber = null) => {
       throw new Error("Cart is empty");
     }
 
-    // Calculate total order price
+    // Calculate total order price using role-aware price resolution
     const totalPrice = cart.items.reduce((sum, item) => {
-      const effectivePrice = (item.product.usePromoPrice && item.product.promoPrice != null) ? item.product.promoPrice : item.product.price;
+      const effectivePrice = resolvePrice(item.product, userRole);
       return sum + effectivePrice * item.quantity;
     }, 0);
 
@@ -74,7 +87,7 @@ const submitCartInner = async (userId, mobileNumber = null) => {
             mobileNumber: item.mobileNumber,
             status: "Pending",
             productName: item.product.name,
-            productPrice: (item.product.usePromoPrice && item.product.promoPrice != null) ? item.product.promoPrice : item.product.price,
+            productPrice: resolvePrice(item.product, userRole),
             productDescription: item.product.description,
           })),
         },

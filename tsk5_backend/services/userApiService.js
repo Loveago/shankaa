@@ -1,4 +1,5 @@
 const prisma = require('../config/db');
+const { resolvePrice } = require('../utils/priceRouter');
 const crypto = require('crypto');
 const axios = require('axios');
 const { createTransaction } = require('./transactionService');
@@ -188,7 +189,7 @@ const testWebhook = async (keyId, userId) => {
 /**
  * Get available products for a user's API integration.
  */
-const getAvailableProducts = async () => {
+const getAvailableProducts = async (role = null) => {
   const products = await prisma.product.findMany({
     where: { showForAgents: true },
     select: {
@@ -198,7 +199,8 @@ const getAvailableProducts = async () => {
       price: true,
       promoPrice: true,
       usePromoPrice: true,
-      stock: true
+      stock: true,
+      rolePrices: { select: { role: true, price: true } },
     },
     orderBy: { name: 'asc' }
   });
@@ -215,7 +217,7 @@ const getAvailableProducts = async () => {
       id: p.id,
       name: p.name,
       description: p.description,
-      price: (p.usePromoPrice && p.promoPrice != null) ? p.promoPrice : p.price,
+      price: resolvePrice(p, role),
       stock: p.stock,
       network
     };
@@ -241,11 +243,23 @@ const createApiOrder = async (userId, items, apiKeyId) => {
   }
 
   return await prisma.$transaction(async (tx) => {
-    // Fetch all products
+    // Fetch all products with role prices
     const productIds = items.map(i => parseInt(i.productId));
-    const products = await tx.product.findMany({ where: { id: { in: productIds } } });
+    const products = await tx.product.findMany({
+      where: { id: { in: productIds } },
+      include: { rolePrices: { select: { role: true, price: true } } },
+    });
     const productMap = {};
     for (const p of products) productMap[p.id] = p;
+
+    // Look up the user's role for price resolution
+    const user = await tx.user.findUnique({
+      where: { id: userId },
+      select: { role: true, isSuspended: true, loanBalance: true },
+    });
+    if (!user) throw new Error('User not found');
+    if (user.isSuspended) throw new Error('Account is suspended');
+    const userRole = user.role;
 
     // Validate products and calculate total
     let totalPrice = 0;
@@ -256,9 +270,7 @@ const createApiOrder = async (userId, items, apiKeyId) => {
       if (!product) throw new Error(`Product ID ${item.productId} not found`);
       if (product.stock < 1) throw new Error(`Product "${product.name}" is out of stock`);
 
-      const effectivePrice = (product.usePromoPrice && product.promoPrice != null)
-        ? product.promoPrice
-        : product.price;
+      const effectivePrice = resolvePrice(product, userRole);
       const quantity = parseInt(item.quantity) || 1;
       totalPrice += effectivePrice * quantity;
 
@@ -273,13 +285,7 @@ const createApiOrder = async (userId, items, apiKeyId) => {
       });
     }
 
-    // Check user balance
-    const user = await tx.user.findUnique({ where: { id: userId } });
-    if (!user) throw new Error('User not found');
-    if (user.isSuspended) throw new Error('Account is suspended');
-
-    // Compare using loanBalance (wallet balance)
-    // loanBalance is stored as absolute positive value
+    // Check balance (use the already-fetched user)
     const balance = Math.abs(user.loanBalance || 0);
     if (balance < totalPrice) {
       throw new Error(

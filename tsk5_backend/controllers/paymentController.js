@@ -2,6 +2,7 @@ const paymentService = require('../services/paymentService');
 const shopService = require('../services/shopService');
 const crypto = require('crypto');
 const prisma = require('../config/db');
+const { resolvePrice } = require('../utils/priceRouter');
 
 // Atomic order creation - prevents duplicate orders from webhook + verify race condition
 const createOrderIfNotExists = async (externalRef, productId, mobileNumber) => {
@@ -26,8 +27,11 @@ const createOrderIfNotExists = async (externalRef, productId, mobileNumber) => {
       return { created: false, alreadyExists: true, orderId: transaction.orderId, order: existingOrder };
     }
 
-    // Get the product
-    const product = await tx.product.findUnique({ where: { id: productId } });
+    // Get the product with role prices
+    const product = await tx.product.findUnique({
+      where: { id: productId },
+      include: { rolePrices: { select: { role: true, price: true } } },
+    });
     if (!product) {
       return { created: false, error: 'Product not found' };
     }
@@ -45,7 +49,7 @@ const createOrderIfNotExists = async (externalRef, productId, mobileNumber) => {
             mobileNumber: mobileNumber,
             status: "Pending",
             productName: product.name,
-            productPrice: (product.usePromoPrice && product.promoPrice != null) ? product.promoPrice : product.price,
+            productPrice: resolvePrice(product, null),
             productDescription: product.description
           }]
         }

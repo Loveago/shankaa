@@ -1,4 +1,5 @@
 const prisma = require("../config/db");
+const { resolvePrice } = require("../utils/priceRouter");
 
 // Get or create the "shop" user for guest orders
 const getOrCreateShopUser = async () => {
@@ -33,9 +34,10 @@ const createShopOrder = async (productId, mobileNumber, customerName) => {
   // Get the shop user
   const shopUser = await getOrCreateShopUser();
   
-  // Get the product
+  // Get the product with role prices
   const product = await prisma.product.findUnique({
-    where: { id: productId }
+    where: { id: productId },
+    include: { rolePrices: { select: { role: true, price: true } } },
   });
   
   if (!product) {
@@ -59,7 +61,7 @@ const createShopOrder = async (productId, mobileNumber, customerName) => {
           mobileNumber: mobileNumber,
           status: "Pending",
           productName: product.name,
-          productPrice: (product.usePromoPrice && product.promoPrice != null) ? product.promoPrice : product.price,
+          productPrice: resolvePrice(product, null),
           productDescription: product.description
         }]
       }

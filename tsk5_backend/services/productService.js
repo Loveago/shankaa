@@ -1,8 +1,16 @@
 const prisma = require("../config/db");
+const { productWithPricesSelect } = require("../utils/priceRouter");
+
+const makeInclude = () => ({
+  rolePrices: {
+    select: { role: true, price: true },
+  },
+});
 
 const addProduct = async (name, description, price, stock, promoPrice = null) => {
   return await prisma.product.create({
     data: { name, description, price, stock, promoPrice },
+    include: makeInclude(),
   });
 };
 
@@ -11,22 +19,30 @@ const getAllProducts = async () => {
     orderBy: {
       createdAt: "desc",
     },
+    include: makeInclude(),
   });
 };
 
 const getProductById = async (id) => {
-  return await prisma.product.findUnique({ where: { id } });
+  return await prisma.product.findUnique({
+    where: { id },
+    include: makeInclude(),
+  });
 };
 
 const updateProduct = async (id, data) => {
-  return await prisma.product.update({ where: { id }, data });
+  return await prisma.product.update({
+    where: { id },
+    data,
+    include: makeInclude(),
+  });
 };
-
 
 const setProductStockToZero = async (id) => {
   return await prisma.product.update({
     where: { id },
     data: { stock: 0 },
+    include: makeInclude(),
   });
 };
 
@@ -45,6 +61,7 @@ const getShopProducts = async () => {
     orderBy: {
       createdAt: "desc",
     },
+    include: makeInclude(),
   });
 };
 
@@ -53,6 +70,7 @@ const toggleShopVisibility = async (id, showInShop) => {
   return await prisma.product.update({
     where: { id },
     data: { showInShop },
+    include: makeInclude(),
   });
 };
 
@@ -80,27 +98,51 @@ const deleteProduct = async (id) => {
   }, { timeout: 15000 });
 };
 
-const roleBasedPriceMap = {
+// ===== Role-price management =====
 
+/**
+ * Upsert a single role-price row.
+ * Creates if missing, updates if exists.
+ */
+const upsertRolePrice = async (productId, role, price) => {
+  return await prisma.rolePrice.upsert({
+    where: { productId_role: { productId, role } },
+    create: { productId, role, price },
+    update: { price },
+  });
 };
 
 /**
- * Get the correct price for a product based on user role.
- * @param {string} role - The user's role (e.g., 'AGENT', 'SUPERAGENT')
- * @param {object} product - Product object from DB
- * @returns {number} price
+ * Delete a single role-price row by productId + role.
  */
-const getPriceForUserRole = (role, product) => {
-  if (!role || !product) return null;
-  // If a mapping exists for this role and product, use it
-  if (
-    roleBasedPriceMap[role] &&
-    roleBasedPriceMap[role][product.name]
-  ) {
-    return roleBasedPriceMap[role][product.name];
-  }
-  // Default to product.price from DB
-  return product.price;
+const deleteRolePrice = async (productId, role) => {
+  return await prisma.rolePrice.deleteMany({
+    where: { productId, role },
+  });
+};
+
+/**
+ * Replace ALL role prices for a product atomically.
+ * Expects an array of { role, price } objects.
+ */
+const setRolePrices = async (productId, rolePrices) => {
+  if (!Array.isArray(rolePrices)) throw new Error("rolePrices must be an array");
+  return await prisma.$transaction(async (tx) => {
+    await tx.rolePrice.deleteMany({ where: { productId } });
+    if (rolePrices.length > 0) {
+      await tx.rolePrice.createMany({
+        data: rolePrices.map((rp) => ({
+          productId,
+          role: rp.role,
+          price: rp.price,
+        })),
+      });
+    }
+    return await tx.product.findUnique({
+      where: { id: productId },
+      include: makeInclude(),
+    });
+  });
 };
 
 // Bulk update stock by carrier name filter using a single DB call
@@ -126,6 +168,7 @@ const toggleAgentVisibility = async (id, showForAgents) => {
   return await prisma.product.update({
     where: { id },
     data: { showForAgents },
+    include: makeInclude(),
   });
 };
 
@@ -145,6 +188,7 @@ const getAgentProducts = async () => {
       showForAgents: true,
     },
     orderBy: { createdAt: "desc" },
+    include: makeInclude(),
   });
 };
 
@@ -153,6 +197,7 @@ const togglePromoPrice = async (id, usePromoPrice) => {
   return await prisma.product.update({
     where: { id },
     data: { usePromoPrice },
+    include: makeInclude(),
   });
 };
 
@@ -173,7 +218,6 @@ module.exports = {
   deleteProduct,
   setProductStockToZero,
   setAllProductStockToZero,
-  getPriceForUserRole,
   getShopProducts,
   toggleShopVisibility,
   bulkUpdateStockByCarrier,
@@ -182,5 +226,8 @@ module.exports = {
   bulkUpdateAgentVisibility,
   getAgentProducts,
   togglePromoPrice,
-  bulkTogglePromoPrice
+  bulkTogglePromoPrice,
+  upsertRolePrice,
+  deleteRolePrice,
+  setRolePrices,
 };

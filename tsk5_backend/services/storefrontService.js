@@ -1,5 +1,6 @@
 const axios = require('axios');
 const prisma = require('../config/db');
+const { resolvePrice } = require('../utils/priceRouter');
 
 // Paystack API URLs
 const PAYSTACK_INITIALIZE_URL = 'https://api.paystack.co/transaction/initialize';
@@ -21,15 +22,11 @@ const generateStorefrontSlug = (name) => {
   return `${base}-${random}`;
 };
 
-// Pick the promo-aware effective price for a product. Matches the logic used
-// across shopService / orderService / externalApiService / paymentController
-// so the Storefront surface (the only place that previously ignored promos)
-// now behaves consistently with the rest of the system.
-const effectivePriceOf = (product) => {
-  if (!product) return 0;
-  return (product.usePromoPrice && typeof product.promoPrice === 'number')
-    ? product.promoPrice
-    : (product.price || 0);
+// Resolve the effective price for a product for the given agent role.
+// Delegates to the shared resolvePrice utility so all channels (storefront,
+// dashboards, shop, external API) use identical role-based pricing logic.
+const effectivePriceOf = (product, role = null) => {
+  return resolvePrice(product, role);
 };
 
 // ==================== AGENT STOREFRONT MANAGEMENT ====================
@@ -93,6 +90,7 @@ const getAvailableProducts = async (agentId) => {
       stock: { gt: 0 },
       ...nameFilter
     },
+    include: { rolePrices: { select: { role: true, price: true } } },
     orderBy: [{ name: 'asc' }, { price: 'asc' }]
   });
 
@@ -104,7 +102,7 @@ const getAvailableProducts = async (agentId) => {
     ...p,
     basePrice: p.price,
     onPromo: Boolean(p.usePromoPrice && typeof p.promoPrice === 'number'),
-    price: effectivePriceOf(p)
+    price: effectivePriceOf(p, role)
   }));
 };
 

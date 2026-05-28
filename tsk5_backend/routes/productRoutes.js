@@ -28,4 +28,9 @@ router.put('/toggle-promo/:id', authMiddleware, adminMiddleware, productControll
 router.patch('/bulk-toggle-promo', authMiddleware, adminMiddleware, productController.bulkTogglePromoPrice);
 router.delete('/delete/:id', authMiddleware, adminMiddleware, productController.deleteProduct);
 
+// Role-price management (admin only)
+router.put('/:id/role-price', authMiddleware, adminMiddleware, productController.upsertRolePrice);
+router.delete('/:id/role-price/:role', authMiddleware, adminMiddleware, productController.deleteRolePrice);
+router.put('/:id/role-prices', authMiddleware, adminMiddleware, productController.setRolePrices);
+
 module.exports = router;

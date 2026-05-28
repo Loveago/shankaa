@@ -1,15 +1,15 @@
-const {
-  addItemToCart,
-  getUserCart,
-  removeItemFromCart,
-  getAllCarts,
-  clearUserCart,
-} = require("../services/cartService");
+const { addItemToCart, getUserCart, removeItemFromCart, getAllCarts, clearUserCart } = require("../services/cartService");
+const prisma = require("../config/db");
 
 exports.addToCart = async (req, res) => {
   const { userId, productId, quantity, mobileNumber } = req.body;
   try {
-    const item = await addItemToCart(userId, productId, quantity, mobileNumber);
+    // Look up the user's role for role-based price resolution
+    const user = await prisma.user.findUnique({
+      where: { id: parseInt(userId) },
+      select: { role: true },
+    });
+    const item = await addItemToCart(userId, productId, quantity, mobileNumber, user?.role);
     res.json(item);
   } catch (error) {
     res.status(500).json({ error: error.message });
