@@ -171,7 +171,7 @@ const UserApiKeys = ({ isOpen, onClose, walletBalance = 0, onTopUp }) => {
     setUpdatingWebhook(prev => ({ ...prev, [keyId]: true }));
     try {
       const url = webhookUrls[keyId]?.trim() || '';
-      const res = await axios.patch(
+      await axios.patch(
         `${BASE_URL}/api/user-api/keys/${keyId}/webhook`,
         { webhookUrl: url || null },
         { headers: getAuthHeaders() }
@@ -217,7 +217,7 @@ const UserApiKeys = ({ isOpen, onClose, walletBalance = 0, onTopUp }) => {
   const handleTestWebhook = async (keyId) => {
     setTestingWebhook(prev => ({ ...prev, [keyId]: true }));
     try {
-      const res = await axios.post(
+      await axios.post(
         `${BASE_URL}/api/user-api/keys/${keyId}/webhook/test`,
         {},
         { headers: getAuthHeaders() }
