@@ -3,6 +3,12 @@ const userService = require('../services/userService');
 const cartService = require('../services/cartService');
 const { resolvePrice } = require('../utils/priceRouter');
 
+const extractBundleValue = (value) => {
+  if (value === undefined || value === null) return null;
+  const numeric = parseFloat(String(value).replace(/[^0-9.]/g, ''));
+  return Number.isNaN(numeric) ? null : numeric;
+};
+
 exports.pasteAndProcessOrders = async (req, res) => {
   console.log('--- [PASTE AND PROCESS ORDERS] Endpoint hit ---');
 
@@ -76,14 +82,19 @@ exports.pasteAndProcessOrders = async (req, res) => {
             { name: roleProductName },
             { name: selectedNetwork },
             { name: { startsWith: `${selectedNetwork} -` } },
+            { name: { startsWith: `${selectedNetwork} ` } },
+            { name: { startsWith: selectedNetwork } },
           ],
         },
         include: { rolePrices: { select: { role: true, price: true } } },
       });
 
       const productsForBundle = candidateProducts.filter((candidate) => {
-        const candidateBundle = parseFloat(String(candidate.description || '').replace(/[^0-9.]/g, ''));
-        return !Number.isNaN(candidateBundle) && candidateBundle === parsedBundle;
+        const candidateBundle =
+          extractBundleValue(candidate.description) ?? extractBundleValue(candidate.name);
+
+        if (candidateBundle === null) return false;
+        return Math.abs(candidateBundle - parsedBundle) < 0.0001;
       });
 
       const product = productsForBundle.sort((a, b) => {
