@@ -16,7 +16,7 @@
 const resolvePrice = (product, role) => {
   if (!product) return 0;
 
-  const normalizedRole = typeof role === 'string' ? role.toUpperCase() : null;
+  const normalizedRole = typeof role === 'string' ? role.trim().toUpperCase() : null;
 
   // USER pricing is always the base price.
   if (normalizedRole === 'USER') {
@@ -25,7 +25,10 @@ const resolvePrice = (product, role) => {
 
   // 1. Role-specific price
   if (normalizedRole && product.rolePrices && Array.isArray(product.rolePrices)) {
-    const match = product.rolePrices.find((rp) => rp.role === normalizedRole);
+    const match = product.rolePrices.find((rp) => {
+      const rpRole = typeof rp.role === 'string' ? rp.role.trim().toUpperCase() : '';
+      return rpRole === normalizedRole;
+    });
     if (match && typeof match.price === 'number' && match.price >= 0) {
       return match.price;
     }

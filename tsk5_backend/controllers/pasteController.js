@@ -1,6 +1,7 @@
 const prisma = require('../config/db');
 const userService = require('../services/userService');
 const cartService = require('../services/cartService');
+const { resolvePrice } = require('../utils/priceRouter');
 
 exports.pasteAndProcessOrders = async (req, res) => {
   console.log('--- [PASTE AND PROCESS ORDERS] Endpoint hit ---');
@@ -77,6 +78,7 @@ exports.pasteAndProcessOrders = async (req, res) => {
             { name: { startsWith: `${selectedNetwork} -` } },
           ],
         },
+        include: { rolePrices: { select: { role: true, price: true } } },
       });
 
       const productsForBundle = candidateProducts.filter((candidate) => {
@@ -88,13 +90,19 @@ exports.pasteAndProcessOrders = async (req, res) => {
         const aName = String(a.name || '').toUpperCase();
         const bName = String(b.name || '').toUpperCase();
         const roleToken = userRole;
+        const aResolvedPrice = resolvePrice(a, userRole);
+        const bResolvedPrice = resolvePrice(b, userRole);
+        const aHasRolePrice = userRole !== 'USER' && aResolvedPrice !== (a.price || 0);
+        const bHasRolePrice = userRole !== 'USER' && bResolvedPrice !== (b.price || 0);
 
         const aScore =
+          (aHasRolePrice ? 8 : 0) +
           (aName === roleProductName ? 4 : 0) +
           (userRole !== 'USER' && aName.includes(roleToken) ? 3 : 0) +
           (aName === selectedNetwork ? 1 : 0);
 
         const bScore =
+          (bHasRolePrice ? 8 : 0) +
           (bName === roleProductName ? 4 : 0) +
           (userRole !== 'USER' && bName.includes(roleToken) ? 3 : 0) +
           (bName === selectedNetwork ? 1 : 0);
