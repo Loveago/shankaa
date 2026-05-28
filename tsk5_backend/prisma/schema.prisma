@@ -106,13 +106,16 @@ model Order {
   status       String       @default("Pending")
   mobileNumber String?
   batchId      Int?
+  userApiKeyId Int?
   user         User         @relation("UserToOrder", fields: [userId], references: [id], onDelete: Cascade)
   batch        OrderBatch?  @relation("OrderBatchToOrder", fields: [batchId], references: [id], onDelete: SetNull)
+  apiKey       UserApiKey?  @relation("ApiKeyOrders", fields: [userApiKeyId], references: [id], onDelete: SetNull)
   items        OrderItem[]  @relation("OrderToOrderItem")
 
   @@index([userId])
   @@index([userId, createdAt])
   @@index([batchId])
+  @@index([userApiKeyId])
   @@map("Order")
 }
 
@@ -427,16 +430,19 @@ model ExternalApiKey {
 // Orders placed via this key go through the user's wallet (balance check + deduction)
 // and appear in the admin panel like any other order.
 model UserApiKey {
-  id           Int       @id @default(autoincrement())
-  userId       Int
-  name         String    @db.VarChar(255) // readable label e.g. "My Website"
-  apiKey       String    @unique
-  isActive     Boolean   @default(true)
-  totalOrders  Int       @default(0)
-  lastUsedAt   DateTime?
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
-  user         User      @relation("UserToUserApiKey", fields: [userId], references: [id], onDelete: Cascade)
+  id             Int       @id @default(autoincrement())
+  userId         Int
+  name           String    @db.VarChar(255) // readable label e.g. "My Website"
+  apiKey         String    @unique
+  isActive       Boolean   @default(true)
+  totalOrders    Int       @default(0)
+  lastUsedAt     DateTime?
+  webhookUrl     String?   @db.VarChar(2048) // URL to receive order status updates
+  webhookEnabled Boolean   @default(false)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  user           User      @relation("UserToUserApiKey", fields: [userId], references: [id], onDelete: Cascade)
+  orders         Order[]   @relation("ApiKeyOrders")
 
   @@index([userId])
   @@map("UserApiKey")

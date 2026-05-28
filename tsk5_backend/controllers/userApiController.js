@@ -159,3 +159,41 @@ exports.getNetworkMap = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
+
+// ============================================================
+//  WEBHOOK MANAGEMENT (JWT Auth — from dashboard)
+// ============================================================
+
+exports.updateWebhookUrl = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { webhookUrl } = req.body;
+    const result = await userApiService.updateWebhookUrl(parseInt(id), req.user.id, webhookUrl);
+    res.json({ success: true, message: 'Webhook URL updated', data: result });
+  } catch (error) {
+    console.error('Update webhook URL error:', error);
+    res.status(400).json({ success: false, message: error.message });
+  }
+};
+
+exports.toggleWebhook = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await userApiService.toggleWebhook(parseInt(id), req.user.id);
+    res.json({ success: true, message: `Webhook ${result.webhookEnabled ? 'enabled' : 'disabled'}`, data: result });
+  } catch (error) {
+    console.error('Toggle webhook error:', error);
+    res.status(400).json({ success: false, message: error.message });
+  }
+};
+
+exports.testWebhook = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await userApiService.testWebhook(parseInt(id), req.user.id);
+    res.json({ success: true, message: result.message });
+  } catch (error) {
+    console.error('Test webhook error:', error);
+    res.status(400).json({ success: false, message: error.message });
+  }
+};

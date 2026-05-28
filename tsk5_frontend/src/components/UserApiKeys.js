@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { X, Key, Plus, Trash2, Loader2, Copy, Check, Shield, ShieldOff, Globe, Clock, Hash, ChevronDown, ChevronRight, Wallet, ExternalLink, RefreshCw, Network } from 'lucide-react';
+import { X, Key, Plus, Trash2, Loader2, Copy, Check, Shield, ShieldOff, Globe, Clock, Hash, ChevronDown, ChevronRight, Wallet, ExternalLink, RefreshCw, Network, Radio, Power, Play } from 'lucide-react';
 import axios from 'axios';
 import Swal from 'sweetalert2';
 import BASE_URL from '../endpoints/endpoints';
@@ -27,6 +27,10 @@ const UserApiKeys = ({ isOpen, onClose, walletBalance = 0, onTopUp }) => {
   const [loadingBalance, setLoadingBalance] = useState(false);
   const [networkMap, setNetworkMap] = useState(null);
   const [loadingNetwork, setLoadingNetwork] = useState(false);
+  const [expandedKeyId, setExpandedKeyId] = useState(null);
+  const [webhookUrls, setWebhookUrls] = useState({});
+  const [updatingWebhook, setUpdatingWebhook] = useState({});
+  const [testingWebhook, setTestingWebhook] = useState({});
 
   const fetchApiKeys = useCallback(async () => {
     setLoading(true);
@@ -145,6 +149,93 @@ const UserApiKeys = ({ isOpen, onClose, walletBalance = 0, onTopUp }) => {
     navigator.clipboard.writeText(text);
     setCopiedKeyId(id);
     setTimeout(() => setCopiedKeyId(null), 2000);
+  };
+
+  // Webhook handlers
+  const toggleKeyExpand = (id) => {
+    setExpandedKeyId(expandedKeyId === id ? null : id);
+    // Load existing webhook URL into local state
+    if (expandedKeyId !== id) {
+      const key = apiKeys.find(k => k.id === id);
+      if (key) {
+        setWebhookUrls(prev => ({ ...prev, [id]: key.webhookUrl || '' }));
+      }
+    }
+  };
+
+  const handleWebhookUrlChange = (keyId, value) => {
+    setWebhookUrls(prev => ({ ...prev, [keyId]: value }));
+  };
+
+  const handleUpdateWebhook = async (keyId) => {
+    setUpdatingWebhook(prev => ({ ...prev, [keyId]: true }));
+    try {
+      const url = webhookUrls[keyId]?.trim() || '';
+      const res = await axios.patch(
+        `${BASE_URL}/api/user-api/keys/${keyId}/webhook`,
+        { webhookUrl: url || null },
+        { headers: getAuthHeaders() }
+      );
+      Swal.fire({
+        icon: 'success', title: 'Webhook Updated',
+        text: url ? 'Your endpoint will now receive order status updates.' : 'Webhook URL cleared.',
+        timer: 2000, background: '#1e293b', color: '#f1f5f9'
+      });
+      fetchApiKeys();
+    } catch (error) {
+      Swal.fire({
+        icon: 'error', title: 'Error',
+        text: error.response?.data?.message || 'Failed to update webhook URL',
+        background: '#1e293b', color: '#f1f5f9'
+      });
+    } finally {
+      setUpdatingWebhook(prev => ({ ...prev, [keyId]: false }));
+    }
+  };
+
+  const handleToggleWebhook = async (keyId) => {
+    try {
+      const res = await axios.post(
+        `${BASE_URL}/api/user-api/keys/${keyId}/webhook/toggle`,
+        {},
+        { headers: getAuthHeaders() }
+      );
+      Swal.fire({
+        icon: 'success', title: res.data.message,
+        timer: 1500, background: '#1e293b', color: '#f1f5f9'
+      });
+      fetchApiKeys();
+    } catch (error) {
+      Swal.fire({
+        icon: 'error', title: 'Error',
+        text: error.response?.data?.message || 'Failed to toggle webhook',
+        background: '#1e293b', color: '#f1f5f9'
+      });
+    }
+  };
+
+  const handleTestWebhook = async (keyId) => {
+    setTestingWebhook(prev => ({ ...prev, [keyId]: true }));
+    try {
+      const res = await axios.post(
+        `${BASE_URL}/api/user-api/keys/${keyId}/webhook/test`,
+        {},
+        { headers: getAuthHeaders() }
+      );
+      Swal.fire({
+        icon: 'success', title: 'Test Sent!',
+        text: 'Webhook test payload delivered successfully.',
+        timer: 2000, background: '#1e293b', color: '#f1f5f9'
+      });
+    } catch (error) {
+      Swal.fire({
+        icon: 'error', title: 'Test Failed',
+        text: error.response?.data?.message || 'Could not deliver test webhook.',
+        background: '#1e293b', color: '#f1f5f9'
+      });
+    } finally {
+      setTestingWebhook(prev => ({ ...prev, [keyId]: false }));
+    }
   };
 
   if (!isOpen) return null;
@@ -313,6 +404,41 @@ const UserApiKeys = ({ isOpen, onClose, walletBalance = 0, onTopUp }) => {
     "other": { "count": 3, "total": 15.00 }
   }
 }`
+    },
+    {
+      id: 'webhook',
+      method: 'POST',
+      methodColor: 'text-violet-400',
+      methodBg: 'bg-violet-500/20',
+      path: 'N/A (configured on dashboard)',
+      desc: 'Webhook notifications',
+      summary: 'When you configure a webhook URL on your API key, the system sends POST requests to your endpoint on order events. No additional API endpoint needed.',
+      codeBg: 'text-violet-300',
+      request: null,
+      response: `// Example webhook payload (order.created):
+{
+  "event": "order.created",
+  "timestamp": "2025-03-03T10:30:00.000Z",
+  "data": {
+    "orderId": 456,
+    "status": "Pending",
+    "totalItems": 2,
+    "items": [
+      {
+        "id": 789,
+        "productId": 1,
+        "productName": "MTN 1GB Daily",
+        "quantity": 1,
+        "price": 5.00,
+        "mobileNumber": "0241234567",
+        "status": "Pending",
+        "updatedAt": "2025-03-03T10:30:00.000Z"
+      }
+    ],
+    "apiKeyName": "My Website",
+    "createdAt": "2025-03-03T10:30:00.000Z"
+  }
+}`
     }
   ];
 
@@ -438,53 +564,136 @@ const UserApiKeys = ({ isOpen, onClose, walletBalance = 0, onTopUp }) => {
                 <div className="space-y-3">
                   <h3 className="text-dark-400 text-sm font-medium uppercase tracking-wider">Your Keys ({apiKeys.length}/10)</h3>
                   {apiKeys.map((key) => (
-                    <div key={key.id} className={`bg-dark-900 border rounded-xl p-4 transition-all ${key.isActive ? 'border-dark-600 hover:border-violet-500/30' : 'border-red-500/20 opacity-60'}`}>
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-1">
-                            {key.isActive ? (
-                              <Shield className="w-4 h-4 text-emerald-400 flex-shrink-0" />
-                            ) : (
-                              <ShieldOff className="w-4 h-4 text-red-400 flex-shrink-0" />
-                            )}
-                            <h4 className="text-white font-semibold truncate">{key.name}</h4>
-                            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${key.isActive ? 'bg-emerald-500/15 text-emerald-400' : 'bg-red-500/15 text-red-400'}`}>
-                              {key.isActive ? 'Active' : 'Revoked'}
-                            </span>
-                          </div>
-                          <code className="text-dark-400 text-xs font-mono">{key.apiKeyPreview}</code>
-                          <div className="flex items-center gap-4 text-xs text-dark-500 mt-2">
-                            <span className="flex items-center gap-1">
-                              <Clock className="w-3 h-3" />
-                              Created: {new Date(key.createdAt).toLocaleDateString()}
-                            </span>
-                            {key.lastUsedAt && (
+                    <div key={key.id} className={`bg-dark-900 border rounded-xl transition-all ${key.isActive ? 'border-dark-600 hover:border-violet-500/30' : 'border-red-500/20 opacity-60'}`}>
+                      {/* Main row - always visible */}
+                      <div className="p-4">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-1">
+                              {key.isActive ? (
+                                <Shield className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+                              ) : (
+                                <ShieldOff className="w-4 h-4 text-red-400 flex-shrink-0" />
+                              )}
+                              <h4 className="text-white font-semibold truncate">{key.name}</h4>
+                              <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${key.isActive ? 'bg-emerald-500/15 text-emerald-400' : 'bg-red-500/15 text-red-400'}`}>
+                                {key.isActive ? 'Active' : 'Revoked'}
+                              </span>
+                              {key.webhookEnabled && key.webhookUrl && (
+                                <span className="flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-violet-500/15 text-violet-400">
+                                  <Radio className="w-3 h-3" /> Webhook
+                                </span>
+                              )}
+                            </div>
+                            <code className="text-dark-400 text-xs font-mono">{key.apiKeyPreview}</code>
+                            <div className="flex items-center gap-4 text-xs text-dark-500 mt-2">
                               <span className="flex items-center gap-1">
                                 <Clock className="w-3 h-3" />
-                                Used: {new Date(key.lastUsedAt).toLocaleDateString()}
+                                Created: {new Date(key.createdAt).toLocaleDateString()}
                               </span>
+                              {key.lastUsedAt && (
+                                <span className="flex items-center gap-1">
+                                  <Clock className="w-3 h-3" />
+                                  Used: {new Date(key.lastUsedAt).toLocaleDateString()}
+                                </span>
+                              )}
+                              <span className="flex items-center gap-1">
+                                <Hash className="w-3 h-3" />
+                                {key.totalOrders} orders
+                              </span>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-1 flex-shrink-0">
+                            <button
+                              onClick={() => toggleKeyExpand(key.id)}
+                              className="p-2 text-dark-400 hover:text-violet-400 hover:bg-violet-500/10 rounded-lg transition-colors"
+                              title="Webhook settings"
+                            >
+                              {expandedKeyId === key.id ? <ChevronDown className="w-4 h-4" /> : <Radio className="w-4 h-4" />}
+                            </button>
+                            {key.isActive ? (
+                              <button onClick={() => handleRevoke(key.id, key.name)} className="p-2 text-amber-400 hover:bg-amber-500/10 rounded-lg transition-colors" title="Revoke key">
+                                <ShieldOff className="w-4 h-4" />
+                              </button>
+                            ) : (
+                              <button onClick={() => handleActivate(key.id)} className="p-2 text-emerald-400 hover:bg-emerald-500/10 rounded-lg transition-colors" title="Reactivate key">
+                                <Shield className="w-4 h-4" />
+                              </button>
                             )}
-                            <span className="flex items-center gap-1">
-                              <Hash className="w-3 h-3" />
-                              {key.totalOrders} orders
-                            </span>
+                            <button onClick={() => handleDelete(key.id, key.name)} className="p-2 text-red-400 hover:bg-red-500/10 rounded-lg transition-colors" title="Delete permanently">
+                              <Trash2 className="w-4 h-4" />
+                            </button>
                           </div>
                         </div>
-                        <div className="flex items-center gap-1 flex-shrink-0">
-                          {key.isActive ? (
-                            <button onClick={() => handleRevoke(key.id, key.name)} className="p-2 text-amber-400 hover:bg-amber-500/10 rounded-lg transition-colors" title="Revoke key">
-                              <ShieldOff className="w-4 h-4" />
-                            </button>
-                          ) : (
-                            <button onClick={() => handleActivate(key.id)} className="p-2 text-emerald-400 hover:bg-emerald-500/10 rounded-lg transition-colors" title="Reactivate key">
-                              <Shield className="w-4 h-4" />
-                            </button>
-                          )}
-                          <button onClick={() => handleDelete(key.id, key.name)} className="p-2 text-red-400 hover:bg-red-500/10 rounded-lg transition-colors" title="Delete permanently">
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
                       </div>
+
+                      {/* Expanded Webhook Configuration */}
+                      {expandedKeyId === key.id && (
+                        <div className="border-t border-dark-700 px-4 py-4 space-y-3 bg-dark-950/50">
+                          <h5 className="text-dark-300 text-xs font-semibold flex items-center gap-2">
+                            <Radio className="w-3.5 h-3.5 text-violet-400" /> Webhook Configuration
+                          </h5>
+
+                          {/* Webhook URL Input */}
+                          <div className="flex gap-2">
+                            <input
+                              type="url"
+                              placeholder="https://your-server.com/webhook"
+                              value={webhookUrls[key.id] || ''}
+                              onChange={(e) => handleWebhookUrlChange(key.id, e.target.value)}
+                              className="flex-1 bg-dark-800 border border-dark-600 rounded-lg px-3 py-2 text-white placeholder-dark-500 focus:border-violet-500 focus:outline-none text-sm font-mono"
+                            />
+                            <button
+                              onClick={() => handleUpdateWebhook(key.id)}
+                              disabled={updatingWebhook[key.id]}
+                              className="px-3 py-2 bg-violet-500/20 text-violet-300 rounded-lg text-xs font-medium hover:bg-violet-500/30 disabled:opacity-50 transition-colors flex items-center gap-1.5"
+                            >
+                              {updatingWebhook[key.id] ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Copy className="w-3.5 h-3.5" />}
+                              Save
+                            </button>
+                          </div>
+                          <p className="text-dark-500 text-[11px]">Enter an HTTPS URL to receive order status updates as JSON payloads.</p>
+
+                          {/* Toggle & Test Buttons */}
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => handleToggleWebhook(key.id)}
+                              disabled={!key.webhookUrl}
+                              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5 ${
+                                key.webhookEnabled
+                                  ? 'bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/30'
+                                  : 'bg-dark-700 text-dark-400 hover:bg-dark-600'
+                              } disabled:opacity-40`}
+                            >
+                              <Power className="w-3.5 h-3.5" />
+                              {key.webhookEnabled ? 'Enabled' : 'Disabled'}
+                            </button>
+                            <button
+                              onClick={() => handleTestWebhook(key.id)}
+                              disabled={testingWebhook[key.id] || !key.webhookUrl}
+                              className="px-3 py-1.5 bg-blue-500/20 text-blue-300 rounded-lg text-xs font-medium hover:bg-blue-500/30 disabled:opacity-40 transition-colors flex items-center gap-1.5"
+                            >
+                              {testingWebhook[key.id] ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Play className="w-3.5 h-3.5" />}
+                              Test
+                            </button>
+                          </div>
+
+                          {/* Webhook status badge */}
+                          {key.webhookUrl && (
+                            <div className="flex items-center gap-2 text-[11px]">
+                              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full ${
+                                key.webhookEnabled ? 'bg-emerald-500/15 text-emerald-400' : 'bg-dark-700 text-dark-400'
+                              }`}>
+                                <Radio className="w-3 h-3" />
+                                {key.webhookEnabled ? 'Active' : 'Inactive'}
+                              </span>
+                              <span className="text-dark-500 truncate max-w-[300px]">
+                                {key.webhookUrl}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -618,6 +827,88 @@ const UserApiKeys = ({ isOpen, onClose, walletBalance = 0, onTopUp }) => {
                       )}
                     </div>
                   ))}
+                </div>
+              </div>
+
+              {/* Webhook Documentation */}
+              <div className="bg-dark-900 border border-violet-500/20 rounded-xl p-4">
+                <h3 className="text-white font-semibold mb-3 flex items-center gap-2">
+                  <Radio className="w-4 h-4 text-violet-400" /> Webhooks
+                </h3>
+                <div className="space-y-3 text-sm">
+                  <p className="text-dark-300 text-xs leading-relaxed">
+                    Webhooks allow your server to receive real-time notifications when orders are created or
+                    their status changes. Configure a webhook URL on any active API key from the Keys tab.
+                  </p>
+
+                  <div className="p-3 bg-violet-500/10 border border-violet-500/20 rounded-lg">
+                    <p className="text-violet-300 text-xs font-medium mb-1">Event Types</p>
+                    <div className="space-y-1 mt-2">
+                      <div className="flex items-center gap-2 text-xs">
+                        <code className="bg-dark-800 text-emerald-300 px-1.5 py-0.5 rounded text-[11px]">order.created</code>
+                        <span className="text-dark-400">Fired when an order is placed successfully</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-xs">
+                        <code className="bg-dark-800 text-blue-300 px-1.5 py-0.5 rounded text-[11px]">order.updated</code>
+                        <span className="text-dark-400">Fired when any item in an order changes status</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-xs">
+                        <code className="bg-dark-800 text-amber-300 px-1.5 py-0.5 rounded text-[11px]">webhook.test</code>
+                        <span className="text-dark-400">Sent when you click "Test" on your key configuration</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="p-3 bg-dark-800 rounded-lg">
+                    <p className="text-dark-300 text-xs font-medium mb-2">Request Headers</p>
+                    <div className="space-y-1">
+                      <code className="block text-[11px] text-dark-400">
+                        <span className="text-violet-300">Content-Type:</span> application/json
+                      </code>
+                      <code className="block text-[11px] text-dark-400">
+                        <span className="text-violet-300">X-Webhook-Event:</span> order.created
+                      </code>
+                      <code className="block text-[11px] text-dark-400">
+                        <span className="text-violet-300">X-Webhook-Timestamp:</span> 2025-03-03T10:30:00.000Z
+                      </code>
+                      <code className="block text-[11px] text-dark-400">
+                        <span className="text-violet-300">X-Webhook-Attempt:</span> 1
+                      </code>
+                    </div>
+                  </div>
+
+                  <div className="p-3 bg-dark-800 rounded-lg">
+                    <p className="text-dark-300 text-xs font-medium mb-2">Best Practices</p>
+                    <ul className="text-dark-400 text-xs space-y-1.5 list-disc list-inside">
+                      <li>Your endpoint <span className="text-red-400">must respond with HTTP 2xx</span> within 10 seconds</li>
+                      <li>The system retries failed deliveries up to <strong>3 times</strong> with exponential backoff</li>
+                      <li>Always use <span className="text-emerald-400">HTTPS</span> for your webhook endpoint</li>
+                      <li>Respond with HTTP 200 to acknowledge receipt (avoids unnecessary retries)</li>
+                      <li>Use the <code className="text-violet-300">X-Webhook-Event</code> header to route events in your code</li>
+                    </ul>
+                  </div>
+
+                  <div>
+                    <p className="text-dark-300 text-xs font-medium mb-1">Node.js Webhook Receiver Example:</p>
+                    <pre className="bg-dark-950 text-emerald-300 text-xs p-3 rounded-lg overflow-x-auto">{`const express = require('express');
+const app = express();
+
+app.post('/webhook', express.json(), (req, res) => {
+  const event = req.headers['x-webhook-event'];
+  const payload = req.body;
+  
+  console.log(\`Received webhook: \${event}\`);
+  
+  if (event === 'order.created') {
+    // Order #payload.data.orderId was placed
+    // Check items, update your records
+  } else if (event === 'order.updated') {
+    // Item status changed in order #payload.data.orderId
+  }
+  
+  res.sendStatus(200); // Acknowledge receipt
+});`}</pre>
+                  </div>
                 </div>
               </div>
 

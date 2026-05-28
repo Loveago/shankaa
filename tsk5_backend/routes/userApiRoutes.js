@@ -13,6 +13,11 @@ router.patch('/keys/:id/revoke', authMiddleware, userApiController.revokeApiKey)
 router.patch('/keys/:id/activate', authMiddleware, userApiController.activateApiKey);
 router.delete('/keys/:id', authMiddleware, userApiController.deleteApiKey);
 
+// Webhook management (JWT Auth)
+router.patch('/keys/:id/webhook', authMiddleware, userApiController.updateWebhookUrl);
+router.post('/keys/:id/webhook/toggle', authMiddleware, userApiController.toggleWebhook);
+router.post('/keys/:id/webhook/test', authMiddleware, userApiController.testWebhook);
+
 // ============================================================
 //  EXTERNAL ORDER ENDPOINTS (x-api-key Auth — no JWT)
 //  These endpoints use the user's API key for auth and

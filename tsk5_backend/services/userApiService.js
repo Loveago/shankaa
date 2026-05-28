@@ -1,6 +1,8 @@
 const prisma = require('../config/db');
 const crypto = require('crypto');
+const axios = require('axios');
 const { createTransaction } = require('./transactionService');
+const { fireOrderCreated } = require('./userApiWebhook');
 
 // ============================================================
 //  KEY MANAGEMENT
@@ -53,7 +55,9 @@ const listApiKeys = async (userId) => {
     isActive: k.isActive,
     createdAt: k.createdAt,
     lastUsedAt: k.lastUsedAt,
-    totalOrders: k.totalOrders
+    totalOrders: k.totalOrders,
+    webhookUrl: k.webhookUrl,
+    webhookEnabled: k.webhookEnabled
   }));
 };
 
@@ -93,6 +97,88 @@ const deleteApiKey = async (keyId, userId) => {
   return await prisma.userApiKey.delete({
     where: { id: keyId }
   });
+};
+
+// ============================================================
+//  WEBHOOK MANAGEMENT
+// ============================================================
+
+/**
+ * Update the webhook URL for an API key.
+ */
+const updateWebhookUrl = async (keyId, userId, webhookUrl) => {
+  const key = await prisma.userApiKey.findFirst({ where: { id: keyId, userId } });
+  if (!key) throw new Error('API key not found.');
+
+  // Validate URL if provided (not clearing it)
+  if (webhookUrl && webhookUrl.trim().length > 0) {
+    try {
+      new URL(webhookUrl.trim());
+    } catch {
+      throw new Error('Invalid webhook URL. Please provide a valid HTTPS URL.');
+    }
+    if (!webhookUrl.trim().startsWith('https://')) {
+      throw new Error('Webhook URL must use HTTPS for security.');
+    }
+  }
+
+  return await prisma.userApiKey.update({
+    where: { id: keyId },
+    data: {
+      webhookUrl: webhookUrl && webhookUrl.trim().length > 0 ? webhookUrl.trim() : null,
+      webhookEnabled: webhookUrl && webhookUrl.trim().length > 0 ? true : false
+    },
+    select: {
+      id: true,
+      name: true,
+      webhookUrl: true,
+      webhookEnabled: true
+    }
+  });
+};
+
+/**
+ * Toggle webhook enabled/disabled for an API key.
+ */
+const toggleWebhook = async (keyId, userId) => {
+  const key = await prisma.userApiKey.findFirst({ where: { id: keyId, userId } });
+  if (!key) throw new Error('API key not found.');
+  if (!key.webhookUrl) throw new Error('Set a webhook URL before enabling webhooks.');
+
+  return await prisma.userApiKey.update({
+    where: { id: keyId },
+    data: { webhookEnabled: !key.webhookEnabled },
+    select: {
+      id: true,
+      name: true,
+      webhookUrl: true,
+      webhookEnabled: true
+    }
+  });
+};
+
+/**
+ * Test a webhook by sending a test payload.
+ */
+const testWebhook = async (keyId, userId) => {
+  const key = await prisma.userApiKey.findFirst({ where: { id: keyId, userId } });
+  if (!key) throw new Error('API key not found.');
+  if (!key.webhookUrl) throw new Error('No webhook URL configured for this key.');
+
+  const { deliverWebhook } = require('./userApiWebhook');
+  const testPayload = {
+    event: 'webhook.test',
+    timestamp: new Date().toISOString(),
+    data: {
+      message: 'This is a test webhook from your API key.',
+      apiKeyName: key.name,
+      webhookUrl: key.webhookUrl
+    }
+  };
+
+  const delivered = await deliverWebhook(key.webhookUrl, testPayload, 1);
+  if (!delivered) throw new Error('Webhook test failed. Check your endpoint and try again.');
+  return { success: true, message: 'Webhook test delivered successfully.' };
 };
 
 // ============================================================
@@ -201,10 +287,11 @@ const createApiOrder = async (userId, items, apiKeyId) => {
       );
     }
 
-    // Create the order with items
+    // Create the order with items — linked to the API key for webhook support
     const order = await tx.order.create({
       data: {
         userId,
+        userApiKeyId: apiKeyId,
         mobileNumber: items[0]?.mobileNumber || null,
         items: { create: orderItems }
       },
@@ -242,6 +329,11 @@ const createApiOrder = async (userId, items, apiKeyId) => {
         data: { stock: { decrement: item.quantity } }
       });
     }
+
+    // Fire webhook outside the transaction (fire-and-forget)
+    fireOrderCreated(order.id).catch(err => {
+      console.error(`[API Order] Webhook error for order ${order.id}:`, err.message);
+    });
 
     return {
       success: true,
@@ -394,6 +486,9 @@ module.exports = {
   revokeApiKey,
   activateApiKey,
   deleteApiKey,
+  updateWebhookUrl,
+  toggleWebhook,
+  testWebhook,
   getAvailableProducts,
   createApiOrder,
   getOrderStatus,

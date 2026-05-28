@@ -3,6 +3,7 @@ const cache = require("../utils/cache");
 
 const { createTransaction } = require("./transactionService");
 const userService = require("./userService");
+const { fireOrderUpdated } = require("./userApiWebhook");
 
 const submitCart = async (userId, mobileNumber = null, retries = 3) => {
   for (let attempt = 1; attempt <= retries; attempt++) {
@@ -216,6 +217,10 @@ const processOrderItem = async (orderItemId, status) => {
     );
     return orderItem;
   }, { timeout: 15000 });
+  // Fire webhook for API-key orders after status update
+  fireOrderUpdated(orderItem.orderId).catch(err => {
+    console.error(`[Webhook] processOrderItem error for order ${orderItem.orderId}:`, err.message);
+  });
 };
 
 // ... (rest of the code remains the same)
@@ -571,12 +576,16 @@ const updateSingleOrderItemStatus = async (itemId, newStatus) => {
         data: { status: newStatus }
       });
       
-      return { 
-        success: true, 
+      return {
+        success: true,
         item: updatedItem,
-        message: `Successfully updated item #${itemId} to ${newStatus}` 
+        message: `Successfully updated item #${itemId} to ${newStatus}`
       };
     }, { timeout: 15000 });
+    // Fire webhook for API-key orders after status update
+    fireOrderUpdated(parseInt(itemId)).catch(err => {
+      console.error(`[Webhook] updateSingleOrderItemStatus error for item ${itemId}:`, err.message);
+    });
   } catch (error) {
     console.error("Error updating single order item status:", error);
     throw new Error("Failed to update order item status");
@@ -678,12 +687,16 @@ const updateOrderItemsStatus = async (orderId, newStatus) => {
         );
       }
       
-      return { 
-        success: true, 
-        updatedCount: updatedItems.count, 
-        message: `Successfully updated ${updatedItems.count} order items to ${newStatus}` 
+      return {
+        success: true,
+        updatedCount: updatedItems.count,
+        message: `Successfully updated ${updatedItems.count} order items to ${newStatus}`
       };
     }, { timeout: 15000 });
+    // Fire webhook for API-key orders after bulk status update
+    fireOrderUpdated(parseInt(orderId)).catch(err => {
+      console.error(`[Webhook] updateOrderItemsStatus error for order ${orderId}:`, err.message);
+    });
   } catch (error) {
     console.error("Error updating order items status:", error);
     throw new Error("Failed to update order items status");
@@ -1341,6 +1354,10 @@ const cancelOrderItem = async (userId, orderItemId) => {
 
     return { message: "Order cancelled and refund processed", refundAmount };
   }, { timeout: 15000 });
+  // Fire webhook for API-key orders after cancellation
+  fireOrderUpdated(item.orderId).catch(err => {
+    console.error(`[Webhook] cancelOrderItem error for order ${item.orderId}:`, err.message);
+  });
 };
 
 module.exports = {

@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import getSocket from '../utils/socket';
 import Swal from 'sweetalert2';
-import { Menu, Wallet, Package, Clock, CheckCircle, ShoppingCart, Loader2, RefreshCw, Trash2, Layers, History, X, Banknote } from 'lucide-react';
+import { Menu, Wallet, Package, Clock, CheckCircle, ShoppingCart, Loader2, RefreshCw, Trash2, Layers, History, X, Banknote, Key } from 'lucide-react';
 import BASE_URL from '../endpoints/endpoints';
 import Sidebar from '../components/Sidebar';
 import TopUp from '../components/TopUp';
@@ -14,6 +14,7 @@ import UploadExcel from '../components/UploadExcel';
 import PasteOrders from '../components/PasteOrders';
 import Storefront from '../components/Storefront';
 import FloatingChatButton from '../components/FloatingChatButton';
+import UserApiKeys from '../components/UserApiKeys';
 
 const OtherDashboard = () => {
   const navigate = useNavigate();
@@ -35,6 +36,7 @@ const OtherDashboard = () => {
   const [showUploadExcel, setShowUploadExcel] = useState(false);
   const [showPasteOrders, setShowPasteOrders] = useState(false);
   const [showStorefront, setShowStorefront] = useState(false);
+  const [showApiKeys, setShowApiKeys] = useState(false);
   const [isSuspended, setIsSuspended] = useState(localStorage.getItem('isSuspended') === 'true');
 
   const userName = localStorage.getItem('name') || 'User';
@@ -334,8 +336,12 @@ const OtherDashboard = () => {
                   <Wallet className="w-4 h-4 text-purple-500" /><span className="text-white font-semibold text-sm">GHS {balance.toFixed(2)}</span>
                 </div>
                 <button onClick={() => setShowTopUp(true)} className="hidden sm:block px-3 py-2 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white rounded-xl font-semibold text-sm">Top Up</button>
-                <button onClick={() => setShowHistory(true)} className="p-2.5 sm:p-3 bg-dark-800 hover:bg-dark-700 rounded-xl"><History className="w-5 h-5 text-dark-400" /></button>
-                <button onClick={() => setShowCart(true)} className="relative p-2.5 sm:p-3 bg-gradient-to-r from-purple-500 to-pink-600 rounded-xl shadow-lg">
+                                <button onClick={() => setShowHistory(true)} className="p-2.5 sm:p-3 bg-dark-800 hover:bg-dark-700 rounded-xl"><History className="w-5 h-5 text-dark-400" /></button>
+                                <button onClick={() => setShowApiKeys(true)} className="p-2.5 sm:p-3 bg-dark-800 hover:bg-dark-700 rounded-xl relative group">
+                                  <Key className="w-5 h-5 text-dark-400 group-hover:text-cyan-400 transition-colors" />
+                                  <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 text-[8px] text-cyan-400 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">API</span>
+                                </button>
+                                <button onClick={() => setShowCart(true)} className="relative p-2.5 sm:p-3 bg-gradient-to-r from-purple-500 to-pink-600 rounded-xl shadow-lg">
                   <ShoppingCart className="w-5 h-5 text-white" />
                   {cart.length > 0 && <span className="absolute -top-1.5 -right-1.5 w-5 h-5 sm:w-6 sm:h-6 bg-red-500 rounded-full text-white text-xs flex items-center justify-center animate-pulse">{cart.length}</span>}
                 </button>
@@ -480,8 +486,16 @@ const OtherDashboard = () => {
           </div>
         </div>
       )}
-      {/* Floating Chat */}
-      <FloatingChatButton currentUser={{ id: parseInt(localStorage.getItem('userId')), name: localStorage.getItem('name'), role: 'OTHER' }} />
+            {/* API Keys Modal */}
+            <UserApiKeys
+              isOpen={showApiKeys}
+              onClose={() => { setShowApiKeys(false); }}
+              walletBalance={balance}
+              onTopUp={() => { setShowApiKeys(false); setShowTopUp(true); }}
+            />
+      
+            {/* Floating Chat */}
+            <FloatingChatButton currentUser={{ id: parseInt(localStorage.getItem('userId')), name: localStorage.getItem('name'), role: 'OTHER' }} />
     </div>
   );
 };
