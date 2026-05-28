@@ -98,7 +98,7 @@ exports.pasteAndProcessOrders = async (req, res) => {
     }
 
     for (const item of productsToAdd) {
-      await cartService.addItemToCart(agent.id, item.product.id, item.quantity, item.phoneNumber);
+      await cartService.addItemToCart(agent.id, item.product.id, item.quantity, item.phoneNumber, agent.role);
     }
 
     let responseMessage = `${productsToAdd.length} products added to cart.`;
