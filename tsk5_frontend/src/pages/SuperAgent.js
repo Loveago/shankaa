@@ -128,16 +128,16 @@ const SuperAgent = () => {
   const handleCategorySelect = (category) => setSelectedCategory(category);
 
   const filteredProducts = useMemo(() => {
-    const allowedNames = ['MTN - SUPER', 'TELECEL - SUPER', 'AIRTEL TIGO - SUPER'];
+    const allowedPrefixes = ['MTN - SUPER', 'TELECEL - SUPER', 'AIRTEL TIGO - SUPER'];
     const nameOrder = { 'MTN - SUPER': 0, 'TELECEL - SUPER': 1, 'AIRTEL TIGO - SUPER': 2 };
-    let filtered = (Array.isArray(products) ? products : []).filter(p => allowedNames.includes(p.name));
+    let filtered = (Array.isArray(products) ? products : []).filter(p => allowedPrefixes.some(prefix => p.name?.startsWith(prefix)));
     if (selectedCategory) {
       // Map category selection to SUPER tagged version
-      const superCategory = selectedCategory === 'MTN' ? 'MTN - SUPER' 
-        : selectedCategory === 'TELECEL' ? 'TELECEL - SUPER' 
-        : selectedCategory === 'AIRTEL TIGO' ? 'AIRTEL TIGO - SUPER' 
+      const superCategory = selectedCategory === 'MTN' ? 'MTN - SUPER'
+        : selectedCategory === 'TELECEL' ? 'TELECEL - SUPER'
+        : selectedCategory === 'AIRTEL TIGO' ? 'AIRTEL TIGO - SUPER'
         : selectedCategory;
-      filtered = filtered.filter(p => p.name === superCategory);
+      filtered = filtered.filter(p => p.name?.startsWith(superCategory));
     }
     // Sort: in-stock first, then by name (MTN first) and description
     return filtered.sort((a, b) => {

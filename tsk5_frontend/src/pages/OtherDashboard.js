@@ -131,17 +131,17 @@ const OtherDashboard = () => {
   const handleCategorySelect = (category) => setSelectedCategory(category);
 
   const filteredProducts = useMemo(() => {
-    const allowedNames = ['MTN - OTHER', 'TELECEL - OTHER', 'AIRTEL TIGO - OTHER'];
+    const allowedPrefixes = ['MTN - OTHER', 'TELECEL - OTHER', 'AIRTEL TIGO - OTHER'];
     const nameOrder = { 'MTN - OTHER': 0, 'TELECEL - OTHER': 1, 'AIRTEL TIGO - OTHER': 2 };
     let filtered = (Array.isArray(products) ? products : [])
-      .filter(p => allowedNames.includes(p.name));
+      .filter(p => allowedPrefixes.some(prefix => p.name?.startsWith(prefix)));
     if (selectedCategory) {
       // Map category selection to OTHER tagged version
-      const otherCategory = selectedCategory === 'MTN' ? 'MTN - OTHER' 
-        : selectedCategory === 'TELECEL' ? 'TELECEL - OTHER' 
-        : selectedCategory === 'AIRTEL TIGO' ? 'AIRTEL TIGO - OTHER' 
+      const otherCategory = selectedCategory === 'MTN' ? 'MTN - OTHER'
+        : selectedCategory === 'TELECEL' ? 'TELECEL - OTHER'
+        : selectedCategory === 'AIRTEL TIGO' ? 'AIRTEL TIGO - OTHER'
         : selectedCategory;
-      filtered = filtered.filter(p => p.name === otherCategory);
+      filtered = filtered.filter(p => p.name?.startsWith(otherCategory));
     }
     // Sort: in-stock first, then by name (MTN first) and description
     return filtered.sort((a, b) => {

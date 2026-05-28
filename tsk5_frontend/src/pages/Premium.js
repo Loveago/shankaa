@@ -128,16 +128,16 @@ const Premium = () => {
   const handleCategorySelect = (category) => setSelectedCategory(category);
 
   const filteredProducts = useMemo(() => {
-    const allowedNames = ['MTN - PREMIUM', 'TELECEL - PREMIUM', 'AIRTEL TIGO - PREMIUM'];
+    const allowedPrefixes = ['MTN - PREMIUM', 'TELECEL - PREMIUM', 'AIRTEL TIGO - PREMIUM'];
     const nameOrder = { 'MTN - PREMIUM': 0, 'TELECEL - PREMIUM': 1, 'AIRTEL TIGO - PREMIUM': 2 };
-    let filtered = (Array.isArray(products) ? products : []).filter(p => allowedNames.includes(p.name));
+    let filtered = (Array.isArray(products) ? products : []).filter(p => allowedPrefixes.some(prefix => p.name?.startsWith(prefix)));
     if (selectedCategory) {
       // Map category selection to PREMIUM tagged version
-      const premiumCategory = selectedCategory === 'MTN' ? 'MTN - PREMIUM' 
-        : selectedCategory === 'TELECEL' ? 'TELECEL - PREMIUM' 
-        : selectedCategory === 'AIRTEL TIGO' ? 'AIRTEL TIGO - PREMIUM' 
+      const premiumCategory = selectedCategory === 'MTN' ? 'MTN - PREMIUM'
+        : selectedCategory === 'TELECEL' ? 'TELECEL - PREMIUM'
+        : selectedCategory === 'AIRTEL TIGO' ? 'AIRTEL TIGO - PREMIUM'
         : selectedCategory;
-      filtered = filtered.filter(p => p.name === premiumCategory);
+      filtered = filtered.filter(p => p.name?.startsWith(premiumCategory));
     }
     // Sort: in-stock first, then by name (MTN first) and description
     return filtered.sort((a, b) => {

@@ -133,13 +133,13 @@ const UserDashboard = () => {
 
   // Filter products - only show base products (MTN, TELECEL, AIRTEL TIGO without role tags), include out of stock
   const filteredProducts = useMemo(() => {
-    const allowedNames = ['MTN', 'TELECEL', 'AIRTEL TIGO'];
+    const allowedPrefixes = ['MTN', 'TELECEL', 'AIRTEL TIGO'];
     const nameOrder = { 'MTN': 0, 'TELECEL': 1, 'AIRTEL TIGO': 2 };
     let filtered = (Array.isArray(products) ? products : [])
-      .filter(p => allowedNames.includes(p.name));
+      .filter(p => allowedPrefixes.some(prefix => p.name?.startsWith(prefix)));
     
     if (selectedCategory) {
-      filtered = filtered.filter(p => p.name === selectedCategory);
+      filtered = filtered.filter(p => p.name?.startsWith(selectedCategory));
     }
     
     // Sort: in-stock first, then by name (MTN first) and description

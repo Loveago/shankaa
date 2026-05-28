@@ -128,16 +128,16 @@ const NormalAgent = () => {
   const handleCategorySelect = (category) => setSelectedCategory(category);
 
   const filteredProducts = useMemo(() => {
-    const allowedNames = ['MTN - NORMAL', 'TELECEL - NORMAL', 'AIRTEL TIGO - NORMAL'];
+    const allowedPrefixes = ['MTN - NORMAL', 'TELECEL - NORMAL', 'AIRTEL TIGO - NORMAL'];
     const nameOrder = { 'MTN - NORMAL': 0, 'TELECEL - NORMAL': 1, 'AIRTEL TIGO - NORMAL': 2 };
-    let filtered = (Array.isArray(products) ? products : []).filter(p => allowedNames.includes(p.name));
+    let filtered = (Array.isArray(products) ? products : []).filter(p => allowedPrefixes.some(prefix => p.name?.startsWith(prefix)));
     if (selectedCategory) {
       // Map category selection to NORMAL tagged version
-      const normalCategory = selectedCategory === 'MTN' ? 'MTN - NORMAL' 
-        : selectedCategory === 'TELECEL' ? 'TELECEL - NORMAL' 
-        : selectedCategory === 'AIRTEL TIGO' ? 'AIRTEL TIGO - NORMAL' 
+      const normalCategory = selectedCategory === 'MTN' ? 'MTN - NORMAL'
+        : selectedCategory === 'TELECEL' ? 'TELECEL - NORMAL'
+        : selectedCategory === 'AIRTEL TIGO' ? 'AIRTEL TIGO - NORMAL'
         : selectedCategory;
-      filtered = filtered.filter(p => p.name === normalCategory);
+      filtered = filtered.filter(p => p.name?.startsWith(normalCategory));
     }
     // Sort: in-stock first, then by name (MTN first) and description
     return filtered.sort((a, b) => {
