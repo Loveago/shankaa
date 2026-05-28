@@ -21,6 +21,7 @@ exports.pasteAndProcessOrders = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Agent not found.' });
     }
     const userRole = (agent.role || '').toUpperCase();
+    const selectedNetwork = network.toUpperCase();
 
     let errorReport = [];
     let productsToAdd = [];
@@ -66,16 +67,28 @@ exports.pasteAndProcessOrders = async (req, res) => {
       const parsedBundle = parseFloat(bundleAmount);
       const normalizedBundle = Number.isInteger(parsedBundle) ? String(parsedBundle) : String(parsedBundle);
       const productDescription = `${normalizedBundle}GB`;
-      const productName = userRole === 'USER'
-        ? network.toUpperCase()
-        : `${network.toUpperCase()} - ${userRole}`;
+      const roleProductName = `${selectedNetwork} - ${userRole}`;
 
-      const product = await prisma.product.findFirst({
+      const candidateProducts = await prisma.product.findMany({
         where: {
-          name: productName,
-          description: productDescription,
+          OR: [
+            { name: roleProductName },
+            { name: selectedNetwork },
+            { name: { startsWith: `${selectedNetwork} -` } },
+          ],
         },
       });
+
+      const productsForBundle = candidateProducts.filter((candidate) => {
+        const candidateBundle = parseFloat(String(candidate.description || '').replace(/[^0-9.]/g, ''));
+        return !Number.isNaN(candidateBundle) && candidateBundle === parsedBundle;
+      });
+
+      const product = productsForBundle.sort((a, b) => {
+        const aScore = (a.name === roleProductName ? 2 : 0) + (a.name === selectedNetwork ? 1 : 0);
+        const bScore = (b.name === roleProductName ? 2 : 0) + (b.name === selectedNetwork ? 1 : 0);
+        return bScore - aScore;
+      })[0];
 
       if (!product) {
         rowErrors.push(`Product not found for network ${network} with bundle ${productDescription}.`);
