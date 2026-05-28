@@ -6,6 +6,9 @@ import BASE_URL from '../endpoints/endpoints';
 
 const getAuthHeaders = () => ({ Authorization: `Bearer ${localStorage.getItem('token')}` });
 
+// Per-account-type role labels (stable module-level constant)
+const DEFAULT_ROLE_PRICES = { USER: '', PREMIUM: '', NORMAL: '', SUPER: '', OTHER: '' };
+
 // Isolated Add/Edit form. Owns all input state locally so typing does NOT re-render
 // the parent ProductDialog (which holds the large products table). Before this split,
 // every keystroke reconciled all product rows and their toggle buttons.
@@ -17,8 +20,7 @@ const ProductForm = memo(({ editingProduct, onSave, onCancel, isSaving }) => {
   const [promoPrice, setPromoPrice] = useState('');
 
   // Per-account-type pricing (USER, PREMIUM, NORMAL, SUPER, OTHER)
-  const initialRolePrices = { USER: '', PREMIUM: '', NORMAL: '', SUPER: '', OTHER: '' };
-  const [rolePrices, setRolePrices] = useState(initialRolePrices);
+  const [rolePrices, setRolePrices] = useState(DEFAULT_ROLE_PRICES);
 
   // When parent selects a product for editing, hydrate local form state once.
   useEffect(() => {
@@ -29,7 +31,7 @@ const ProductForm = memo(({ editingProduct, onSave, onCancel, isSaving }) => {
       setStock(editingProduct.stock ?? '');
       setPromoPrice(editingProduct.promoPrice ?? '');
       // Hydrate rolePrices from the product's rolePrices array
-      const rp = { ...initialRolePrices };
+      const rp = { ...DEFAULT_ROLE_PRICES };
       if (Array.isArray(editingProduct.rolePrices)) {
         editingProduct.rolePrices.forEach(({ role, price }) => {
           if (role in rp) rp[role] = price ?? '';
@@ -42,7 +44,7 @@ const ProductForm = memo(({ editingProduct, onSave, onCancel, isSaving }) => {
       setPrice('');
       setStock('');
       setPromoPrice('');
-      setRolePrices(initialRolePrices);
+      setRolePrices(DEFAULT_ROLE_PRICES);
     }
   }, [editingProduct]);
 
