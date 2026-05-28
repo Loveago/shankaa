@@ -750,8 +750,8 @@ exports.exportPendingOrders = async (req, res) => {
     const worksheetData = rows.map(row => {
       let phone = row.phone || '';
       if (phone.startsWith('233')) phone = '0' + phone.substring(3);
-      const dataSize = (row.bundle || '').replace(/[^0-9.]/g, '');
-      return { 'Phone Number': phone, 'Data Size': dataSize };
+      const volume = (row.bundle || '').replace(/[^0-9.]/g, '');
+      return { 'Phone Number': phone, 'Volume (GB)': volume };
     });
 
     const wb = xlsx.utils.book_new();
@@ -818,8 +818,8 @@ exports.downloadBatch = async (req, res) => {
     const worksheetData = rows.map(row => {
       let phone = row.phone || '';
       if (phone.startsWith('233')) phone = '0' + phone.substring(3);
-      const dataSize = (row.bundle || '').replace(/[^0-9.]/g, '');
-      return { 'Phone Number': phone, 'Data Size': dataSize };
+      const volume = (row.bundle || '').replace(/[^0-9.]/g, '');
+      return { 'Phone Number': phone, 'Volume (GB)': volume };
     });
 
     const wb = xlsx.utils.book_new();
