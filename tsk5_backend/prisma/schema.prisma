@@ -40,6 +40,7 @@ model User {
   storefrontProducts StorefrontProduct[] @relation("AgentStorefront")
   referralOrders     ReferralOrder[]     @relation("AgentReferrals")
   commissionPayouts  CommissionPayout[]  @relation("AgentPayouts")
+  apiKeys            UserApiKey[]        @relation("UserToUserApiKey")
 
   @@map("User")
 }
@@ -410,7 +411,7 @@ model ShopChatMessage {
   @@map("ShopChatMessage")
 }
 
-// External API Keys for partner integrations
+// External API Keys for partner integrations (admin-managed)
 model ExternalApiKey {
   id           Int       @id @default(autoincrement())
   partnerName  String
@@ -420,4 +421,23 @@ model ExternalApiKey {
   lastUsedAt   DateTime?
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
+}
+
+// User-level API Keys — each key is linked to a real user account.
+// Orders placed via this key go through the user's wallet (balance check + deduction)
+// and appear in the admin panel like any other order.
+model UserApiKey {
+  id           Int       @id @default(autoincrement())
+  userId       Int
+  name         String    @db.VarChar(255) // readable label e.g. "My Website"
+  apiKey       String    @unique
+  isActive     Boolean   @default(true)
+  totalOrders  Int       @default(0)
+  lastUsedAt   DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  user         User      @relation("UserToUserApiKey", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("UserApiKey")
 }

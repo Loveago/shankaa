@@ -24,6 +24,7 @@ const storefrontRoutes = require('./routes/storefrontRoutes');
 const chatRoutes = require('./routes/chatRoutes');
 const shopChatRoutes = require('./routes/shopChatRoutes');
 const externalApiRoutes = require('./routes/externalApiRoutes');
+const userApiRoutes = require('./routes/userApiRoutes');
 const { seedAdminUser } = require('./services/adminSeedService');
 
 const app = express();
@@ -180,6 +181,7 @@ app.use('/api/storefront', storefrontRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/shop-chat', shopChatRoutes);
 app.use('/api/external', externalApiRoutes);
+app.use('/api/user-api', userApiRoutes);
 
 const PORT = process.env.PORT || 5000;
 
