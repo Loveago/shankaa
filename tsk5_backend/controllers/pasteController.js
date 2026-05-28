@@ -85,8 +85,20 @@ exports.pasteAndProcessOrders = async (req, res) => {
       });
 
       const product = productsForBundle.sort((a, b) => {
-        const aScore = (a.name === roleProductName ? 2 : 0) + (a.name === selectedNetwork ? 1 : 0);
-        const bScore = (b.name === roleProductName ? 2 : 0) + (b.name === selectedNetwork ? 1 : 0);
+        const aName = String(a.name || '').toUpperCase();
+        const bName = String(b.name || '').toUpperCase();
+        const roleToken = userRole;
+
+        const aScore =
+          (aName === roleProductName ? 4 : 0) +
+          (userRole !== 'USER' && aName.includes(roleToken) ? 3 : 0) +
+          (aName === selectedNetwork ? 1 : 0);
+
+        const bScore =
+          (bName === roleProductName ? 4 : 0) +
+          (userRole !== 'USER' && bName.includes(roleToken) ? 3 : 0) +
+          (bName === selectedNetwork ? 1 : 0);
+
         return bScore - aScore;
       })[0];
 
