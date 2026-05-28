@@ -17,24 +17,57 @@ const orderService = require('../services/orderService');
 const path = require('path');
 
 const formatOrderExportWorksheet = (ws) => {
-  ws['!cols'] = [{ wch: 18 }, { wch: 14 }];
+  ws['!cols'] = [{ wch: 22 }, { wch: 16 }];
+  ws['!autofilter'] = { ref: 'A1:B1' };
 
   if (!ws['!ref']) return;
+
+  const thinBorder = {
+    top: { style: 'thin', color: { rgb: 'D9D9D9' } },
+    bottom: { style: 'thin', color: { rgb: 'D9D9D9' } },
+    left: { style: 'thin', color: { rgb: 'D9D9D9' } },
+    right: { style: 'thin', color: { rgb: 'D9D9D9' } },
+  };
+
   const range = xlsx.utils.decode_range(ws['!ref']);
-  for (let row = range.s.r + 1; row <= range.e.r; row++) {
-    const phoneCellRef = xlsx.utils.encode_cell({ r: row, c: 0 });
-    const cell = ws[phoneCellRef];
-    if (!cell) continue;
-    cell.t = 's';
-    cell.z = '@';
-    if (cell.v != null) cell.v = String(cell.v);
-    cell.s = {
-      alignment: {
-        horizontal: 'left',
-        vertical: 'center',
-      },
-    };
+
+  for (let row = range.s.r; row <= range.e.r; row++) {
+    for (let col = range.s.c; col <= Math.min(range.e.c, 1); col++) {
+      const cellRef = xlsx.utils.encode_cell({ r: row, c: col });
+      const cell = ws[cellRef];
+      if (!cell) continue;
+
+      if (row === range.s.r) {
+        cell.t = 's';
+        cell.s = {
+          font: { bold: true, color: { rgb: 'FFFFFF' } },
+          fill: { patternType: 'solid', fgColor: { rgb: 'D78C1E' } },
+          alignment: { horizontal: 'center', vertical: 'center' },
+          border: thinBorder,
+        };
+        continue;
+      }
+
+      if (col === 0) {
+        cell.t = 's';
+        cell.z = '@';
+        if (cell.v != null) cell.v = String(cell.v);
+      }
+
+      cell.s = {
+        alignment: {
+          horizontal: col === 0 ? 'left' : 'center',
+          vertical: 'center',
+        },
+        border: thinBorder,
+      };
+    }
   }
+};
+
+const buildSheetName = (network) => {
+  const networkLabel = String(network || 'Orders').trim().toUpperCase() || 'ORDERS';
+  return `${networkLabel} Bulk Orders`.slice(0, 31);
 };
 
 exports.submitCart = async (req, res) => {
@@ -778,7 +811,7 @@ exports.exportPendingOrders = async (req, res) => {
     const wb = xlsx.utils.book_new();
     const ws = xlsx.utils.json_to_sheet(worksheetData);
     formatOrderExportWorksheet(ws);
-    xlsx.utils.book_append_sheet(wb, ws, 'Orders');
+    xlsx.utils.book_append_sheet(wb, ws, buildSheetName(network));
     const buffer = xlsx.write(wb, { type: 'buffer', bookType: 'xlsx' });
 
     res.setHeader('Content-Disposition', `attachment; filename=${batch.filename}`);
@@ -847,7 +880,7 @@ exports.downloadBatch = async (req, res) => {
     const wb = xlsx.utils.book_new();
     const ws = xlsx.utils.json_to_sheet(worksheetData);
     formatOrderExportWorksheet(ws);
-    xlsx.utils.book_append_sheet(wb, ws, 'Orders');
+    xlsx.utils.book_append_sheet(wb, ws, buildSheetName(batch.network));
     const buffer = xlsx.write(wb, { type: 'buffer', bookType: 'xlsx' });
 
     res.setHeader('Content-Disposition', `attachment; filename=${batch.filename}`);
