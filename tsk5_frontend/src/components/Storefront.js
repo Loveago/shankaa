@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { X, Store, Plus, Trash2, Edit2, Copy, Check, ExternalLink, Loader2, RefreshCw, DollarSign, Package, TrendingUp, Link2, Eye, EyeOff } from 'lucide-react';
+import { X, Store, Plus, Trash2, Edit2, Copy, Check, ExternalLink, Loader2, RefreshCw, DollarSign, Package, TrendingUp, Link2, Eye, EyeOff, Landmark, Settings, Wallet, MessageCircle, ArrowUpRight, Clock } from 'lucide-react';
 import axios from 'axios';
 import Swal from 'sweetalert2';
 import BASE_URL from '../endpoints/endpoints';
@@ -29,6 +29,17 @@ const Storefront = ({ isOpen, onClose, userId }) => {
   // Edit price modal
   const [editingProduct, setEditingProduct] = useState(null);
   const [editPrice, setEditPrice] = useState('');
+
+  // Wallet state
+  const [walletBalance, setWalletBalance] = useState(0);
+  const [withdrawals, setWithdrawals] = useState([]);
+  const [withdrawalAmount, setWithdrawalAmount] = useState('');
+  const [withdrawalMobile, setWithdrawalMobile] = useState('');
+  const [requestingWithdrawal, setRequestingWithdrawal] = useState(false);
+
+  // WhatsApp settings state
+  const [whatsappNumber, setWhatsappNumber] = useState('');
+  const [savingWhatsapp, setSavingWhatsapp] = useState(false);
 
   const fetchStorefrontData = useCallback(async () => {
     if (!userId) return;
@@ -63,12 +74,30 @@ const Storefront = ({ isOpen, onClose, userId }) => {
     }
   }, [userId]);
 
+  const fetchWalletData = useCallback(async () => {
+    if (!userId) return;
+    try {
+      const headers = getAuthHeaders();
+      const [walletRes, whatsappRes, withdrawRes] = await Promise.all([
+        axios.get(`${BASE_URL}/api/storefront/agent/${userId}/wallet`, { headers }),
+        axios.get(`${BASE_URL}/api/storefront/agent/${userId}/slug`, { headers }),
+        axios.get(`${BASE_URL}/api/storefront/agent/${userId}/withdrawals`, { headers })
+      ]);
+      if (walletRes.data.success) setWalletBalance(walletRes.data.balance || 0);
+      if (whatsappRes.data.whatsapp !== undefined) setWhatsappNumber(whatsappRes.data.whatsapp || '');
+      if (withdrawRes.data.success) setWithdrawals(withdrawRes.data.withdrawals || []);
+    } catch (error) {
+      console.error('Error fetching wallet data:', error);
+    }
+  }, [userId]);
+
   useEffect(() => {
     if (isOpen) {
       fetchStorefrontData();
       fetchReferralSummary();
+      fetchWalletData();
     }
-  }, [isOpen, fetchStorefrontData, fetchReferralSummary]);
+  }, [isOpen, fetchStorefrontData, fetchReferralSummary, fetchWalletData]);
 
   const copyStoreLink = () => {
     const storeUrl = `${window.location.origin}/store/${storefrontSlug}`;
@@ -160,10 +189,85 @@ const Storefront = ({ isOpen, onClose, userId }) => {
     }
   };
 
+  const handleSaveWhatsapp = async () => {
+    if (!whatsappNumber.trim()) {
+      Swal.fire({ icon: 'error', title: 'Error', text: 'Please enter a WhatsApp number', background: '#1e293b', color: '#f1f5f9' });
+      return;
+    }
+    setSavingWhatsapp(true);
+    try {
+      const res = await axios.put(`${BASE_URL}/api/storefront/agent/${userId}/whatsapp`, {
+        whatsappNumber: whatsappNumber.trim()
+      }, { headers: getAuthHeaders() });
+      if (res.data.success) {
+        Swal.fire({ icon: 'success', title: 'Saved!', text: 'WhatsApp number updated successfully', timer: 1500, background: '#1e293b', color: '#f1f5f9', showConfirmButton: false });
+      }
+    } catch (error) {
+      Swal.fire({ icon: 'error', title: 'Error', text: error.response?.data?.message || 'Failed to save WhatsApp number', background: '#1e293b', color: '#f1f5f9' });
+    } finally {
+      setSavingWhatsapp(false);
+    }
+  };
+
+  const handleRequestWithdrawal = async () => {
+    if (!withdrawalAmount || parseFloat(withdrawalAmount) <= 0) {
+      Swal.fire({ icon: 'error', title: 'Error', text: 'Please enter a valid amount', background: '#1e293b', color: '#f1f5f9' });
+      return;
+    }
+    if (parseFloat(withdrawalAmount) > walletBalance) {
+      Swal.fire({ icon: 'error', title: 'Error', text: 'Amount exceeds your wallet balance', background: '#1e293b', color: '#f1f5f9' });
+      return;
+    }
+    if (!withdrawalMobile.trim()) {
+      Swal.fire({ icon: 'error', title: 'Error', text: 'Please enter your mobile number for payout', background: '#1e293b', color: '#f1f5f9' });
+      return;
+    }
+
+    const result = await Swal.fire({
+      title: 'Confirm Withdrawal',
+      text: `You are about to request a withdrawal of ${formatAmount(parseFloat(withdrawalAmount))}`,
+      icon: 'info',
+      showCancelButton: true,
+      confirmButtonColor: '#10b981',
+      confirmButtonText: 'Yes, Request',
+      background: '#1e293b',
+      color: '#f1f5f9'
+    });
+
+    if (!result.isConfirmed) return;
+
+    setRequestingWithdrawal(true);
+    try {
+      const res = await axios.post(`${BASE_URL}/api/storefront/agent/${userId}/withdrawals`, {
+        amount: parseFloat(withdrawalAmount),
+        mobileNumber: withdrawalMobile.trim()
+      }, { headers: getAuthHeaders() });
+      if (res.data.success) {
+        Swal.fire({ icon: 'success', title: 'Submitted!', text: 'Your withdrawal request has been submitted for processing', timer: 2000, background: '#1e293b', color: '#f1f5f9', showConfirmButton: false });
+        setWithdrawalAmount('');
+        setWithdrawalMobile('');
+        fetchWalletData();
+      }
+    } catch (error) {
+      Swal.fire({ icon: 'error', title: 'Error', text: error.response?.data?.message || 'Failed to submit withdrawal request', background: '#1e293b', color: '#f1f5f9' });
+    } finally {
+      setRequestingWithdrawal(false);
+    }
+  };
+
   // Filter out products already in storefront
   const availableToAdd = availableProducts.filter(
     p => !storefrontProducts.some(sp => sp.productId === p.id)
   );
+
+  const getStatusBadge = (status) => {
+    const styles = {
+      Pending: 'bg-amber-500/20 text-amber-400',
+      Approved: 'bg-emerald-500/20 text-emerald-400',
+      Rejected: 'bg-red-500/20 text-red-400'
+    };
+    return styles[status] || 'bg-dark-500/20 text-dark-400';
+  };
 
   if (!isOpen) return null;
 
@@ -176,11 +280,11 @@ const Storefront = ({ isOpen, onClose, userId }) => {
             <Store className="w-7 h-7 sm:w-8 sm:h-8 text-white" />
             <div>
               <h2 className="text-lg sm:text-xl font-bold text-white">My Storefront</h2>
-              <p className="text-violet-100 text-xs sm:text-sm">Manage your products & commissions</p>
+              <p className="text-violet-100 text-xs sm:text-sm">Manage your products, wallet & commissions</p>
             </div>
           </div>
           <div className="flex gap-2">
-            <button onClick={() => { fetchStorefrontData(); fetchReferralSummary(); }} className="p-2 bg-white/20 hover:bg-white/30 rounded-lg">
+            <button onClick={() => { fetchStorefrontData(); fetchReferralSummary(); fetchWalletData(); }} className="p-2 bg-white/20 hover:bg-white/30 rounded-lg">
               <RefreshCw className={`w-5 h-5 text-white ${loading ? 'animate-spin' : ''}`} />
             </button>
             <button onClick={onClose} className="p-2 bg-white/20 hover:bg-white/30 rounded-lg">
@@ -242,6 +346,14 @@ const Storefront = ({ isOpen, onClose, userId }) => {
             <button onClick={() => setActiveTab('earnings')}
               className={`flex-1 sm:flex-none px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === 'earnings' ? 'bg-violet-500 text-white' : 'text-dark-300 hover:text-white'}`}>
               <TrendingUp className="w-4 h-4 inline mr-2" />Earnings
+            </button>
+            <button onClick={() => { setActiveTab('wallet'); fetchWalletData(); }}
+              className={`flex-1 sm:flex-none px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === 'wallet' ? 'bg-violet-500 text-white' : 'text-dark-300 hover:text-white'}`}>
+              <Landmark className="w-4 h-4 inline mr-2" />Wallet
+            </button>
+            <button onClick={() => { setActiveTab('settings'); fetchWalletData(); }}
+              className={`flex-1 sm:flex-none px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === 'settings' ? 'bg-violet-500 text-white' : 'text-dark-300 hover:text-white'}`}>
+              <Settings className="w-4 h-4 inline mr-2" />Settings
             </button>
           </div>
         </div>
@@ -310,7 +422,7 @@ const Storefront = ({ isOpen, onClose, userId }) => {
                 </div>
               )}
             </div>
-          ) : (
+          ) : activeTab === 'earnings' ? (
             <div>
               <h3 className="text-white font-semibold mb-4">Referral Earnings</h3>
               
@@ -361,6 +473,183 @@ const Storefront = ({ isOpen, onClose, userId }) => {
                   </table>
                 </div>
               )}
+            </div>
+          ) : activeTab === 'wallet' ? (
+            <div>
+              {/* Wallet Balance Card */}
+              <div className="bg-gradient-to-r from-emerald-600 to-emerald-700 rounded-2xl p-6 mb-6">
+                <div className="flex items-center gap-3 mb-2">
+                  <Wallet className="w-6 h-6 text-emerald-200" />
+                  <p className="text-emerald-200 text-sm font-medium">Storefront Wallet Balance</p>
+                </div>
+                <p className="text-3xl sm:text-4xl font-bold text-white mb-1">
+                  {formatAmount(walletBalance)}
+                </p>
+                <p className="text-emerald-200 text-xs">Commissions are auto-deposited after each sale</p>
+              </div>
+
+              {/* Withdrawal Form */}
+              <div className="bg-dark-900/50 border border-dark-700 rounded-xl p-5 mb-6">
+                <h4 className="text-white font-semibold mb-4 flex items-center gap-2">
+                  <ArrowUpRight className="w-5 h-5 text-emerald-400" />
+                  Request Withdrawal
+                </h4>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
+                  <div>
+                    <label className="block text-dark-300 text-sm mb-2">Amount (GHS)</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      max={walletBalance}
+                      value={withdrawalAmount}
+                      onChange={(e) => setWithdrawalAmount(e.target.value)}
+                      placeholder="0.00"
+                      className="w-full bg-dark-800 border border-dark-600 rounded-lg px-4 py-3 text-white text-sm focus:border-emerald-500 focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-dark-300 text-sm mb-2">Mobile Money Number</label>
+                    <input
+                      type="text"
+                      value={withdrawalMobile}
+                      onChange={(e) => setWithdrawalMobile(e.target.value)}
+                      placeholder="024XXXXXXX"
+                      className="w-full bg-dark-800 border border-dark-600 rounded-lg px-4 py-3 text-white text-sm focus:border-emerald-500 focus:outline-none"
+                    />
+                  </div>
+                  <div className="flex items-end">
+                    <button onClick={handleRequestWithdrawal} disabled={requestingWithdrawal || !withdrawalAmount || parseFloat(withdrawalAmount) <= 0 || parseFloat(withdrawalAmount) > walletBalance}
+                      className="w-full px-4 py-3 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2">
+                      {requestingWithdrawal ? (
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                      ) : (
+                        <>
+                          <ArrowUpRight className="w-4 h-4" />
+                          Withdraw
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Withdrawal History */}
+              <h4 className="text-white font-semibold mb-4 flex items-center gap-2">
+                <Clock className="w-5 h-5 text-dark-400" />
+                Withdrawal History
+              </h4>
+              {withdrawals.length === 0 ? (
+                <div className="text-center py-8">
+                  <Landmark className="w-10 h-10 text-dark-600 mx-auto mb-3" />
+                  <p className="text-dark-400 text-sm">No withdrawal requests yet</p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="bg-dark-900">
+                      <tr className="text-left text-dark-400 text-sm">
+                        <th className="px-4 py-3">Date</th>
+                        <th className="px-4 py-3">Amount</th>
+                        <th className="px-4 py-3">Mobile</th>
+                        <th className="px-4 py-3">Status</th>
+                        <th className="px-4 py-3">Notes</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {withdrawals.map((w) => (
+                        <tr key={w.id} className="border-t border-dark-700 hover:bg-dark-800/50">
+                          <td className="px-4 py-3 text-dark-300 text-sm">{new Date(w.createdAt).toLocaleDateString()}</td>
+                          <td className="px-4 py-3 text-white font-medium">{formatAmount(w.amount)}</td>
+                          <td className="px-4 py-3 text-dark-300">{w.mobileNumber}</td>
+                          <td className="px-4 py-3">
+                            <span className={`px-2 py-1 rounded text-xs font-medium ${getStatusBadge(w.status)}`}>
+                              {w.status}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-dark-400 text-sm">{w.adminNotes || '—'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          ) : (
+            /* Settings Tab */
+            <div>
+              <h3 className="text-white font-semibold mb-4 flex items-center gap-2">
+                <Settings className="w-5 h-5 text-dark-400" />
+                Storefront Settings
+              </h3>
+
+              {/* WhatsApp Configuration */}
+              <div className="bg-dark-900/50 border border-dark-700 rounded-xl p-5 mb-6">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="p-2 bg-emerald-500/20 rounded-lg">
+                    <MessageCircle className="w-6 h-6 text-emerald-400" />
+                  </div>
+                  <div>
+                    <h4 className="text-white font-semibold">WhatsApp Contact Number</h4>
+                    <p className="text-dark-400 text-sm">Customers will see this number as a WhatsApp bubble on your storefront page</p>
+                  </div>
+                </div>
+
+                <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-end">
+                  <div className="flex-1 w-full">
+                    <label className="block text-dark-300 text-sm mb-2">WhatsApp Number</label>
+                    <input
+                      type="text"
+                      value={whatsappNumber}
+                      onChange={(e) => setWhatsappNumber(e.target.value)}
+                      placeholder="024XXXXXXX"
+                      className="w-full bg-dark-800 border border-dark-600 rounded-lg px-4 py-3 text-white text-sm focus:border-emerald-500 focus:outline-none"
+                    />
+                    <p className="text-dark-500 text-xs mt-1">Enter the number customers can reach you on WhatsApp (e.g., 024XXXXXXX)</p>
+                  </div>
+                  <button onClick={handleSaveWhatsapp} disabled={savingWhatsapp}
+                    className="px-6 py-3 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg font-medium transition-colors disabled:opacity-50 flex items-center gap-2">
+                    {savingWhatsapp ? (
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                    ) : (
+                      <>
+                        <Check className="w-4 h-4" />
+                        Save
+                      </>
+                    )}
+                  </button>
+                </div>
+
+                {whatsappNumber && (
+                  <div className="mt-4 bg-emerald-500/10 border border-emerald-500/30 rounded-lg p-3 flex items-center gap-3">
+                    <MessageCircle className="w-5 h-5 text-emerald-400" />
+                    <div>
+                      <p className="text-emerald-400 text-sm font-medium">WhatsApp bubble is active</p>
+                      <p className="text-emerald-300 text-xs">Customers will see a WhatsApp contact button on your storefront</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Store Link Card */}
+              <div className="bg-dark-900/50 border border-dark-700 rounded-xl p-5">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="p-2 bg-violet-500/20 rounded-lg">
+                    <Link2 className="w-6 h-6 text-violet-400" />
+                  </div>
+                  <div>
+                    <h4 className="text-white font-semibold">Your Store URL</h4>
+                    <p className="text-dark-400 text-sm">Share this link with customers</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 bg-dark-800 rounded-lg px-4 py-3">
+                  <span className="text-violet-400 text-sm truncate flex-1">
+                    {window.location.origin}/store/{storefrontSlug || '...'}
+                  </span>
+                  <button onClick={copyStoreLink} className="p-1.5 hover:bg-dark-700 rounded transition-colors">
+                    {copied ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4 text-dark-400" />}
+                  </button>
+                </div>
+              </div>
             </div>
           )}
         </div>

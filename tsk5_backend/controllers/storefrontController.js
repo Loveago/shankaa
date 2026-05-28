@@ -6,8 +6,8 @@ const storefrontService = require('../services/storefrontService');
 const getStorefrontSlug = async (req, res) => {
   try {
     const { userId } = req.params;
-    const slug = await storefrontService.getOrCreateStorefrontSlug(userId);
-    res.status(200).json({ success: true, slug });
+    const result = await storefrontService.getOrCreateStorefrontSlug(userId);
+    res.status(200).json({ success: true, slug: result.slug, whatsapp: result.whatsapp || '' });
   } catch (error) {
     console.error('Error getting storefront slug:', error);
     res.status(500).json({ success: false, message: error.message });
@@ -232,6 +232,94 @@ const getWeeklyCommissionSummary = async (req, res) => {
   }
 };
 
+// ==================== STOREFRONT WALLET & WHATSAPP ====================
+
+const getStorefrontWallet = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const wallet = await storefrontService.getStorefrontWallet(userId);
+    res.status(200).json({ success: true, ...wallet });
+  } catch (error) {
+    console.error('Error getting storefront wallet:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+const updateStorefrontWhatsapp = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { whatsappNumber } = req.body;
+    const result = await storefrontService.updateStorefrontWhatsapp(userId, whatsappNumber);
+    res.status(200).json({ success: true, data: result });
+  } catch (error) {
+    console.error('Error updating storefront WhatsApp:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// ==================== WITHDRAWAL SYSTEM ====================
+
+const createWithdrawalRequest = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { amount, mobileNumber } = req.body;
+
+    if (!amount || !mobileNumber) {
+      return res.status(400).json({ success: false, message: 'Amount and mobile number are required' });
+    }
+
+    const withdrawal = await storefrontService.createWithdrawalRequest(userId, amount, mobileNumber);
+    res.status(201).json({ success: true, withdrawal });
+  } catch (error) {
+    console.error('Error creating withdrawal request:', error);
+    res.status(400).json({ success: false, message: error.message });
+  }
+};
+
+const getAgentWithdrawals = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const withdrawals = await storefrontService.getAgentWithdrawalRequests(userId);
+    res.status(200).json({ success: true, withdrawals });
+  } catch (error) {
+    console.error('Error getting agent withdrawals:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+const getAllWithdrawalRequests = async (req, res) => {
+  try {
+    const filters = {
+      status: req.query.status,
+      agentId: req.query.agentId,
+      page: req.query.page,
+      limit: req.query.limit
+    };
+    const result = await storefrontService.getAllWithdrawalRequests(filters);
+    res.status(200).json({ success: true, ...result });
+  } catch (error) {
+    console.error('Error getting all withdrawal requests:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+const processWithdrawalRequest = async (req, res) => {
+  try {
+    const { requestId } = req.params;
+    const { status, adminNotes } = req.body;
+
+    if (!status) {
+      return res.status(400).json({ success: false, message: 'Status is required (Approved or Rejected)' });
+    }
+
+    const result = await storefrontService.processWithdrawalRequest(requestId, status, adminNotes);
+    res.status(200).json({ success: true, withdrawal: result });
+  } catch (error) {
+    console.error('Error processing withdrawal request:', error);
+    res.status(400).json({ success: false, message: error.message });
+  }
+};
+
 module.exports = {
   // Agent storefront management
   getStorefrontSlug,
@@ -248,6 +336,16 @@ module.exports = {
   initializeReferralPayment,
   verifyReferralPayment,
   
+  // Storefront Wallet & WhatsApp
+  getStorefrontWallet,
+  updateStorefrontWhatsapp,
+
+  // Withdrawal System
+  createWithdrawalRequest,
+  getAgentWithdrawals,
+  getAllWithdrawalRequests,
+  processWithdrawalRequest,
+
   // Admin functions
   getAllReferralOrders,
   markCommissionsPaid,

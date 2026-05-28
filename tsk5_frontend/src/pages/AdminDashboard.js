@@ -19,6 +19,7 @@ import ExternalApiKeys from '../components/ExternalApiKeys';
 import OrderTracker from '../components/OrderTracker';
 import SuspiciousActivity from '../components/SuspiciousActivity';
 import OrderFiles from '../components/OrderFiles';
+import StorefrontWithdrawalAdmin from '../components/StorefrontWithdrawalAdmin';
 
 // Notification sound
 const notificationSound = new Audio('/notification-sound.mp3');
@@ -90,6 +91,7 @@ const AdminDashboard = () => {
   const [showExternalApiModal, setShowExternalApiModal] = useState(false);
   const [showOrderTracker, setShowOrderTracker] = useState(false);
   const [showSuspiciousActivity, setShowSuspiciousActivity] = useState(false);
+  const [showStorefrontWithdrawals, setShowStorefrontWithdrawals] = useState(false);
   const [fraudAlerts, setFraudAlerts] = useState([]);
   const [fraudBlinking, setFraudBlinking] = useState(false);
   
@@ -566,6 +568,10 @@ const AdminDashboard = () => {
           <button onClick={() => { setActiveTab('orderFiles'); setIsSidebarOpen(false); }}
             className="w-full flex items-center gap-3 px-4 py-3 text-dark-300 hover:text-white hover:bg-dark-700/50 rounded-xl transition-all">
             <FileText className="w-5 h-5" /><span>Order Files</span>
+          </button>
+          <button onClick={() => { setShowStorefrontWithdrawals(true); setIsSidebarOpen(false); }}
+            className="w-full flex items-center gap-3 px-4 py-3 text-dark-300 hover:text-white hover:bg-dark-700/50 rounded-xl transition-all">
+            <Landmark className="w-5 h-5" /><span>Storefront Withdrawals</span>
           </button>
           <hr className="border-dark-700 my-2" />
           <button onClick={() => navigate('/profile')}
@@ -1177,6 +1183,9 @@ const AdminDashboard = () => {
 
       {/* Suspicious Activity Modal */}
       <SuspiciousActivity isOpen={showSuspiciousActivity} onClose={() => setShowSuspiciousActivity(false)} onAlertsUpdate={(activeAlerts) => { setFraudAlerts(activeAlerts); if (activeAlerts.length > 0) setFraudBlinking(true); }} />
+
+      {/* Storefront Withdrawals Modal */}
+      <StorefrontWithdrawalAdmin isOpen={showStorefrontWithdrawals} onClose={() => setShowStorefrontWithdrawals(false)} />
 
       {/* Floating Chat */}
       <FloatingChatButton currentUser={{ id: parseInt(localStorage.getItem('userId')), name: localStorage.getItem('name'), role: 'admin' }} />

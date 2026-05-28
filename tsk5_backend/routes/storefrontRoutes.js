@@ -15,6 +15,16 @@ router.delete('/agent/:userId/products/:productId', authMiddleware, storefrontCo
 router.patch('/agent/:userId/products/:productId/toggle', authMiddleware, storefrontController.toggleProduct);
 router.get('/agent/:userId/referrals', authMiddleware, storefrontController.getAgentReferralSummary);
 
+// Storefront Wallet
+router.get('/agent/:userId/wallet', authMiddleware, storefrontController.getStorefrontWallet);
+
+// Storefront WhatsApp settings
+router.put('/agent/:userId/whatsapp', authMiddleware, storefrontController.updateStorefrontWhatsapp);
+
+// Withdrawal Requests (Agent)
+router.post('/agent/:userId/withdrawals', authMiddleware, storefrontController.createWithdrawalRequest);
+router.get('/agent/:userId/withdrawals', authMiddleware, storefrontController.getAgentWithdrawals);
+
 // ==================== PUBLIC STOREFRONT (no auth - customers access these) ====================
 
 router.get('/public/:slug', storefrontController.getPublicStorefront);
@@ -26,5 +36,9 @@ router.post('/verify', storefrontController.verifyReferralPayment);
 router.get('/admin/referrals', authMiddleware, adminMiddleware, storefrontController.getAllReferralOrders);
 router.post('/admin/commissions/pay', authMiddleware, adminMiddleware, storefrontController.markCommissionsPaid);
 router.get('/admin/commissions/weekly', authMiddleware, adminMiddleware, storefrontController.getWeeklyCommissionSummary);
+
+// Admin Withdrawal Management
+router.get('/admin/withdrawals', authMiddleware, adminMiddleware, storefrontController.getAllWithdrawalRequests);
+router.put('/admin/withdrawals/:requestId', authMiddleware, adminMiddleware, storefrontController.processWithdrawalRequest);
 
 module.exports = router;

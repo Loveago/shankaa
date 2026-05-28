@@ -35,13 +35,13 @@ const effectivePriceOf = (product, role = null) => {
 const getOrCreateStorefrontSlug = async (agentId) => {
   const agent = await prisma.user.findUnique({
     where: { id: parseInt(agentId) },
-    select: { id: true, name: true, storefrontSlug: true }
+    select: { id: true, name: true, storefrontSlug: true, storefrontWhatsapp: true }
   });
 
   if (!agent) throw new Error('Agent not found');
 
   if (agent.storefrontSlug) {
-    return agent.storefrontSlug;
+    return { slug: agent.storefrontSlug, whatsapp: agent.storefrontWhatsapp || '' };
   }
 
   // Generate and save new slug
@@ -51,12 +51,12 @@ const getOrCreateStorefrontSlug = async (agentId) => {
     data: { storefrontSlug: slug }
   });
 
-  return slug;
+  return { slug, whatsapp: agent.storefrontWhatsapp || '' };
 };
 
 // Get all products available for storefront (filtered by agent role)
 const getAvailableProducts = async (agentId) => {
-  // Get agent's role
+  // Get agent's role for effective price resolution
   const agent = await prisma.user.findUnique({
     where: { id: parseInt(agentId) },
     select: { role: true }
@@ -66,30 +66,10 @@ const getAvailableProducts = async (agentId) => {
 
   const role = agent.role;
 
-  // Build product name filter based on role
-  // Products are named like "MTN - SUPER", "VODAFONE - PREMIUM", etc.
-  // For USER role, products don't have role suffix (just "MTN", "VODAFONE")
-  let nameFilter;
-  if (role === 'USER') {
-    // For USER role, get products without role suffix
-    nameFilter = {
-      AND: [
-        { name: { not: { contains: ' - SUPER' } } },
-        { name: { not: { contains: ' - PREMIUM' } } },
-        { name: { not: { contains: ' - NORMAL' } } },
-        { name: { not: { contains: ' - OTHER' } } }
-      ]
-    };
-  } else {
-    // For other roles, get products with their role suffix
-    nameFilter = { name: { contains: ` - ${role}` } };
-  }
-
+  // Show ALL products with stock > 0 — the old name-based role filtering
+  // is obsolete now that per-account-type pricing (RolePrice) exists.
   const products = await prisma.product.findMany({
-    where: {
-      stock: { gt: 0 },
-      ...nameFilter
-    },
+    where: { stock: { gt: 0 } },
     include: { rolePrices: { select: { role: true, price: true } } },
     orderBy: [{ name: 'asc' }, { price: 'asc' }]
   });
@@ -246,7 +226,7 @@ const toggleStorefrontProduct = async (agentId, storefrontProductId) => {
 const getPublicStorefront = async (slug) => {
   const agent = await prisma.user.findFirst({
     where: { storefrontSlug: slug },
-    select: { id: true, name: true, storefrontSlug: true }
+    select: { id: true, name: true, storefrontSlug: true, storefrontWhatsapp: true }
   });
 
   if (!agent) throw new Error('Storefront not found');
@@ -259,20 +239,21 @@ const getPublicStorefront = async (slug) => {
     },
     include: {
       product: {
-        select: { id: true, name: true, description: true, stock: true }
+        select: { id: true, name: true, description: true, price: true, stock: true }
       }
     },
     orderBy: { customPrice: 'asc' }
   });
 
   return {
-    agent: { name: agent.name, slug: agent.storefrontSlug },
+    agent: { name: agent.name, slug: agent.storefrontSlug, whatsapp: agent.storefrontWhatsapp },
     products: products.map(sp => ({
       id: sp.id,
       productId: sp.product.id,
       name: sp.product.name,
       description: sp.product.description,
       price: sp.customPrice,
+      basePrice: sp.product.price,
       inStock: sp.product.stock > 0
     }))
   };
@@ -484,6 +465,14 @@ const verifyReferralPayment = async (reference) => {
             paymentStatus: 'Paid',
             orderStatus: 'Processing',
             orderId: order.id
+          }
+        });
+
+        // Automatically deposit commission to agent's storefront wallet
+        await tx.user.update({
+          where: { id: referralOrder.agentId },
+          data: {
+            storefrontWallet: { increment: referralOrder.commission }
           }
         });
 
@@ -787,6 +776,162 @@ const cleanupStalePendingReferrals = async () => {
   }
 };
 
+// ==================== STOREFRONT WALLET & COMMISSION AUTO-DEPOSIT ====================
+// Deposit commission to agent's storefront wallet automatically after payment verification
+const depositCommissionToWallet = async (transaction) => {
+  // Inside verifyReferralPayment, after payment is confirmed and order created,
+  // we deposit the commission to the agent's storefrontWallet
+  const { referralOrder } = transaction;
+  await prisma.user.update({
+    where: { id: referralOrder.agentId },
+    data: {
+      storefrontWallet: { increment: referralOrder.commission }
+    }
+  });
+};
+
+// Get agent's storefront wallet balance
+const getStorefrontWallet = async (agentId) => {
+  const agent = await prisma.user.findUnique({
+    where: { id: parseInt(agentId) },
+    select: { id: true, name: true, storefrontWallet: true }
+  });
+
+  if (!agent) throw new Error('Agent not found');
+
+  return {
+    agentId: agent.id,
+    name: agent.name,
+    balance: agent.storefrontWallet || 0
+  };
+};
+
+// ==================== STOREFRONT WHATSAPP SETTINGS ====================
+const updateStorefrontWhatsapp = async (agentId, whatsappNumber) => {
+  const agent = await prisma.user.findUnique({
+    where: { id: parseInt(agentId) }
+  });
+  if (!agent) throw new Error('Agent not found');
+
+  return await prisma.user.update({
+    where: { id: parseInt(agentId) },
+    data: { storefrontWhatsapp: whatsappNumber || null },
+    select: { id: true, name: true, storefrontWhatsapp: true }
+  });
+};
+
+// ==================== WITHDRAWAL SYSTEM ====================
+const createWithdrawalRequest = async (agentId, amount, mobileNumber) => {
+  const agent = await prisma.user.findUnique({
+    where: { id: parseInt(agentId) },
+    select: { id: true, storefrontWallet: true }
+  });
+
+  if (!agent) throw new Error('Agent not found');
+  if (amount <= 0) throw new Error('Invalid withdrawal amount');
+  if ((agent.storefrontWallet || 0) < amount) throw new Error('Insufficient wallet balance');
+
+  const result = await prisma.$transaction(async (tx) => {
+    // Deduct from wallet
+    await tx.user.update({
+      where: { id: parseInt(agentId) },
+      data: { storefrontWallet: { decrement: amount } }
+    });
+
+    // Create withdrawal request
+    const withdrawal = await tx.withdrawalRequest.create({
+      data: {
+        agentId: parseInt(agentId),
+        amount,
+        mobileNumber,
+        status: 'Pending'
+      }
+    });
+
+    return withdrawal;
+  });
+
+  return result;
+};
+
+// Get agent's withdrawal requests
+const getAgentWithdrawalRequests = async (agentId) => {
+  return await prisma.withdrawalRequest.findMany({
+    where: { agentId: parseInt(agentId) },
+    orderBy: { createdAt: 'desc' }
+  });
+};
+
+// Admin: get all withdrawal requests
+const getAllWithdrawalRequests = async (filters = {}) => {
+  const where = {};
+  if (filters.status) where.status = filters.status;
+  if (filters.agentId) where.agentId = parseInt(filters.agentId);
+
+  const page = parseInt(filters.page) || 1;
+  const limit = parseInt(filters.limit) || 50;
+  const skip = (page - 1) * limit;
+
+  const [requests, totalCount] = await Promise.all([
+    prisma.withdrawalRequest.findMany({
+      where,
+      include: {
+        agent: { select: { id: true, name: true, email: true, phone: true, role: true } }
+      },
+      orderBy: { createdAt: 'desc' },
+      skip,
+      take: limit
+    }),
+    prisma.withdrawalRequest.count({ where })
+  ]);
+
+  return {
+    requests,
+    pagination: {
+      page, limit, totalCount,
+      totalPages: Math.ceil(totalCount / limit) || 1,
+      hasNext: page < Math.ceil(totalCount / limit)
+    }
+  };
+};
+
+// Admin: approve or reject a withdrawal request
+const processWithdrawalRequest = async (requestId, status, adminNotes = null) => {
+  if (!['Approved', 'Rejected'].includes(status)) {
+    throw new Error('Status must be Approved or Rejected');
+  }
+
+  const request = await prisma.withdrawalRequest.findUnique({
+    where: { id: parseInt(requestId) }
+  });
+
+  if (!request) throw new Error('Withdrawal request not found');
+  if (request.status !== 'Pending') throw new Error('Request already processed');
+
+  const result = await prisma.$transaction(async (tx) => {
+    const updated = await tx.withdrawalRequest.update({
+      where: { id: parseInt(requestId) },
+      data: {
+        status,
+        adminNotes: adminNotes || null,
+        processedAt: new Date()
+      }
+    });
+
+    // If rejected, refund the amount back to the agent's wallet
+    if (status === 'Rejected') {
+      await tx.user.update({
+        where: { id: request.agentId },
+        data: { storefrontWallet: { increment: request.amount } }
+      });
+    }
+
+    return updated;
+  });
+
+  return result;
+};
+
 module.exports = {
   // Agent storefront management
   getOrCreateStorefrontSlug,
@@ -811,6 +956,19 @@ module.exports = {
   getAllReferralOrders,
   markCommissionsPaid,
   getWeeklyCommissionSummary,
+
+  // Storefront Wallet
+  getStorefrontWallet,
+  depositCommissionToWallet,
+
+  // Storefront WhatsApp
+  updateStorefrontWhatsapp,
+
+  // Withdrawal System
+  createWithdrawalRequest,
+  getAgentWithdrawalRequests,
+  getAllWithdrawalRequests,
+  processWithdrawalRequest,
 
   // Maintenance
   cleanupStalePendingReferrals
