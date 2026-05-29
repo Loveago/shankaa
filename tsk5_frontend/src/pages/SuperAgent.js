@@ -482,6 +482,8 @@ const SuperAgent = () => {
           )}
           </>}
         </main>
+        </>
+      )}
       </div>
 
       <TopUp isOpen={showTopUp} onClose={() => { setShowTopUp(false); fetchLoanBalance(); }} onSuccess={fetchLoanBalance} />

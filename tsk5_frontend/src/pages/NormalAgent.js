@@ -360,6 +360,7 @@ const NormalAgent = () => {
         {viewingBulkOrdersPage ? (
           <BulkOrdersPage onBack={() => setViewingBulkOrdersPage(false)} />
         ) : (
+        <>
         <header className="bg-dark-900/80 backdrop-blur border-b border-dark-700 sticky top-0 z-30">
           <div className="px-4 sm:px-6 lg:px-8 py-4">
             <div className="flex items-center justify-between">
@@ -481,6 +482,7 @@ const NormalAgent = () => {
           )}
           </>}
         </main>
+        </>
       )}
       </div>
 
