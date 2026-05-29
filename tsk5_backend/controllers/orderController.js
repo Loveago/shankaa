@@ -114,14 +114,22 @@ exports.getUserBulkOrders = async (req, res) => {
       },
     });
 
+    const extractGBFromItem = (it) => {
+      const desc = (it.productDescription || it.productName || it.product?.description || it.product?.name || '').toLowerCase();
+      const gbMatch = desc.match(/(\d+(?:\.\d+)?)\s*gb/i);
+      return gbMatch ? parseFloat(gbMatch[1]) : 0;
+    };
+
     const bulkOrders = orders
       .filter((o) => (o._count?.items || o.items.length) >= 2)
       .map((o) => {
         const totalItems = o._count?.items || o.items.length;
         let totalPrice = 0;
+        let totalGB = 0;
         o.items.forEach((it) => {
           const price = it.productPrice ?? it.product?.price ?? 0;
           totalPrice += price * (it.quantity || 1);
+          totalGB += extractGBFromItem(it) * (it.quantity || 1);
         });
         const firstItem = o.items[0] || {};
         return {
@@ -130,6 +138,7 @@ exports.getUserBulkOrders = async (req, res) => {
           createdAt: o.createdAt,
           totalItems,
           totalPrice,
+          totalGB,
           status: deriveAggregateStatus(o.items),
           network: normalizeNetworkLabel(firstItem.productName || firstItem.product?.name || ''),
         };

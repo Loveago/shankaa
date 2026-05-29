@@ -21,7 +21,9 @@ const formatDate = (d) => {
   return dt.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) + ' ' + dt.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
 };
 
-const calculateTotalGB = (items) => {
+const calculateTotalGB = (order) => {
+  if (order.totalGB !== undefined) return order.totalGB;
+  const items = order.items;
   if (!items || items.length === 0) return 0;
   return items.reduce((total, item) => {
     const desc = (item.productDescription || item.productName || '').toLowerCase();
@@ -102,7 +104,7 @@ const BulkOrdersPage = ({ onBack }) => {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {orders.map((order) => {
-              const totalGB = calculateTotalGB(order.items);
+              const totalGB = calculateTotalGB(order);
               return (
                 <button
                   key={order.id}
