@@ -15,7 +15,7 @@ import PasteOrders from '../components/PasteOrders';
 import Storefront from '../components/Storefront';
 import FloatingChatButton from '../components/FloatingChatButton';
 import UserApiKeys from '../components/UserApiKeys';
-import BulkOrdersModal from '../components/BulkOrdersModal';
+import BulkOrdersPage from './BulkOrdersPage';
 
 const SUPPORTED_ROLES = new Set(['USER', 'PREMIUM', 'NORMAL', 'SUPER', 'OTHER']);
 
@@ -55,7 +55,7 @@ const Premium = () => {
   const [showPasteOrders, setShowPasteOrders] = useState(false);
   const [showStorefront, setShowStorefront] = useState(false);
   const [showApiKeys, setShowApiKeys] = useState(false);
-  const [showBulkOrders, setShowBulkOrders] = useState(false);
+  const [viewingBulkOrdersPage, setViewingBulkOrdersPage] = useState(false);
   const [isSuspended, setIsSuspended] = useState(localStorage.getItem('isSuspended') === 'true');
 
   const userName = localStorage.getItem('name') || 'Premium User';
@@ -353,10 +353,14 @@ const Premium = () => {
         onOpenUploadExcel={() => setShowUploadExcel(true)}
         onOpenPasteOrders={() => setShowPasteOrders(true)}
         onOpenStorefront={() => setShowStorefront(true)}
-        onOpenBulkOrders={() => setShowBulkOrders(true)}
+        onOpenBulkOrders={() => setViewingBulkOrdersPage(true)}
         isSuspended={isSuspended}
       />
       <div className="md:ml-72">
+        {viewingBulkOrdersPage ? (
+          <BulkOrdersPage onBack={() => setViewingBulkOrdersPage(false)} />
+        ) : (
+        <>
         <header className="bg-dark-900/80 backdrop-blur border-b border-dark-700 sticky top-0 z-30">
           <div className="px-4 sm:px-6 lg:px-8 py-4">
             <div className="flex items-center justify-between">
@@ -478,6 +482,8 @@ const Premium = () => {
           )}
           </>}
         </main>
+      </>
+      )}
       </div>
 
       <TopUp isOpen={showTopUp} onClose={() => { setShowTopUp(false); fetchLoanBalance(); }} onSuccess={fetchLoanBalance} />
@@ -537,10 +543,6 @@ const Premium = () => {
         onTopUp={() => { setShowApiKeys(false); setShowTopUp(true); }}
       />
 
-      <BulkOrdersModal
-        isOpen={showBulkOrders}
-        onClose={() => setShowBulkOrders(false)}
-      />
 
       {/* Floating Chat */}
       <FloatingChatButton currentUser={{ id: parseInt(localStorage.getItem('userId')), name: localStorage.getItem('name'), role: 'PREMIUM' }} />
