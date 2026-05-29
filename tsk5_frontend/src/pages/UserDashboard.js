@@ -55,7 +55,6 @@ const UserDashboard = () => {
   const [showPasteOrders, setShowPasteOrders] = useState(false);
   const [showStorefront, setShowStorefront] = useState(false);
   const [showApiKeys, setShowApiKeys] = useState(false);
-  const [showBulkOrders, setShowBulkOrders] = useState(false);
   const [viewingBulkOrdersPage, setViewingBulkOrdersPage] = useState(false);
   const [isSuspended, setIsSuspended] = useState(localStorage.getItem('isSuspended') === 'true');
 
