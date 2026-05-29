@@ -43,8 +43,7 @@ const initializeTopup = async (req, res) => {
         message: "Minimum top-up amount is GHS 1",
       });
     }
-
-    const callbackUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/dashboard?topup=callback`;
+    const callbackUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/user?topup=callback`;
     const result = await topupPaymentService.initializeTopupPayment(userId, amount, callbackUrl);
 
     if (result.success) {

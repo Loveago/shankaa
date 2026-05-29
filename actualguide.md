@@ -125,7 +125,7 @@ Inside the `psql` prompt, run these SQL commands **one at a time**:
 
 ```sql
 -- Create a superuser role for your app
-CREATE USER tsk5admin WITH PASSWORD 'YourSuperStrongPasswordHere123!';
+CREATE USER tsk5admin WITH PASSWORD 'Shankaa1122@';
 
 -- Grant superuser privileges (full access)
 ALTER USER tsk5admin WITH SUPERUSER CREATEDB CREATEROLE;
@@ -160,8 +160,8 @@ cd /var
 sudo mkdir -p www
 sudo chown $USER:$USER www
 cd www
-git clone https://github.com/your-username/your-repo.git shank
-cd shank/tsk5_backend
+git clone https://github.com/your-username/your-repo.git shankaa
+cd shankaa/tsk5_backend
 
 # 2. Install backend dependencies
 npm install
@@ -175,27 +175,26 @@ NODE_ENV=production
 
 # Database (PostgreSQL running on same VPS)
 # Replace the password with what you set in Step 4
-DATABASE_URL=postgresql://tsk5admin:YourSuperStrongPasswordHere123!@localhost:5432/tsk5db?schema=public
+DATABASE_URL=postgresql://tsk5admin:Shankaa1122a1@localhost:5432/tsk5db?schema=public
 
 # JWT Secret — GENERATE YOUR OWN: run 'openssl rand -base64 32' on the VPS
-JWT_SECRET=your_generated_jwt_secret_here_32_chars_base64
+JWT_SECRET=aweuifafh4uauoip4f4fuafugu4fuipq4guhauhap7934hupaw
 
 # Admin Seed User — Created on first startup
 ADMIN_NAME=Admin
-ADMIN_EMAIL=admin@data-deals.com
-ADMIN_PASSWORD=YourStrongAdminPassword123
+const callbackUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/dashboard?topup=callback`;
 ADMIN_PHONE=+233501234567
 
 # Paystack Payment Gateway
 # Get these from https://dashboard.paystack.com
-PAYSTACK_SECRET_KEY=sk_live_your_actual_paystack_secret_key_here
+PAYSTACK_SECRET_KEY=
 PAYSTACK_CALLBACK_URL=https://data-deals.com/api/payment/callback
 
 # Frontend URL
 FRONTEND_URL=https://data-deals.com
 
 # Chat Encryption Key — GENERATE YOUR OWN: run 'openssl rand -base64 32'
-CHAT_ENCRYPTION_KEY=your_generated_chat_encryption_key_here_32_chars
+CHAT_ENCRYPTION_KEY=aweuifafh4uauoip4f4fuafugu4fuipq4guhauhap7934hupaw
 EOF
 
 # 4. IMPORTANT: Generate your own secrets
@@ -231,7 +230,7 @@ curl http://localhost:5000/health
 
 ```bash
 # 1. Navigate to frontend directory
-cd /var/www/shank/tsk5_frontend
+cd /var/www/shankaa/tsk5_frontend
 
 # 2. Install dependencies
 npm install
@@ -266,7 +265,7 @@ server {
     server_name data-deals.com www.data-deals.com;
 
     # Path to the built frontend files
-    root /var/www/shank/tsk5_frontend/build;
+    root /var/www/shankaa/tsk5_frontend/build;
     index index.html;
 
     # ──────────────────────────────────────────────
@@ -328,7 +327,10 @@ server {
     # FRONTEND — Serve the React SPA for all other routes
     # ──────────────────────────────────────────────
     location / {
-        try_files $uri $uri/ /index.html;
+        # Serve existing files/directories as-is
+        if (!-e $request_filename) {
+            rewrite ^(.*)$ /index.html break;
+        }
     }
 }
 ```
