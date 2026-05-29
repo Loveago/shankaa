@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
-import { Copy, Plus, Trash2, Eye, EyeOff, Loader2, RefreshCw, Check, X } from 'lucide-react';
+import { Copy, Plus, Trash2, Loader2, Check, X } from 'lucide-react';
 import BASE_URL from '../endpoints/endpoints';
 import { toast } from 'react-toastify';
 
@@ -18,7 +18,7 @@ const ReferralCodeManager = () => {
     Authorization: `Bearer ${localStorage.getItem('token')}`,
   });
 
-  const fetchCodes = async (pageNum = 1) => {
+  const fetchCodes = useCallback(async (pageNum = 1) => {
     setLoading(true);
     try {
       const res = await axios.get(`${BASE_URL}/api/auth/referral-codes?page=${pageNum}&limit=10`, {
@@ -34,11 +34,11 @@ const ReferralCodeManager = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchCodes(page);
-  }, [page]);
+  }, [page, fetchCodes]);
 
   const handleCreateCode = async (e) => {
     e.preventDefault();
