@@ -10,10 +10,20 @@ import socketIO from 'socket.io-client';
 // Without this isolation, every keystroke was reconciling 50+ complaint rows.
 const UpdateStatusDialog = memo(({ complaint, initialNotes, onClose, onUpdate }) => {
   const [notes, setNotes] = useState(initialNotes || '');
+
+  useEffect(() => {
+    if (!complaint) return;
+    const handler = (e) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [complaint, onClose]);
+
   if (!complaint) return null;
   return (
-    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-[60] p-4">
-      <div className="bg-dark-800 border border-dark-700 rounded-2xl p-6 w-full max-w-md">
+    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-[60] p-4" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="bg-dark-800 border border-dark-700 rounded-2xl p-6 w-full max-w-md" onMouseDown={(e) => e.stopPropagation()}>
         <h3 className="text-lg font-bold text-white mb-4">Update Complaint Status</h3>
         <textarea className="w-full bg-dark-900 border border-dark-600 rounded-xl px-4 py-3 text-white placeholder-dark-500 resize-none mb-4"
           placeholder="Admin notes (optional)" rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} />
@@ -37,6 +47,18 @@ const ComplaintsViewer = ({ isOpen, onClose }) => {
   const [statusFilter, setStatusFilter] = useState('all');
   const statusFilterRef = useRef(statusFilter);
   const socketRef = useRef(null);
+
+  // Allow closing with Escape to avoid trapping the UI if a modal stays open
+  useEffect(() => {
+    if (!isOpen) return;
+    const handler = (e) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [isOpen, onClose]);
 
   // Keep ref in sync so fetch always uses latest filter
   useEffect(() => {
@@ -184,8 +206,8 @@ const ComplaintsViewer = ({ isOpen, onClose }) => {
 
   return (
     <>
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-dark-800 border border-dark-700 rounded-2xl shadow-2xl w-full max-w-4xl max-h-[85vh] overflow-hidden flex flex-col">
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+          <div className="bg-dark-800 border border-dark-700 rounded-2xl shadow-2xl w-full max-w-4xl max-h-[85vh] overflow-hidden flex flex-col" onMouseDown={(e) => e.stopPropagation()}>
             <div className="bg-gradient-to-r from-red-500 to-orange-500 p-6 flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <MessageSquareWarning className="w-8 h-8 text-white" />
