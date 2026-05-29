@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import axios from 'axios';
-import { X, Loader2, RefreshCw, Eye, AlertTriangle, ChevronRight } from 'lucide-react';
+import { X, Loader2, RefreshCw, AlertTriangle, ChevronRight } from 'lucide-react';
 import BASE_URL from '../endpoints/endpoints';
 import { toast } from 'react-toastify';
 
