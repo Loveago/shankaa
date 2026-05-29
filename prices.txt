@@ -1,0 +1,8 @@
+all prices in ghc
+
+mtn :
+1gb- 3.85
+2gb-7.70
+3gb- 15.3
+4gb-15.3
+5gb -19.5

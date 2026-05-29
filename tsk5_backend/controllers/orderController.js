@@ -179,8 +179,9 @@ exports.getUserBulkOrderDetail = async (req, res) => {
         orderNumber: order.orderNumber || `#${order.id}`,
         createdAt: order.createdAt,
         status: deriveAggregateStatus(order.items),
-        items: order.items.map((it) => ({
+        items: order.items.map((it, idx) => ({
           id: it.id,
+          itemNumber: `${order.orderNumber || `#${order.id}`}-${idx + 1}`,
           status: it.status,
           productName: it.productName || it.product?.name,
           productDescription: it.productDescription || it.product?.description,

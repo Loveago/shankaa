@@ -15,7 +15,7 @@ import PasteOrders from '../components/PasteOrders';
 import Storefront from '../components/Storefront';
 import UserApiKeys from '../components/UserApiKeys';
 import FloatingChatButton from '../components/FloatingChatButton';
-import BulkOrdersModal from '../components/BulkOrdersModal';
+import BulkOrdersPage from './BulkOrdersPage';
 
 const SUPPORTED_ROLES = new Set(['USER', 'PREMIUM', 'NORMAL', 'SUPER', 'OTHER']);
 
@@ -56,6 +56,7 @@ const UserDashboard = () => {
   const [showStorefront, setShowStorefront] = useState(false);
   const [showApiKeys, setShowApiKeys] = useState(false);
   const [showBulkOrders, setShowBulkOrders] = useState(false);
+  const [viewingBulkOrdersPage, setViewingBulkOrdersPage] = useState(false);
   const [isSuspended, setIsSuspended] = useState(localStorage.getItem('isSuspended') === 'true');
 
   const userName = localStorage.getItem('name') || 'User';
@@ -439,14 +440,18 @@ const UserDashboard = () => {
         onOpenUploadExcel={() => setShowUploadExcel(true)}
         onOpenPasteOrders={() => setShowPasteOrders(true)}
         onOpenStorefront={() => setShowStorefront(true)}
-        onOpenBulkOrders={() => setShowBulkOrders(true)}
+        onOpenBulkOrders={() => setViewingBulkOrdersPage(true)}
         isSuspended={isSuspended}
       />
 
       {/* Main Content */}
       <div className="md:ml-72">
-        {/* Header */}
-        <header className="bg-dark-900/80 backdrop-blur border-b border-dark-700 sticky top-0 z-30">
+        {viewingBulkOrdersPage ? (
+          <BulkOrdersPage onBack={() => setViewingBulkOrdersPage(false)} />
+        ) : (
+          <>
+            {/* Header */}
+            <header className="bg-dark-900/80 backdrop-blur border-b border-dark-700 sticky top-0 z-30">
           <div className="px-4 sm:px-6 lg:px-8 py-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3 sm:gap-4">
@@ -679,6 +684,8 @@ const UserDashboard = () => {
           )}
           </>}
         </main>
+          </>
+        )}
       </div>
 
       {/* TopUp Modal */}
@@ -786,11 +793,6 @@ const UserDashboard = () => {
         onClose={() => { setShowApiKeys(false); fetchLoanBalance(); }}
         walletBalance={balance}
         onTopUp={() => { setShowApiKeys(false); setShowTopUp(true); }}
-      />
-
-      <BulkOrdersModal
-        isOpen={showBulkOrders}
-        onClose={() => setShowBulkOrders(false)}
       />
 
       {/* Floating Chat */}
