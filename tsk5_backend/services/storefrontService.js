@@ -2,10 +2,16 @@ const axios = require('axios');
 const prisma = require('../config/db');
 const { resolvePrice } = require('../utils/priceRouter');
 const { generateOrderNumber } = require('../utils/orderNumberGenerator');
+const settingsService = require('./settingsService');
 
 // Paystack API URLs
 const PAYSTACK_INITIALIZE_URL = 'https://api.paystack.co/transaction/initialize';
 const PAYSTACK_VERIFY_URL = 'https://api.paystack.co/transaction/verify';
+
+const getPaystackSecret = async () => {
+  const fromDb = await settingsService.getSettingValue(settingsService.SETTINGS_KEYS.PAYSTACK_SECRET);
+  return fromDb || process.env.PAYSTACK_SECRET_KEY;
+};
 
 // Generate unique reference for referral orders
 const generateReferralRef = () => {
@@ -320,11 +326,12 @@ const initializeReferralPayment = async (slug, storefrontProductId, customerName
   try {
     const amountInPesewas = Math.round(agentPrice * 100);
 
+    const secret = await getPaystackSecret();
     const response = await axios({
       method: 'POST',
       url: PAYSTACK_INITIALIZE_URL,
       headers: {
-        'Authorization': `Bearer ${process.env.PAYSTACK_SECRET_KEY}`,
+        'Authorization': `Bearer ${secret}`,
         'Content-Type': 'application/json'
       },
       data: {
@@ -406,11 +413,12 @@ const verifyReferralPayment = async (reference) => {
 
   // Verify with Paystack
   try {
+    const secret = await getPaystackSecret();
     const response = await axios({
       method: 'GET',
       url: `${PAYSTACK_VERIFY_URL}/${reference}`,
       headers: {
-        'Authorization': `Bearer ${process.env.PAYSTACK_SECRET_KEY}`
+        'Authorization': `Bearer ${secret}`
       },
       timeout: 30000
     });

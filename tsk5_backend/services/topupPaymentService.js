@@ -6,6 +6,12 @@ const smsService = require('./smsService');
 // Paystack API URLs
 const PAYSTACK_INITIALIZE_URL = 'https://api.paystack.co/transaction/initialize';
 const PAYSTACK_VERIFY_URL = 'https://api.paystack.co/transaction/verify';
+const settingsService = require('./settingsService');
+
+const getPaystackSecret = async () => {
+  const fromDb = await settingsService.getSettingValue(settingsService.SETTINGS_KEYS.PAYSTACK_SECRET);
+  return fromDb || process.env.PAYSTACK_SECRET_KEY;
+};
 
 // Generate unique external reference for topup
 const generateTopupRef = () => {
@@ -53,11 +59,12 @@ const initializeTopupPayment = async (userId, amount, callbackUrl) => {
     // Paystack amount is in pesewas, multiply by 100
     const amountInPesewas = Math.round(parseFloat(amount) * 100);
 
+    const secret = await getPaystackSecret();
     const response = await axios({
       method: 'POST',
       url: PAYSTACK_INITIALIZE_URL,
       headers: {
-        'Authorization': `Bearer ${process.env.PAYSTACK_SECRET_KEY}`,
+        'Authorization': `Bearer ${secret}`,
         'Content-Type': 'application/json'
       },
       data: {
@@ -163,11 +170,12 @@ const verifyTopupPayment = async (reference) => {
   try {
     console.log('Verifying Paystack Top-up Payment:', reference);
     
+    const secret = await getPaystackSecret();
     const response = await axios({
       method: 'GET',
       url: `${PAYSTACK_VERIFY_URL}/${reference}`,
       headers: {
-        'Authorization': `Bearer ${process.env.PAYSTACK_SECRET_KEY}`,
+        'Authorization': `Bearer ${secret}`,
         'Content-Type': 'application/json'
       },
       timeout: 30000

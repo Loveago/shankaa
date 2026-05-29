@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import axios from 'axios';
 import Swal from 'sweetalert2';
-import { Package, Loader2, Phone, XCircle, Shield, X, Filter, Wifi, Zap, Star, ArrowRight, Search, MessageSquareWarning, CheckCircle, Clock } from 'lucide-react';
+import { Package, Loader2, Phone, XCircle, Shield, X, Filter, Wifi, Zap, Star, ArrowRight, Search, MessageSquareWarning, CheckCircle, Clock, Sparkles, BadgeCheck, PhoneCall, ArrowUpRight } from 'lucide-react';
 import BASE_URL from '../endpoints/endpoints';
 import ComplaintModal from '../components/ComplaintModal';
 import ShopFloatingChatButton from '../components/ShopFloatingChatButton';
@@ -310,6 +310,13 @@ const PublicStorefront = () => {
     }
   };
 
+  const scrollToProducts = () => {
+    const el = document.getElementById('products-section');
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-dark-950 flex items-center justify-center">
@@ -336,47 +343,132 @@ const PublicStorefront = () => {
   }
 
   return (
-    <div className="min-h-screen bg-dark-950">
+    <div className="min-h-screen bg-gradient-to-b from-dark-950 via-dark-900 to-dark-950 text-white">
       {/* Navbar */}
-      <nav className="sticky top-0 z-50 glass border-b border-dark-700">
+      <nav className="sticky top-0 z-50 backdrop-blur border-b border-dark-800/80 bg-dark-950/70">
         <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16 sm:h-20">
-            <div className="flex items-center gap-2 sm:gap-3">
-              <div className="w-9 h-9 sm:w-10 sm:h-10 bg-gradient-to-br from-cyan-500 to-cyan-600 rounded-xl flex items-center justify-center">
-                <Package className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
+            <div className="flex items-center gap-3 sm:gap-4">
+              <div className="w-11 h-11 sm:w-12 sm:h-12 bg-gradient-to-br from-cyan-500 to-emerald-500 rounded-2xl flex items-center justify-center shadow-lg shadow-cyan-500/20">
+                <Package className="w-6 h-6 sm:w-7 sm:h-7 text-white" />
               </div>
               <div>
-                <h1 className="text-base sm:text-xl font-bold text-white">{storefront?.agent?.name}'s Store</h1>
-                <p className="text-xs text-cyan-400 font-medium">Data Shop</p>
+                <div className="flex items-center gap-2">
+                  <h1 className="text-lg sm:text-2xl font-bold">{storefront?.agent?.name}'s Store</h1>
+                  <BadgeCheck className="w-4 h-4 text-emerald-400" />
+                </div>
+                <p className="text-xs sm:text-sm text-dark-300">Curated data bundles powered by Paystack</p>
               </div>
             </div>
             <div className="flex items-center gap-2 sm:gap-3">
               <button
                 onClick={() => setShowComplaintModal(true)}
-                className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-2 sm:py-2.5 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 rounded-lg sm:rounded-xl text-red-400 font-medium transition-all active:scale-95"
+                className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 rounded-xl text-red-300 font-medium transition-all active:scale-95"
               >
                 <MessageSquareWarning className="w-4 h-4" />
-                <span className="sm:inline text-sm">Help</span>
+                <span className="hidden sm:inline text-sm">Support</span>
               </button>
               <button
                 onClick={() => setShowTrackingModal(true)}
-                className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-5 py-2 sm:py-2.5 bg-gradient-to-r from-cyan-500 to-cyan-600 rounded-lg sm:rounded-xl text-white text-sm sm:text-base font-medium shadow-lg shadow-cyan-500/25 hover:from-cyan-600 hover:to-cyan-700 transition-all active:scale-95"
+                className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-5 py-2 sm:py-2.5 bg-gradient-to-r from-cyan-500 to-emerald-500 rounded-xl text-white text-sm sm:text-base font-semibold shadow-lg shadow-emerald-500/25 hover:from-cyan-600 hover:to-emerald-600 transition-all active:scale-95"
               >
                 <Search className="w-4 h-4" />
-                <span className="text-sm sm:text-base">Track</span>
+                <span>Track Order</span>
               </button>
             </div>
           </div>
         </div>
       </nav>
 
+      {/* Hero */}
+      <header className="relative overflow-hidden">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(34,211,238,0.15),transparent_40%),radial-gradient(circle_at_80%_0%,rgba(16,185,129,0.12),transparent_35%),radial-gradient(circle_at_50%_80%,rgba(99,102,241,0.12),transparent_35%)]"></div>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-14 relative">
+          <div className="grid lg:grid-cols-[1.1fr_0.9fr] gap-8 items-center">
+            <div className="space-y-6">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs font-semibold">
+                <Sparkles className="w-4 h-4" /> Fast, secure & agent-backed data bundles
+              </div>
+              <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black leading-tight">
+                Stay online with <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-emerald-300 to-cyan-500">zero friction</span> data purchases.
+              </h2>
+              <p className="text-dark-200 text-base sm:text-lg max-w-2xl">
+                Browse curated bundles, pay securely, and get instant delivery. Track every order with your phone number or order ID—no guesswork.
+              </p>
+              <div className="flex flex-wrap gap-3">
+                <button onClick={scrollToProducts} className="px-5 sm:px-6 py-3 rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-500 text-white font-semibold shadow-lg shadow-emerald-500/25 flex items-center gap-2 hover:translate-y-[-1px] transition-all">
+                  Browse Bundles <ArrowRight className="w-4 h-4" />
+                </button>
+                <button onClick={() => setShowTrackingModal(true)} className="px-5 sm:px-6 py-3 rounded-xl bg-dark-800 border border-dark-700 text-dark-100 font-semibold flex items-center gap-2 hover:border-cyan-500/40 transition-all">
+                  Track Order <ArrowUpRight className="w-4 h-4" />
+                </button>
+              </div>
+              <div className="grid sm:grid-cols-3 gap-3">
+                {[
+                  { icon: Shield, title: 'Secure Paystack', desc: 'Encrypted checkout with fraud checks' },
+                  { icon: Zap, title: 'Instant Delivery', desc: 'Bundles provisioned within minutes' },
+                  { icon: PhoneCall, title: 'Human Support', desc: 'Talk to our team for any issue' }
+                ].map((item) => (
+                  <div key={item.title} className="p-3 sm:p-4 rounded-2xl bg-dark-900/60 border border-dark-700/70 flex gap-3 items-start">
+                    <item.icon className="w-5 h-5 text-emerald-400 mt-1" />
+                    <div>
+                      <p className="text-sm font-semibold text-white">{item.title}</p>
+                      <p className="text-xs text-dark-300 leading-relaxed">{item.desc}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="rounded-3xl bg-dark-900/60 border border-dark-700/70 p-5 sm:p-6 shadow-2xl shadow-cyan-500/10">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-cyan-500 to-emerald-500 flex items-center justify-center text-white text-xl font-bold">
+                  {storefront?.agent?.name?.[0] || 'S'}
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm text-dark-300">Store owner</p>
+                  <p className="text-lg font-semibold">{storefront?.agent?.name}</p>
+                  <p className="text-xs text-dark-400">Trusted seller · Verified payouts</p>
+                </div>
+                <div className="px-3 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-sm font-semibold">
+                  Online
+                </div>
+              </div>
+              <div className="space-y-3">
+                <div className="flex items-center gap-2 text-sm text-dark-200">
+                  <Shield className="w-4 h-4 text-emerald-400" /> Paystack-secured checkout
+                </div>
+                <div className="flex items-center gap-2 text-sm text-dark-200">
+                  <Zap className="w-4 h-4 text-cyan-400" /> Instant delivery once paid
+                </div>
+                <div className="flex items-center gap-2 text-sm text-dark-200">
+                  <Star className="w-4 h-4 text-amber-400" /> Curated bundles per network
+                </div>
+              </div>
+              <div className="mt-5 grid grid-cols-2 gap-3">
+                <div className="p-4 rounded-2xl bg-dark-800/60 border border-dark-700">
+                  <p className="text-xs text-dark-400">Network filters</p>
+                  <p className="text-lg font-bold">Smart matching</p>
+                  <p className="text-[11px] text-dark-400 mt-1">MTN · Telecel · AirtelTigo</p>
+                </div>
+                <div className="p-4 rounded-2xl bg-dark-800/60 border border-dark-700">
+                  <p className="text-xs text-dark-400">Order tracking</p>
+                  <p className="text-lg font-bold">Phone or ID</p>
+                  <p className="text-[11px] text-dark-400 mt-1">Keep receipts, stay updated</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </header>
+
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main id="products-section" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-12">
         {/* Filter Section */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8 p-6 bg-dark-800/50 backdrop-blur rounded-2xl border border-dark-700">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8 p-6 bg-dark-900/70 backdrop-blur rounded-2xl border border-dark-700 shadow-lg shadow-dark-900/40">
           <div className="flex items-center gap-3">
             <div className="p-2.5 bg-cyan-500/10 rounded-xl">
-              <Filter className="w-5 h-5 text-cyan-500" />
+              <Filter className="w-5 h-5 text-cyan-400" />
             </div>
             <span className="text-white font-semibold">Filter by Network</span>
           </div>
@@ -392,8 +484,8 @@ const PublicStorefront = () => {
                 onClick={() => setActiveFilter(filter.id)}
                 className={`px-5 py-2.5 rounded-xl font-medium transition-all ${
                   activeFilter === filter.id
-                    ? 'bg-gradient-to-r from-cyan-500 to-cyan-600 text-white shadow-lg shadow-cyan-500/25'
-                    : 'bg-dark-700 text-dark-300 hover:bg-dark-600 border border-dark-600'
+                    ? 'bg-gradient-to-r from-cyan-500 to-emerald-500 text-white shadow-lg shadow-emerald-500/25'
+                    : 'bg-dark-800 text-dark-200 hover:bg-dark-700 border border-dark-700'
                 }`}
               >
                 {filter.label}
@@ -415,45 +507,44 @@ const PublicStorefront = () => {
             {filteredProducts.map((product) => (
               <div
                 key={product.id}
-                className="group relative bg-dark-800/50 backdrop-blur rounded-2xl border border-dark-700 overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:border-cyan-500/30 hover:shadow-xl hover:shadow-cyan-500/10"
+                className="group relative bg-dark-900/70 backdrop-blur rounded-2xl border border-dark-800 overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:border-emerald-400/40 hover:shadow-2xl hover:shadow-emerald-500/10"
               >
                 <div className={`relative p-4 sm:p-6 bg-gradient-to-br ${getCarrierGradient(product.name)}`}>
-                  <div className="absolute inset-0 bg-black/20"></div>
+                  <div className="absolute inset-0 bg-black/25"></div>
                   <div className="relative flex justify-between items-start">
                     <div>
-                      <div className="flex items-center gap-2 mb-2">
-                        <Wifi className="w-4 h-4 text-white/70" />
-                        <span className="text-white/70 text-xs font-medium uppercase tracking-wider">Data Bundle</span>
+                      <div className="flex items-center gap-2 mb-2 text-white/80 text-xs font-semibold uppercase tracking-[0.14em]">
+                        <Wifi className="w-4 h-4" /> Data Bundle
                       </div>
-                      <h3 className="text-lg sm:text-xl font-bold text-white">{product.name}</h3>
+                      <h3 className="text-lg sm:text-xl font-bold text-white drop-shadow-md">{product.name}</h3>
                     </div>
-                    <span className="px-3 py-1 rounded-full text-xs font-bold bg-white/20 text-white">Available</span>
+                    <span className="px-3 py-1 rounded-full text-[11px] font-bold bg-white/25 text-white">Available</span>
                   </div>
                 </div>
                 
-                <div className="p-4 sm:p-6">
-                  <p className="text-xl sm:text-2xl font-bold text-white mb-3 sm:mb-4">{product.description}</p>
+                <div className="p-4 sm:p-6 space-y-4">
+                  <p className="text-2xl font-bold text-white">{product.description}</p>
                   
-                  <div className="flex items-end gap-2 mb-4 sm:mb-6">
-                    <span className="text-xl sm:text-2xl font-bold text-white">GHS {product.price.toFixed(2)}</span>
-                    <span className="text-dark-500 text-xs sm:text-sm mb-1">/ bundle</span>
+                  <div className="flex items-end gap-2">
+                    <span className="text-2xl font-black text-white">GHS {product.price.toFixed(2)}</span>
+                    <span className="text-dark-400 text-xs sm:text-sm mb-1">/ bundle</span>
                   </div>
                   
-                  <div className="flex flex-wrap gap-1.5 sm:gap-2 mb-4 sm:mb-6">
-                    <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/10 text-emerald-400 rounded-lg text-xs font-medium border border-emerald-500/20">
+                  <div className="flex flex-wrap gap-2">
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/10 text-emerald-300 rounded-lg text-xs font-semibold border border-emerald-500/25">
                       <Zap className="w-3 h-3" /> Instant
                     </span>
-                    <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-cyan-500/10 text-cyan-400 rounded-lg text-xs font-medium border border-cyan-500/20">
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-cyan-500/10 text-cyan-300 rounded-lg text-xs font-semibold border border-cyan-500/25">
                       <Shield className="w-3 h-3" /> Secure
                     </span>
-                    <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-purple-500/10 text-purple-400 rounded-lg text-xs font-medium border border-purple-500/20">
-                      <Star className="w-3 h-3" /> Premium
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-500/10 text-amber-300 rounded-lg text-xs font-semibold border border-amber-500/25">
+                      <Star className="w-3 h-3" /> Trusted
                     </span>
                   </div>
                   
                   <button
                     onClick={() => setSelectedProduct(product)}
-                    className={`w-full py-3 sm:py-4 rounded-xl font-bold flex items-center justify-center gap-2 transition-all active:scale-95 bg-gradient-to-r ${getCarrierGradient(product.name)} text-white shadow-lg hover:shadow-xl hover:scale-[1.02] active:scale-[0.98]`}
+                    className={`w-full py-3.5 sm:py-4 rounded-xl font-bold flex items-center justify-center gap-2 transition-all active:scale-95 bg-gradient-to-r ${getCarrierGradient(product.name)} text-white shadow-lg hover:shadow-xl hover:scale-[1.02] active:scale-[0.98]`}
                   >
                     <span>Purchase Now</span>
                     <ArrowRight className="w-5 h-5" />

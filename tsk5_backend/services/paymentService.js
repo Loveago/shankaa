@@ -4,6 +4,12 @@ const prisma = require('../config/db');
 // Paystack API URLs
 const PAYSTACK_INITIALIZE_URL = 'https://api.paystack.co/transaction/initialize';
 const PAYSTACK_VERIFY_URL = 'https://api.paystack.co/transaction/verify';
+const settingsService = require('./settingsService');
+
+const getPaystackSecret = async () => {
+  const fromDb = await settingsService.getSettingValue(settingsService.SETTINGS_KEYS.PAYSTACK_SECRET);
+  return fromDb || process.env.PAYSTACK_SECRET_KEY;
+};
 
 // Generate unique external reference
 const generateExternalRef = () => {
@@ -44,11 +50,12 @@ const initializePayment = async (email, mobileNumber, amount, productId, product
     // Paystack amount is in pesewas (kobo equivalent), so multiply by 100
     const amountInPesewas = Math.round(parseFloat(amount) * 100);
 
+    const secret = await getPaystackSecret();
     const response = await axios({
       method: 'POST',
       url: PAYSTACK_INITIALIZE_URL,
       headers: {
-        'Authorization': `Bearer ${process.env.PAYSTACK_SECRET_KEY}`,
+        'Authorization': `Bearer ${secret}`,
         'Content-Type': 'application/json'
       },
       data: {
@@ -156,11 +163,12 @@ const verifyPayment = async (reference) => {
   try {
     console.log('Verifying Paystack Payment:', reference);
     
+    const secret = await getPaystackSecret();
     const response = await axios({
       method: 'GET',
       url: `${PAYSTACK_VERIFY_URL}/${reference}`,
       headers: {
-        'Authorization': `Bearer ${process.env.PAYSTACK_SECRET_KEY}`,
+        'Authorization': `Bearer ${secret}`,
         'Content-Type': 'application/json'
       },
       timeout: 30000
@@ -379,11 +387,12 @@ const verifyAndCreateOrder = async (reference, shopService) => {
 
   // Verify with Paystack
   try {
+    const secret = await getPaystackSecret();
     const response = await axios({
       method: 'GET',
       url: `${PAYSTACK_VERIFY_URL}/${reference}`,
       headers: {
-        'Authorization': `Bearer ${process.env.PAYSTACK_SECRET_KEY}`,
+        'Authorization': `Bearer ${secret}`,
         'Content-Type': 'application/json'
       },
       timeout: 30000

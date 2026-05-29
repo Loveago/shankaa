@@ -505,3 +505,14 @@ model ReferralCode {
   @@index([isActive])
   @@map("ReferralCode")
 }
+
+// Key-value application settings managed by admin (e.g., MoMo details, Paystack key)
+model AppSetting {
+  id        Int      @id @default(autoincrement())
+  key       String   @unique @db.VarChar(120)
+  value     String?  @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("AppSetting")
+}

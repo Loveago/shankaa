@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, Loader2, Wallet, CreditCard, ExternalLink, Copy, Check, Receipt } from 'lucide-react';
 import axios from 'axios';
 import Swal from 'sweetalert2';
@@ -14,10 +14,31 @@ const TopUp = ({ isOpen, onClose, onSuccess }) => {
   const [paymentMethod, setPaymentMethod] = useState('transaction'); // 'paystack' or 'transaction'
   const [transactionId, setTransactionId] = useState('');
   const [copyStatus, setCopyStatus] = useState(false);
+  const [momoDetails, setMomoDetails] = useState({ number: '0556667832', name: 'NICHOANK STAR ENTERPRISE' });
 
   // Payment details for transaction ID method
-  const phoneNumber = '0556667832';
-  const accountName = 'NICHOANK STAR ENTERPRISE';
+  const phoneNumber = momoDetails.number;
+  const accountName = momoDetails.name;
+
+  useEffect(() => {
+    const loadSettings = async () => {
+      try {
+        const res = await axios.get(`${BASE_URL}/api/settings/public`);
+        if (res.data.success) {
+          const { momoNumber, momoName } = res.data.settings || {};
+          setMomoDetails({
+            number: momoNumber || phoneNumber,
+            name: momoName || accountName
+          });
+        }
+      } catch (error) {
+        // keep defaults
+      }
+    };
+
+    if (isOpen) loadSettings();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen]);
 
   const handleCopy = () => {
     navigator.clipboard.writeText(phoneNumber.replace(/\s/g, '')).then(() => {

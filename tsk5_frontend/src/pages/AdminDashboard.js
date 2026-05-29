@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import Swal from 'sweetalert2';
-import { Menu, X, Users, Package, ShoppingCart, Bell, RefreshCw, Loader2, Search, Plus, Edit, Trash2, CheckCircle, XCircle, BarChart3, Wallet, User, LogOut, RotateCcw, Eye, EyeOff, Save, Banknote, DollarSign, Table2, Key, AlertTriangle, Wifi, FileText, Landmark, Gift } from 'lucide-react';
+import { Menu, X, Users, Package, ShoppingCart, Bell, RefreshCw, Loader2, Search, Plus, Edit, Trash2, CheckCircle, XCircle, BarChart3, Wallet, User, LogOut, RotateCcw, Eye, EyeOff, Save, Banknote, DollarSign, Table2, Key, AlertTriangle, Wifi, FileText, Landmark, Gift, Settings } from 'lucide-react';
 import BASE_URL from '../endpoints/endpoints';
 import { io as socketIO } from 'socket.io-client';
 import ProductDialog from '../components/ProductDialog';
@@ -95,6 +95,10 @@ const AdminDashboard = () => {
   const [showStorefrontWithdrawals, setShowStorefrontWithdrawals] = useState(false);
   const [fraudAlerts, setFraudAlerts] = useState([]);
   const [fraudBlinking, setFraudBlinking] = useState(false);
+  // Settings state
+  const [settingsLoading, setSettingsLoading] = useState(false);
+  const [settingsSaving, setSettingsSaving] = useState(false);
+  const [settingsForm, setSettingsForm] = useState({ momoNumber: '', momoName: '', paystackSecretKey: '', hasPaystackSecret: false });
   
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
@@ -241,6 +245,49 @@ const AdminDashboard = () => {
     }, 30000);
     return () => clearInterval(interval);
   }, [fetchData, fetchFraudAlerts]);
+
+  const fetchSettings = useCallback(async () => {
+    setSettingsLoading(true);
+    try {
+      const res = await axios.get(`${BASE_URL}/api/settings`, { headers: getAuthHeaders() });
+      if (res.data.success) {
+        const { momoNumber = '', momoName = '', hasPaystackSecret = false } = res.data.settings || {};
+        setSettingsForm((prev) => ({ ...prev, momoNumber, momoName, hasPaystackSecret, paystackSecretKey: '' }));
+      }
+    } catch (error) {
+      console.error('Settings fetch error:', error);
+      Swal.fire({ icon: 'error', title: 'Failed to load settings', background: '#1e293b', color: '#f1f5f9' });
+    } finally {
+      setSettingsLoading(false);
+    }
+  }, []);
+
+  const saveSettings = async () => {
+    setSettingsSaving(true);
+    try {
+      const payload = {
+        momoNumber: settingsForm.momoNumber,
+        momoName: settingsForm.momoName,
+        paystackSecretKey: settingsForm.paystackSecretKey?.trim() ? settingsForm.paystackSecretKey.trim() : undefined
+      };
+      const res = await axios.put(`${BASE_URL}/api/settings`, payload, { headers: getAuthHeaders() });
+      if (res.data.success) {
+        const { momoNumber = '', momoName = '', hasPaystackSecret = false } = res.data.settings || {};
+        setSettingsForm((prev) => ({ ...prev, momoNumber, momoName, hasPaystackSecret, paystackSecretKey: '' }));
+        Swal.fire({ icon: 'success', title: 'Settings updated', background: '#1e293b', color: '#f1f5f9', timer: 1500, showConfirmButton: false });
+      }
+    } catch (error) {
+      Swal.fire({ icon: 'error', title: 'Update failed', text: error.response?.data?.message || 'Could not save settings', background: '#1e293b', color: '#f1f5f9' });
+    } finally {
+      setSettingsSaving(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'settings') {
+      fetchSettings();
+    }
+  }, [activeTab, fetchSettings]);
 
   // Real-time order notifications via socket
   useEffect(() => {
@@ -506,6 +553,7 @@ const AdminDashboard = () => {
     { id: 'users', label: 'Users', icon: Users },
     { id: 'products', label: 'Products', icon: Package },
     { id: 'referralCodes', label: 'Referral Codes', icon: Gift },
+    { id: 'settings', label: 'Settings', icon: Settings },
     { id: 'orderFiles', label: 'Order Files', icon: FileText }
   ];
 
@@ -566,6 +614,10 @@ const AdminDashboard = () => {
           <button onClick={() => { setShowOrderTracker(true); setIsSidebarOpen(false); }}
             className="w-full flex items-center gap-3 px-4 py-3 text-dark-300 hover:text-white hover:bg-dark-700/50 rounded-xl transition-all">
             <Wifi className="w-5 h-5" /><span>Order Tracker</span>
+          </button>
+          <button onClick={() => { setActiveTab('settings'); setIsSidebarOpen(false); }}
+            className="w-full flex items-center gap-3 px-4 py-3 text-dark-300 hover:text-white hover:bg-dark-700/50 rounded-xl transition-all">
+            <Settings className="w-5 h-5" /><span>Settings</span>
           </button>
           <button onClick={() => { setActiveTab('orderFiles'); setIsSidebarOpen(false); }}
             className="w-full flex items-center gap-3 px-4 py-3 text-dark-300 hover:text-white hover:bg-dark-700/50 rounded-xl transition-all">
@@ -1079,6 +1131,75 @@ const AdminDashboard = () => {
               {activeTab === 'referralCodes' && (
                 <div className="bg-dark-800/50 backdrop-blur rounded-2xl border border-dark-700 p-6">
                   <ReferralCodeManager />
+                </div>
+              )}
+
+              {activeTab === 'settings' && (
+                <div className="bg-dark-800/50 backdrop-blur rounded-2xl border border-dark-700 p-6 max-w-3xl">
+                  <div className="flex items-center justify-between mb-4">
+                    <div>
+                      <h3 className="text-lg font-bold text-white">Site Settings</h3>
+                      <p className="text-dark-400 text-sm">Update MoMo details used for wallet deposits and Paystack secret key</p>
+                    </div>
+                    {settingsLoading && <Loader2 className="w-5 h-5 animate-spin text-cyan-400" />}
+                  </div>
+
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-dark-300 mb-2">MoMo Number (wallet deposit)</label>
+                      <input
+                        type="text"
+                        value={settingsForm.momoNumber}
+                        onChange={(e) => setSettingsForm({ ...settingsForm, momoNumber: e.target.value })}
+                        placeholder="e.g. 0551234567"
+                        className="w-full bg-dark-900 border border-dark-600 rounded-xl px-4 py-3 text-white placeholder-dark-500 focus:border-cyan-500 focus:outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-dark-300 mb-2">MoMo Account Name</label>
+                      <input
+                        type="text"
+                        value={settingsForm.momoName}
+                        onChange={(e) => setSettingsForm({ ...settingsForm, momoName: e.target.value })}
+                        placeholder="Account name for deposits"
+                        className="w-full bg-dark-900 border border-dark-600 rounded-xl px-4 py-3 text-white placeholder-dark-500 focus:border-cyan-500 focus:outline-none"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="flex items-center gap-2 text-sm font-medium text-dark-300">
+                        Paystack Secret Key
+                        {settingsForm.hasPaystackSecret && (
+                          <span className="text-emerald-400 text-xs bg-emerald-500/10 px-2 py-1 rounded-full">Saved</span>
+                        )}
+                      </label>
+                      <input
+                        type="password"
+                        value={settingsForm.paystackSecretKey}
+                        onChange={(e) => setSettingsForm({ ...settingsForm, paystackSecretKey: e.target.value })}
+                        placeholder={settingsForm.hasPaystackSecret ? '••••••••••••' : 'sk_live_xxx'}
+                        className="w-full bg-dark-900 border border-dark-600 rounded-xl px-4 py-3 text-white placeholder-dark-500 focus:border-cyan-500 focus:outline-none"
+                      />
+                      <p className="text-xs text-dark-400">Leave blank to keep existing secret key.</p>
+                    </div>
+                  </div>
+
+                  <div className="flex justify-end gap-3 mt-6">
+                    <button
+                      onClick={fetchSettings}
+                      disabled={settingsLoading || settingsSaving}
+                      className="px-4 py-2 bg-dark-700 text-dark-200 rounded-xl hover:bg-dark-600 disabled:opacity-50"
+                    >
+                      Refresh
+                    </button>
+                    <button
+                      onClick={saveSettings}
+                      disabled={settingsSaving}
+                      className="px-4 py-2 bg-gradient-to-r from-cyan-500 to-emerald-500 text-white rounded-xl font-medium flex items-center gap-2 disabled:opacity-50"
+                    >
+                      {settingsSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                      <span>Save Settings</span>
+                    </button>
+                  </div>
                 </div>
               )}
             </>
