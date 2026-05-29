@@ -15,6 +15,7 @@ import PasteOrders from '../components/PasteOrders';
 import Storefront from '../components/Storefront';
 import UserApiKeys from '../components/UserApiKeys';
 import FloatingChatButton from '../components/FloatingChatButton';
+import BulkOrdersModal from '../components/BulkOrdersModal';
 
 const SUPPORTED_ROLES = new Set(['USER', 'PREMIUM', 'NORMAL', 'SUPER', 'OTHER']);
 
@@ -54,6 +55,7 @@ const UserDashboard = () => {
   const [showPasteOrders, setShowPasteOrders] = useState(false);
   const [showStorefront, setShowStorefront] = useState(false);
   const [showApiKeys, setShowApiKeys] = useState(false);
+  const [showBulkOrders, setShowBulkOrders] = useState(false);
   const [isSuspended, setIsSuspended] = useState(localStorage.getItem('isSuspended') === 'true');
 
   const userName = localStorage.getItem('name') || 'User';
@@ -437,6 +439,7 @@ const UserDashboard = () => {
         onOpenUploadExcel={() => setShowUploadExcel(true)}
         onOpenPasteOrders={() => setShowPasteOrders(true)}
         onOpenStorefront={() => setShowStorefront(true)}
+        onOpenBulkOrders={() => setShowBulkOrders(true)}
         isSuspended={isSuspended}
       />
 
@@ -783,6 +786,11 @@ const UserDashboard = () => {
         onClose={() => { setShowApiKeys(false); fetchLoanBalance(); }}
         walletBalance={balance}
         onTopUp={() => { setShowApiKeys(false); setShowTopUp(true); }}
+      />
+
+      <BulkOrdersModal
+        isOpen={showBulkOrders}
+        onClose={() => setShowBulkOrders(false)}
       />
 
       {/* Floating Chat */}

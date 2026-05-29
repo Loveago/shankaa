@@ -12,6 +12,7 @@ const Sidebar = ({
   onOpenUploadExcel,
   onOpenPasteOrders,
   onOpenStorefront,
+  onOpenBulkOrders,
   isSuspended = false
 }) => {
   const navigate = useNavigate();
@@ -145,6 +146,16 @@ const Sidebar = ({
                   >
                     <Store className="w-5 h-5" />
                     <span>Storefront</span>
+                  </button>
+                )}
+
+                {onOpenBulkOrders && (
+                  <button
+                    onClick={() => { onOpenBulkOrders(); setIsOpen(false); }}
+                    className="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium text-dark-300 hover:bg-dark-800 hover:text-white transition-all mt-2"
+                  >
+                    <ClipboardList className="w-5 h-5" />
+                    <span>Bulk Orders</span>
                   </button>
                 )}
               </div>

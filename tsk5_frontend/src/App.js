@@ -7,6 +7,7 @@ import 'react-toastify/dist/ReactToastify.css';
 import axios from 'axios';
 
 import Login from './pages/Login';
+import Signup from './pages/Signup';
 import AdminDashboard from './pages/AdminDashboard';
 import UserDashboard from './pages/UserDashboard';
 import Premium from './pages/Premium';
@@ -152,6 +153,7 @@ function App() {
         {/* Public Routes */}
         <Route path="/" element={<Landing />} />
         <Route path="/login" element={<Login />} />
+        <Route path="/signup" element={<Signup />} />
         <Route path="/shop" element={<Shop />} />
         <Route path="/store/:slug" element={<PublicStorefront />} />
 

@@ -1,5 +1,6 @@
 const prisma = require("../config/db");
 const { resolvePrice } = require("../utils/priceRouter");
+const { generateOrderNumber } = require("../utils/orderNumberGenerator");
 const cache = require("../utils/cache");
 
 const { createTransaction } = require("./transactionService");
@@ -76,8 +77,10 @@ const submitCartInner = async (userId, mobileNumber = null, userRole = null) => 
     }
 
     // Create order with product snapshots to prevent data mismatch
+    const orderNumber = generateOrderNumber();
     const order = await tx.order.create({
       data: {
+        orderNumber,
         userId,
         mobileNumber: cart.mobileNumber || mobileNumber,
         items: {
@@ -101,7 +104,7 @@ const submitCartInner = async (userId, mobileNumber = null, userRole = null) => 
       userId,
       -totalPrice, // Negative amount for deduction
       "ORDER",
-      `Order #${order.id} placed with ${order.items.length} items`,
+      `Order ${orderNumber} placed with ${order.items.length} items`,
       `order:${order.id}`,
       tx // pass the transaction-bound prisma
     );
@@ -985,8 +988,10 @@ const orderService = {
         throw new Error("Insufficient balance to place order");
       }
 
+      const orderNumber = generateOrderNumber();
       const order = await tx.order.create({
         data: {
+          orderNumber,
           userId: parseInt(userId),
           mobileNumber: items[0]?.mobileNumber || null,
           items: {
@@ -1017,7 +1022,7 @@ const orderService = {
         parseInt(userId),
         -totalAmount,
         "ORDER",
-        `Order #${order.id} placed via ext_agent system`,
+        `Order ${orderNumber} placed via ext_agent system`,
         `order:${order.id}`,
         tx
       );

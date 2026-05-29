@@ -112,6 +112,7 @@ const Landing = () => {
               ))}
               <div className="w-px h-5 bg-white/10 mx-2"></div>
               <a href="/login" className="px-4 py-2 text-zinc-300 hover:text-white transition-colors text-sm font-medium">Sign In</a>
+              <a href="/signup" className="px-4 py-2 text-zinc-300 hover:text-white transition-colors text-sm font-medium">Sign Up</a>
               <a href="/shop" className="ml-1 px-5 py-2.5 bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-xl text-sm font-semibold hover:from-orange-600 hover:to-amber-600 transition-all shadow-lg shadow-orange-500/20">
                 Shop Now
               </a>
@@ -138,6 +139,7 @@ const Landing = () => {
                 ))}
                 <div className="pt-3 pb-1 space-y-2.5 border-t border-white/[0.06] mt-2">
                   <a href="/login" className="block w-full text-center px-4 py-2.5 text-orange-400 border border-orange-500/30 rounded-xl text-sm font-semibold hover:bg-orange-500/10 transition-colors">Sign In</a>
+                  <a href="/signup" className="block w-full text-center px-4 py-2.5 text-zinc-300 border border-white/[0.08] rounded-xl text-sm font-semibold hover:bg-white/[0.07] transition-colors">Sign Up</a>
                   <a href="/shop" className="block w-full text-center px-4 py-2.5 bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-xl text-sm font-semibold hover:from-orange-600 hover:to-amber-600 transition-all">Shop Now</a>
                 </div>
               </div>
@@ -185,7 +187,7 @@ const Landing = () => {
               </p>
 
               <div className="flex flex-col sm:flex-row gap-3 mb-12">
-                <a href="/login" className="group inline-flex items-center justify-center gap-2 px-7 py-3.5 bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-xl text-sm font-semibold hover:from-orange-600 hover:to-amber-600 transition-all shadow-lg shadow-orange-500/25 hover:shadow-orange-500/40">
+                <a href="/signup" className="group inline-flex items-center justify-center gap-2 px-7 py-3.5 bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-xl text-sm font-semibold hover:from-orange-600 hover:to-amber-600 transition-all shadow-lg shadow-orange-500/25 hover:shadow-orange-500/40">
                   Get Started <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
                 </a>
                 <a href="#about" className="inline-flex items-center justify-center gap-2 px-7 py-3.5 bg-white/[0.04] text-zinc-200 rounded-xl text-sm font-semibold border border-white/[0.08] hover:bg-white/[0.07] hover:border-white/[0.12] transition-all backdrop-blur-sm">

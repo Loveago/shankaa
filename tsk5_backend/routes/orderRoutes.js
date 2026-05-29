@@ -55,6 +55,11 @@ router.get("/status/:orderId", authMiddleware, orderController.getOrderById);
 // User: View completed orders (requires auth)
 router.get('/user/completed/:userId', authMiddleware, orderController.getUserCompletedOrdersController);
 
+// User: Bulk orders (multi-item / paste / excel)
+router.get('/user/bulk-orders', authMiddleware, orderController.getUserBulkOrders);
+router.get('/user/bulk-orders/:orderId', authMiddleware, orderController.getUserBulkOrderDetail);
+router.post('/user/bulk-orders/:orderId/items/:itemId/report', authMiddleware, orderController.reportBulkOrderIssue);
+
 // Order status updates (requires admin)
 router.put('/orders/:orderId/status', authMiddleware, adminMiddleware, orderController.updateOrderItemsStatus);
 router.put('/items/:itemId/status', authMiddleware, adminMiddleware, orderController.updateSingleOrderItemStatus);

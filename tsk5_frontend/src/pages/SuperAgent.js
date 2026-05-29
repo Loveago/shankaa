@@ -15,6 +15,7 @@ import PasteOrders from '../components/PasteOrders';
 import Storefront from '../components/Storefront';
 import FloatingChatButton from '../components/FloatingChatButton';
 import UserApiKeys from '../components/UserApiKeys';
+import BulkOrdersModal from '../components/BulkOrdersModal';
 
 const SUPPORTED_ROLES = new Set(['USER', 'PREMIUM', 'NORMAL', 'SUPER', 'OTHER']);
 
@@ -54,6 +55,7 @@ const SuperAgent = () => {
   const [showPasteOrders, setShowPasteOrders] = useState(false);
   const [showStorefront, setShowStorefront] = useState(false);
   const [showApiKeys, setShowApiKeys] = useState(false);
+  const [showBulkOrders, setShowBulkOrders] = useState(false);
   const [isSuspended, setIsSuspended] = useState(localStorage.getItem('isSuspended') === 'true');
 
   const userName = localStorage.getItem('name') || 'Super Agent';
@@ -351,6 +353,7 @@ const SuperAgent = () => {
         onOpenUploadExcel={() => setShowUploadExcel(true)}
         onOpenPasteOrders={() => setShowPasteOrders(true)}
         onOpenStorefront={() => setShowStorefront(true)}
+        onOpenBulkOrders={() => setShowBulkOrders(true)}
         isSuspended={isSuspended}
       />
       <div className="md:ml-72">
@@ -528,21 +531,26 @@ const SuperAgent = () => {
 
       {/* Storefront Modal */}
       <Storefront
-              isOpen={showStorefront}
-              onClose={() => setShowStorefront(false)}
-              userId={localStorage.getItem('userId')}
-            />
-      
-            {/* API Keys Modal */}
-            <UserApiKeys
-              isOpen={showApiKeys}
-              onClose={() => { setShowApiKeys(false); }}
-              walletBalance={balance}
-              onTopUp={() => { setShowApiKeys(false); setShowTopUp(true); }}
-            />
-      
-            {/* Floating Chat */}
-            <FloatingChatButton currentUser={{ id: parseInt(localStorage.getItem('userId')), name: localStorage.getItem('name'), role: 'SUPER' }} />
+        isOpen={showStorefront}
+        onClose={() => setShowStorefront(false)}
+        userId={localStorage.getItem('userId')}
+      />
+
+      {/* API Keys Modal */}
+      <UserApiKeys
+        isOpen={showApiKeys}
+        onClose={() => { setShowApiKeys(false); }}
+        walletBalance={balance}
+        onTopUp={() => { setShowApiKeys(false); setShowTopUp(true); }}
+      />
+
+      <BulkOrdersModal
+        isOpen={showBulkOrders}
+        onClose={() => setShowBulkOrders(false)}
+      />
+
+      {/* Floating Chat */}
+      <FloatingChatButton currentUser={{ id: parseInt(localStorage.getItem('userId')), name: localStorage.getItem('name'), role: 'SUPER' }} />
     </div>
   );
 };

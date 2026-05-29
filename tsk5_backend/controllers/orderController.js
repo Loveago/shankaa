@@ -15,6 +15,7 @@ const {
 
 const orderService = require('../services/orderService');
 const path = require('path');
+const prisma = require('../config/db');
 
 const formatOrderExportWorksheet = (ws) => {
   ws['!cols'] = [{ wch: 22 }, { wch: 16 }];
@@ -62,6 +63,177 @@ const formatOrderExportWorksheet = (ws) => {
         border: thinBorder,
       };
     }
+  }
+};
+
+// ==================== USER BULK ORDERS (Pasted / Excel / Multi-item) ====================
+const deriveAggregateStatus = (items = []) => {
+  if (!items.length) return 'Pending';
+  const statusCounts = { Pending: 0, Processing: 0, Completed: 0, Cancelled: 0, Canceled: 0 };
+  items.forEach((i) => {
+    const s = i.status || 'Pending';
+    statusCounts[s] = (statusCounts[s] || 0) + 1;
+  });
+
+  if (statusCounts.Completed === items.length) return 'Completed';
+  if (statusCounts.Cancelled + statusCounts.Canceled === items.length) return 'Cancelled';
+  if (statusCounts.Processing > 0) return 'Processing';
+  return 'Pending';
+};
+
+const normalizeNetworkLabel = (productName = '') => {
+  const raw = String(productName || '').trim().toUpperCase();
+  if (!raw) return 'N/A';
+  if (raw.startsWith('MTN')) return 'MTN';
+  if (raw.startsWith('TELECEL')) return 'TELECEL';
+  if (raw.startsWith('AIRTEL')) return 'AIRTEL TIGO';
+  return raw.split(' ')[0];
+};
+
+exports.getUserBulkOrders = async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    const orders = await prisma.order.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+      include: {
+        items: {
+          select: {
+            id: true,
+            status: true,
+            productName: true,
+            productDescription: true,
+            productPrice: true,
+            quantity: true,
+            mobileNumber: true,
+            product: { select: { name: true, description: true, price: true } },
+          },
+        },
+        _count: { select: { items: true } },
+      },
+    });
+
+    const bulkOrders = orders
+      .filter((o) => (o._count?.items || o.items.length) >= 2)
+      .map((o) => {
+        const totalItems = o._count?.items || o.items.length;
+        let totalPrice = 0;
+        o.items.forEach((it) => {
+          const price = it.productPrice ?? it.product?.price ?? 0;
+          totalPrice += price * (it.quantity || 1);
+        });
+        const firstItem = o.items[0] || {};
+        return {
+          id: o.id,
+          orderNumber: o.orderNumber || `#${o.id}`,
+          createdAt: o.createdAt,
+          totalItems,
+          totalPrice,
+          status: deriveAggregateStatus(o.items),
+          network: normalizeNetworkLabel(firstItem.productName || firstItem.product?.name || ''),
+        };
+      });
+
+    res.json({ success: true, orders: bulkOrders });
+  } catch (error) {
+    console.error('Error fetching bulk orders:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+exports.getUserBulkOrderDetail = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const orderId = parseInt(req.params.orderId);
+    if (!orderId) return res.status(400).json({ success: false, message: 'orderId is required' });
+
+    const order = await prisma.order.findFirst({
+      where: { id: orderId, userId },
+      include: {
+        items: {
+          orderBy: { id: 'asc' },
+          select: {
+            id: true,
+            status: true,
+            productName: true,
+            productDescription: true,
+            productPrice: true,
+            quantity: true,
+            mobileNumber: true,
+            product: { select: { name: true, description: true, price: true } },
+          },
+        },
+        _count: { select: { items: true } },
+      },
+    });
+
+    if (!order || (order._count?.items || order.items.length) < 2) {
+      return res.status(404).json({ success: false, message: 'Bulk order not found' });
+    }
+
+    res.json({
+      success: true,
+      order: {
+        id: order.id,
+        orderNumber: order.orderNumber || `#${order.id}`,
+        createdAt: order.createdAt,
+        status: deriveAggregateStatus(order.items),
+        items: order.items.map((it) => ({
+          id: it.id,
+          status: it.status,
+          productName: it.productName || it.product?.name,
+          productDescription: it.productDescription || it.product?.description,
+          productPrice: it.productPrice ?? it.product?.price ?? 0,
+          quantity: it.quantity || 1,
+          mobileNumber: it.mobileNumber || '',
+          network: normalizeNetworkLabel(it.productName || it.product?.name || ''),
+        })),
+      },
+    });
+  } catch (error) {
+    console.error('Error fetching bulk order detail:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+exports.reportBulkOrderIssue = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const orderId = parseInt(req.params.orderId);
+    const itemId = parseInt(req.params.itemId);
+    const { message = 'Customer did not receive bundle' } = req.body || {};
+
+    const order = await prisma.order.findFirst({
+      where: { id: orderId, userId },
+      include: { items: true },
+    });
+
+    if (!order || (order.items?.length || 0) < 2) {
+      return res.status(404).json({ success: false, message: 'Bulk order not found' });
+    }
+
+    const item = order.items.find((it) => it.id === itemId);
+    if (!item) {
+      return res.status(404).json({ success: false, message: 'Order item not found' });
+    }
+
+    const complaint = await prisma.complaint.create({
+      data: {
+        orderId: String(orderId),
+        mobileNumber: item.mobileNumber || order.mobileNumber || '',
+        message,
+        status: 'pending',
+        complaintDate: new Date(),
+        complaintTime: new Date().toTimeString().slice(0, 5),
+        adminNotes: `Bulk order item ${itemId} report`,
+      },
+    });
+
+    res.json({ success: true, complaint });
+  } catch (error) {
+    console.error('Error reporting bulk order issue:', error);
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 

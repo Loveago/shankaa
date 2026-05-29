@@ -283,10 +283,74 @@ const getLoggedInUsers = async (req, res) => {
   }
 };
 
+const referralCodeService = require('../services/referralCodeService');
+
+const signupUser = async (req, res) => {
+  try {
+    const { name, email, password, phone, referralCode } = req.body;
+    
+    if (!name || !email || !password || !referralCode) {
+      return res.status(400).json({ message: 'Name, email, password, and referral code are required' });
+    }
+    
+    const existingUser = await prisma.user.findUnique({ where: { email } });
+    if (existingUser) {
+      return res.status(409).json({ message: 'Email already registered' });
+    }
+    
+    const existingName = await prisma.user.findFirst({ where: { name } });
+    if (existingName) {
+      return res.status(409).json({ message: 'Name already taken' });
+    }
+    
+    const { valid, error, referralCode: refCode } = await referralCodeService.validateReferralCode(referralCode);
+    if (!valid) {
+      return res.status(400).json({ message: error });
+    }
+    
+    const SALT_ROUNDS = 12;
+    const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
+    
+    const newUser = await prisma.$transaction(async (tx) => {
+      const user = await tx.user.create({
+        data: {
+          name,
+          email,
+          password: hashedPassword,
+          role: 'USER',
+          phone: phone || null,
+          referralCodeId: refCode.id,
+          isLoggedIn: false,
+        },
+      });
+      
+      await referralCodeService.useReferralCode(refCode.id);
+      
+      return user;
+    });
+    
+    const token = jwt.sign(
+      { id: newUser.id, email: newUser.email, role: newUser.role },
+      process.env.JWT_SECRET,
+      { expiresIn: '7d' }
+    );
+    
+    res.status(201).json({
+      message: 'Signup successful',
+      token,
+      user: { ...newUser, password: undefined },
+    });
+  } catch (error) {
+    console.error('Signup error:', error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
 module.exports = { 
   loginUser,
-  logoutUser,           // Logout by User ID
-  logoutUserByEmail,    // Logout by Email  
-  logoutAllUsers,       // Admin: Logout all users
-  getLoggedInUsers      // Admin: See who's logged in
+  signupUser,
+  logoutUser,
+  logoutUserByEmail,
+  logoutAllUsers,
+  getLoggedInUsers
 };

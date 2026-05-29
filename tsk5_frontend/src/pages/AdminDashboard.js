@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import Swal from 'sweetalert2';
-import { Menu, X, Users, Package, ShoppingCart, Bell, RefreshCw, Loader2, Search, Plus, Edit, Trash2, CheckCircle, XCircle, BarChart3, Wallet, User, LogOut, RotateCcw, Eye, EyeOff, Save, Banknote, DollarSign, Table2, Key, AlertTriangle, Wifi, FileText, Landmark } from 'lucide-react';
+import { Menu, X, Users, Package, ShoppingCart, Bell, RefreshCw, Loader2, Search, Plus, Edit, Trash2, CheckCircle, XCircle, BarChart3, Wallet, User, LogOut, RotateCcw, Eye, EyeOff, Save, Banknote, DollarSign, Table2, Key, AlertTriangle, Wifi, FileText, Landmark, Gift } from 'lucide-react';
 import BASE_URL from '../endpoints/endpoints';
 import { io as socketIO } from 'socket.io-client';
 import ProductDialog from '../components/ProductDialog';
@@ -20,6 +20,7 @@ import OrderTracker from '../components/OrderTracker';
 import SuspiciousActivity from '../components/SuspiciousActivity';
 import OrderFiles from '../components/OrderFiles';
 import StorefrontWithdrawalAdmin from '../components/StorefrontWithdrawalAdmin';
+import ReferralCodeManager from '../components/ReferralCodeManager';
 
 // Notification sound
 const notificationSound = new Audio('/notification-sound.mp3');
@@ -504,6 +505,7 @@ const AdminDashboard = () => {
     { id: 'orders', label: 'Orders', icon: ShoppingCart },
     { id: 'users', label: 'Users', icon: Users },
     { id: 'products', label: 'Products', icon: Package },
+    { id: 'referralCodes', label: 'Referral Codes', icon: Gift },
     { id: 'orderFiles', label: 'Order Files', icon: FileText }
   ];
 
@@ -1071,6 +1073,12 @@ const AdminDashboard = () => {
                   {(Array.isArray(products) ? products : []).length > 12 && (
                     <p className="text-center text-dark-400 mt-4">Showing 12 of {(Array.isArray(products) ? products : []).length} products. <button onClick={() => setShowProductDialog(true)} className="text-cyan-400 hover:underline">View all</button></p>
                   )}
+                </div>
+              )}
+
+              {activeTab === 'referralCodes' && (
+                <div className="bg-dark-800/50 backdrop-blur rounded-2xl border border-dark-700 p-6">
+                  <ReferralCodeManager />
                 </div>
               )}
             </>

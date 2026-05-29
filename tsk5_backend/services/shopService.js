@@ -1,5 +1,6 @@
 const prisma = require("../config/db");
 const { resolvePrice } = require("../utils/priceRouter");
+const { generateOrderNumber } = require("../utils/orderNumberGenerator");
 
 // Get or create the "shop" user for guest orders
 const getOrCreateShopUser = async () => {
@@ -49,8 +50,10 @@ const createShopOrder = async (productId, mobileNumber, customerName) => {
   }
   
   // Create the order
+  const orderNumber = generateOrderNumber();
   const order = await prisma.order.create({
     data: {
+      orderNumber,
       userId: shopUser.id,
       mobileNumber: mobileNumber,
       status: "Pending",
