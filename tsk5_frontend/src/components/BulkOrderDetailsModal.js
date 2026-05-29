@@ -133,10 +133,7 @@ const BulkOrderDetailsModal = ({ isOpen, onClose, order }) => {
                         </td>
                         <td className="px-4 py-3 text-white whitespace-nowrap">{item.mobileNumber || '—'}</td>
                         <td className="px-4 py-3 text-white">
-                          <div>
-                            <p className="font-medium">{item.productName || 'N/A'}</p>
-                            <p className="text-xs text-dark-400 mt-0.5">{item.productDescription || '—'}</p>
-                          </div>
+                          <span className="font-medium">{item.productDescription || item.productName || 'N/A'}</span>
                         </td>
                         <td className="px-4 py-3 text-white font-medium">{formatCurrency(item.productPrice)}</td>
                         <td className="px-4 py-3">
