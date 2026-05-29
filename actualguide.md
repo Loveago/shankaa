@@ -402,7 +402,7 @@ Your site is now live at **`https://data-deals.com`** 🎉
 #### Update the application
 
 ```bash
-cd /var/www/shank
+cd /var/www/shankaa
 
 # Pull latest code
 git pull origin main

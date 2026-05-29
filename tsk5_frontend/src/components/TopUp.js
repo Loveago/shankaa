@@ -40,6 +40,84 @@ const TopUp = ({ isOpen, onClose, onSuccess }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
 
+  // AUTO-DETECT PAYSTACK CALLBACK AND VERIFY PAYMENT
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const topupStatus = urlParams.get('topup');
+    const reference = urlParams.get('reference') || urlParams.get('trxref');
+    
+    if (topupStatus === 'callback' && reference) {
+      // Clear URL params immediately
+      window.history.replaceState({}, document.title, window.location.pathname);
+      
+      // Show blocking verification alert
+      Swal.fire({
+        title: 'Verifying Payment...',
+        html: 'Please wait while we confirm your payment.',
+        allowOutsideClick: false,
+        allowEscapeKey: false,
+        showConfirmButton: false,
+        background: '#1e293b',
+        color: '#f1f5f9',
+        didOpen: () => Swal.showLoading()
+      });
+
+      // Call verify endpoint
+      axios.post(`${BASE_URL}/api/topup/verify`, { reference }, { headers: getAuthHeaders() })
+        .then((response) => {
+          if (response.data.success) {
+            Swal.fire({
+              icon: 'success',
+              title: 'Top-Up Successful!',
+              html: `
+                <div class="text-left space-y-2">
+                  <p><strong>Amount:</strong> GHS ${response.data.amount}</p>
+                  <p><strong>New Balance:</strong> GHS ${response.data.newBalance?.toFixed(2)}</p>
+                </div>
+              `,
+              background: '#1e293b',
+              color: '#f1f5f9',
+              confirmButtonColor: '#06b6d4'
+            });
+            setAmount('');
+            setPaymentStep('amount');
+            setExternalRef('');
+            if (onSuccess) onSuccess();
+            onClose();
+          } else if (response.data.pending) {
+            Swal.fire({
+              icon: 'info',
+              title: 'Payment Pending',
+              text: response.data.message || 'Payment is still being processed. Please try again in a moment.',
+              background: '#1e293b',
+              color: '#f1f5f9',
+              confirmButtonColor: '#06b6d4'
+            });
+          } else {
+            Swal.fire({
+              icon: 'error',
+              title: 'Verification Failed',
+              text: response.data.message || 'Payment could not be verified',
+              background: '#1e293b',
+              color: '#f1f5f9',
+              confirmButtonColor: '#06b6d4'
+            });
+          }
+        })
+        .catch((error) => {
+          Swal.fire({
+            icon: 'warning',
+            title: 'Verification Error',
+            text: error.response?.data?.message || 'Could not verify payment. Please check your wallet or try the verify button.',
+            background: '#1e293b',
+            color: '#f1f5f9',
+            confirmButtonColor: '#06b6d4'
+          });
+        });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const handleCopy = () => {
     navigator.clipboard.writeText(phoneNumber.replace(/\s/g, '')).then(() => {
       setCopyStatus(true);
