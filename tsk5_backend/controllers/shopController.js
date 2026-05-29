@@ -56,23 +56,23 @@ const createShopOrder = async (req, res) => {
   }
 };
 
-// Track orders by mobile number
+// Track orders by mobile number or order number (public)
 const trackOrders = async (req, res) => {
   try {
-    const { mobileNumber } = req.query;
-    
-    if (!mobileNumber) {
-      return res.status(400).json({ 
-        success: false, 
-        message: "Mobile number is required" 
+    const { mobileNumber, orderNumber } = req.query;
+
+    if (!mobileNumber && !orderNumber) {
+      return res.status(400).json({
+        success: false,
+        message: "Provide a mobile number or order number to track"
       });
     }
-    
-    const orders = await shopService.trackOrdersByMobile(mobileNumber);
-    
-    // Transform orders for frontend
+
+    const orders = await shopService.trackOrders({ mobileNumber, orderNumber });
+
     const transformedOrders = orders.map(order => ({
       orderId: order.id,
+      orderNumber: order.orderNumber,
       mobileNumber: order.mobileNumber,
       createdAt: order.createdAt,
       items: order.items.map(item => ({
@@ -84,16 +84,16 @@ const trackOrders = async (req, res) => {
         mobileNumber: item.mobileNumber
       }))
     }));
-    
+
     res.json({
       success: true,
       orders: transformedOrders
     });
   } catch (error) {
     console.error("Error tracking orders:", error);
-    res.status(500).json({ 
-      success: false, 
-      message: error.message 
+    res.status(500).json({
+      success: false,
+      message: error.message
     });
   }
 };

@@ -26,6 +26,7 @@ const PublicStorefront = () => {
   const [showTrackingModal, setShowTrackingModal] = useState(false);
   const [showComplaintModal, setShowComplaintModal] = useState(false);
   const [trackingNumber, setTrackingNumber] = useState('');
+  const [trackingMode, setTrackingMode] = useState('phone'); // 'phone' | 'order'
   const [trackedOrders, setTrackedOrders] = useState([]);
   const [isTracking, setIsTracking] = useState(false);
   
@@ -63,14 +64,17 @@ const PublicStorefront = () => {
       const res = await axios.post(`${BASE_URL}/api/storefront/verify`, { reference });
       
       if (res.data.success) {
-        Swal.fire({
+        const orderNum = res.data?.order?.orderNumber || `#${res.data?.order?.id || 'N/A'}`;
+        await Swal.fire({
           icon: 'success',
           title: 'Payment Successful',
-          html: `<p>Your data bundle will be delivered shortly.</p>`,
+          html: `<p>Your order has been created.</p><p><strong>Receipt:</strong> Order ${orderNum}</p><p>Save this number to track your order.</p>`,
           background: '#1e293b',
           color: '#f1f5f9',
           confirmButtonColor: '#06b6d4'
         });
+        // Redirect back to storefront after receipt acknowledgement
+        window.location.href = `/store/${slug}`;
       } else {
         Swal.fire({
           icon: 'error',
@@ -89,7 +93,7 @@ const PublicStorefront = () => {
         color: '#f1f5f9'
       });
     }
-  }, []);
+  }, [slug]);
 
   useEffect(() => {
     fetchStorefront();
@@ -224,26 +228,48 @@ const PublicStorefront = () => {
   };
 
   const trackOrder = async () => {
-    if (!trackingNumber || trackingNumber.length < 10) {
-      Swal.fire({
-        title: 'Invalid Number',
-        text: 'Please enter a valid mobile number',
-        icon: 'warning',
-        background: '#1e293b',
-        color: '#f1f5f9',
-        confirmButtonColor: '#06b6d4'
-      });
-      return;
+    const value = trackingNumber.trim();
+    const cleaned = value.replace(/\s+/g, '');
+
+    if (trackingMode === 'phone') {
+      const digitsOnly = cleaned.replace(/\D/g, '');
+      if (digitsOnly.length < 9) {
+        Swal.fire({
+          title: 'Invalid Number',
+          text: 'Please enter a valid mobile number',
+          icon: 'warning',
+          background: '#1e293b',
+          color: '#f1f5f9',
+          confirmButtonColor: '#06b6d4'
+        });
+        return;
+      }
+    } else {
+      if (cleaned.length < 5) {
+        Swal.fire({
+          title: 'Invalid Order Number',
+          text: 'Please enter a valid order number (e.g. GHJUL24123456)',
+          icon: 'warning',
+          background: '#1e293b',
+          color: '#f1f5f9',
+          confirmButtonColor: '#06b6d4'
+        });
+        return;
+      }
     }
 
     setIsTracking(true);
     try {
-      const response = await axios.get(`${BASE_URL}/api/shop/track?mobileNumber=${trackingNumber}`);
+      const params = trackingMode === 'phone'
+        ? { mobileNumber: cleaned.replace(/\D/g, '') }
+        : { orderNumber: cleaned.toUpperCase() };
+
+      const response = await axios.get(`${BASE_URL}/api/shop/track`, { params });
       setTrackedOrders(response.data.orders || []);
       if (response.data.orders?.length === 0) {
         Swal.fire({
           title: 'No Orders Found',
-          text: 'No orders found for this mobile number.',
+          text: trackingMode === 'phone' ? 'No orders found for this mobile number.' : 'No orders found for this order number.',
           icon: 'info',
           background: '#1e293b',
           color: '#f1f5f9',
@@ -516,15 +542,25 @@ const PublicStorefront = () => {
               </button>
             </div>
             <div className="p-4 sm:p-6 overflow-y-auto flex-1">
-              <div className="flex gap-2 sm:gap-3 mb-4 sm:mb-6">
-                <input
-                  type="tel"
-                  value={trackingNumber}
-                  onChange={(e) => setTrackingNumber(e.target.value.replace(/\D/g, ''))}
-                  placeholder="Enter mobile number"
-                  className="flex-1 bg-dark-900/50 border-2 border-dark-600 rounded-xl px-3 sm:px-4 py-2.5 sm:py-3 text-white text-sm sm:text-base placeholder-dark-500 focus:border-cyan-500 focus:outline-none"
-                  maxLength={10}
-                />
+              <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 mb-4 sm:mb-6">
+                <div className="flex-1 flex gap-2 sm:gap-3">
+                  <select
+                    value={trackingMode}
+                    onChange={(e) => { setTrackingMode(e.target.value); setTrackingNumber(''); setTrackedOrders([]); }}
+                    className="bg-dark-900/70 border-2 border-dark-600 rounded-xl px-3 sm:px-4 text-white text-sm sm:text-base focus:border-cyan-500 focus:outline-none"
+                  >
+                    <option value="phone">By Mobile</option>
+                    <option value="order">By Order #</option>
+                  </select>
+                  <input
+                    type="text"
+                    value={trackingNumber}
+                    onChange={(e) => setTrackingNumber(trackingMode === 'phone' ? e.target.value.replace(/\D/g, '') : e.target.value)}
+                    placeholder={trackingMode === 'phone' ? 'Enter mobile number' : 'Enter order number (e.g. GHJUL24123456)'}
+                    className="flex-1 bg-dark-900/50 border-2 border-dark-600 rounded-xl px-3 sm:px-4 py-2.5 sm:py-3 text-white text-sm sm:text-base placeholder-dark-500 focus:border-cyan-500 focus:outline-none"
+                    maxLength={trackingMode === 'phone' ? 10 : 20}
+                  />
+                </div>
                 <button onClick={trackOrder} disabled={isTracking} className="px-4 sm:px-6 py-2.5 sm:py-3 bg-gradient-to-r from-cyan-500 to-cyan-600 text-white rounded-xl font-semibold disabled:opacity-50 flex items-center gap-2 flex-shrink-0">
                   {isTracking ? <Loader2 className="w-4 h-4 sm:w-5 sm:h-5 animate-spin" /> : <Search className="w-4 h-4 sm:w-5 sm:h-5" />}
                 </button>
@@ -533,10 +569,10 @@ const PublicStorefront = () => {
               {trackedOrders.length > 0 && (
                 <div className="space-y-3 sm:space-y-4">
                   {trackedOrders.map((order) => (
-                    <div key={order.orderId} className="bg-dark-900/50 rounded-xl p-3 sm:p-4 border border-dark-700">
+                    <div key={`${order.orderNumber || order.orderId}`} className="bg-dark-900/50 rounded-xl p-3 sm:p-4 border border-dark-700">
                       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2 mb-2 sm:mb-3">
                         <div className="min-w-0">
-                          <p className="text-white font-semibold text-sm sm:text-base">Order #{order.orderId}</p>
+                          <p className="text-white font-semibold text-sm sm:text-base">Order {order.orderNumber ? `#${order.orderNumber}` : `#${order.orderId}`}</p>
                           <p className="text-dark-500 text-xs sm:text-sm">{new Date(order.createdAt).toLocaleDateString()}</p>
                         </div>
                         <span className={`inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1 rounded-full text-xs font-medium border whitespace-nowrap flex-shrink-0 ${getStatusColor(order.items?.[0]?.status)}`}>

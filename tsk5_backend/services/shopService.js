@@ -80,51 +80,62 @@ const createShopOrder = async (productId, mobileNumber, customerName) => {
   return order;
 };
 
-// Track orders by mobile number
-const trackOrdersByMobile = async (mobileNumber) => {
-  // Clean and generate phone number variants for comprehensive search
-  const cleanedNumber = mobileNumber.replace(/\D/g, '');
-  const phoneVariants = [cleanedNumber];
-  
-  // Generate phone number variants for comprehensive search
-  if (cleanedNumber.startsWith('0') && cleanedNumber.length === 10) {
-    // 0XXXXXXXXX -> add XXXXXXXXX and 233XXXXXXXXX
-    phoneVariants.push(cleanedNumber.substring(1));
-    phoneVariants.push('233' + cleanedNumber.substring(1));
-  } else if (cleanedNumber.startsWith('233') && cleanedNumber.length === 12) {
-    // 233XXXXXXXXX -> add 0XXXXXXXXX and XXXXXXXXX
-    phoneVariants.push('0' + cleanedNumber.substring(3));
-    phoneVariants.push(cleanedNumber.substring(3));
-  } else if (cleanedNumber.length === 9) {
-    // XXXXXXXXX -> add 0XXXXXXXXX and 233XXXXXXXXX
-    phoneVariants.push('0' + cleanedNumber);
-    phoneVariants.push('233' + cleanedNumber);
+// Track orders by order number or mobile number (public)
+const trackOrders = async ({ mobileNumber, orderNumber }) => {
+  const orConditions = [];
+
+  // Order-number (or raw ID) lookup — no date limit
+  if (orderNumber) {
+    const normalizedOrderNumber = orderNumber.trim().toUpperCase();
+    if (normalizedOrderNumber) {
+      orConditions.push({ orderNumber: normalizedOrderNumber });
+    }
+
+    const numericId = parseInt(orderNumber, 10);
+    if (!isNaN(numericId)) {
+      orConditions.push({ id: numericId });
+    }
   }
-  
-  // Build OR conditions for all phone variants
-  const phoneConditions = [];
-  phoneVariants.forEach(variant => {
-    phoneConditions.push({ mobileNumber: { contains: variant } });
-    phoneConditions.push({
-      items: {
-        some: {
-          mobileNumber: { contains: variant }
+
+  // Mobile-based lookup (last 7 days)
+  if (mobileNumber) {
+    const cleanedNumber = mobileNumber.replace(/\D/g, '');
+    const phoneVariants = [cleanedNumber];
+
+    if (cleanedNumber.startsWith('0') && cleanedNumber.length === 10) {
+      phoneVariants.push(cleanedNumber.substring(1));
+      phoneVariants.push('233' + cleanedNumber.substring(1));
+    } else if (cleanedNumber.startsWith('233') && cleanedNumber.length === 12) {
+      phoneVariants.push('0' + cleanedNumber.substring(3));
+      phoneVariants.push(cleanedNumber.substring(3));
+    } else if (cleanedNumber.length === 9) {
+      phoneVariants.push('0' + cleanedNumber);
+      phoneVariants.push('233' + cleanedNumber);
+    }
+
+    phoneVariants.forEach((variant) => {
+      orConditions.push({ mobileNumber: { contains: variant } });
+      orConditions.push({
+        items: {
+          some: {
+            mobileNumber: { contains: variant }
+          }
         }
-      }
+      });
     });
-  });
-  
-  // Calculate 7 days ago
-  const sevenDaysAgo = new Date();
-  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-  
-  // Search Order table with all phone variants
+  }
+
+  if (orConditions.length === 0) {
+    return [];
+  }
+
+  // Only apply 7-day window when we're searching by mobile (order-number searches should see all time)
+  const dateFilter = mobileNumber && !orderNumber ? { createdAt: { gte: (() => { const d = new Date(); d.setDate(d.getDate() - 7); return d; })() } } : {};
+
   const orders = await prisma.order.findMany({
     where: {
-      OR: phoneConditions,
-      createdAt: {
-        gte: sevenDaysAgo
-      }
+      ...(Object.keys(dateFilter).length ? dateFilter : {}),
+      OR: orConditions
     },
     include: {
       items: {
@@ -145,12 +156,12 @@ const trackOrdersByMobile = async (mobileNumber) => {
     },
     take: 20
   });
-  
+
   return orders;
 };
 
 module.exports = {
   getOrCreateShopUser,
   createShopOrder,
-  trackOrdersByMobile
+  trackOrders
 };

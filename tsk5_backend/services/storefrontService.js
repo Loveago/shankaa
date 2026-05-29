@@ -1,6 +1,7 @@
 const axios = require('axios');
 const prisma = require('../config/db');
 const { resolvePrice } = require('../utils/priceRouter');
+const { generateOrderNumber } = require('../utils/orderNumberGenerator');
 
 // Paystack API URLs
 const PAYSTACK_INITIALIZE_URL = 'https://api.paystack.co/transaction/initialize';
@@ -440,6 +441,7 @@ const verifyReferralPayment = async (reference) => {
             userId: referralOrder.agentId, // Order goes to agent
             mobileNumber: referralOrder.customerPhone,
             status: 'Pending',
+            orderNumber: generateOrderNumber(),
             items: {
               create: [{
                 productId: referralOrder.productId,
