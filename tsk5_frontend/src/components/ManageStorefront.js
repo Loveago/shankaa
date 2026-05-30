@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import Swal from 'sweetalert2';
-import { Store, Users, ShoppingCart, CheckCircle, XCircle, RefreshCw, Eye, ToggleLeft, ToggleRight, ExternalLink, X } from 'lucide-react';
+import { Store, ShoppingCart, CheckCircle, XCircle, RefreshCw, Eye, ToggleLeft, ToggleRight, ExternalLink, X } from 'lucide-react';
 import BASE_URL from '../endpoints/endpoints';
 
 const ManageStorefront = ({ isOpen, onClose }) => {
@@ -75,10 +75,9 @@ const ManageStorefront = ({ isOpen, onClose }) => {
 
     if (result.isConfirmed) {
       try {
-        const token = localStorage.getItem('token');
         // Note: This would need a backend endpoint to toggle storefront status
         // For now, we'll just update local state
-        setStorefronts(prev => prev.map(s => 
+        setStorefronts(prev => prev.map(s =>
           s.id === storefront.id ? { ...s, active: newState } : s
         ));
         

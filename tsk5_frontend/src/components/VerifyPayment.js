@@ -39,7 +39,7 @@ const VerifyPayment = ({ isOpen, onClose }) => {
 
   useEffect(() => {
     if (isOpen) fetchPendingPayments();
-  }, [isOpen]);
+  }, [isOpen, fetchPendingPayments]);
 
   const handleVerifyPayment = async (referralOrder) => {
     const result = await Swal.fire({
