@@ -23,10 +23,11 @@ const ManageStorefront = ({ isOpen, onClose }) => {
       const agentMap = new Map();
       res.data?.orders?.forEach(order => {
         if (!agentMap.has(order.agentId)) {
+          const agentName = order.agent?.name || order.customerName || 'Unknown Agent';
           agentMap.set(order.agentId, {
             id: order.agentId,
-            name: order.agentName,
-            slug: order.storefrontSlug,
+            name: agentName,
+            slug: (agentName || '').toLowerCase().replace(/\s+/g, '-'),
             totalOrders: 0,
             totalRevenue: 0,
             active: true
@@ -107,9 +108,9 @@ const ManageStorefront = ({ isOpen, onClose }) => {
     setShowDetailsModal(true);
   };
 
-  const filteredStorefronts = storefronts.filter(sf => 
-    sf.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    sf.slug?.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredStorefronts = storefronts.filter(sf =>
+    (sf.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (sf.slug || '').toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   if (!isOpen) return null;
