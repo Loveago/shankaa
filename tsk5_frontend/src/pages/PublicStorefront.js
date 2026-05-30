@@ -357,7 +357,6 @@ const PublicStorefront = () => {
                   <h1 className="text-lg sm:text-2xl font-bold">{storefront?.agent?.name}'s Store</h1>
                   <BadgeCheck className="w-4 h-4 text-emerald-400" />
                 </div>
-                <p className="text-xs sm:text-sm text-dark-300">Curated data bundles powered by Paystack</p>
               </div>
             </div>
             <div className="flex items-center gap-2 sm:gap-3">
@@ -380,87 +379,6 @@ const PublicStorefront = () => {
         </div>
       </nav>
 
-      {/* Hero */}
-      <header className="relative overflow-hidden">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(34,211,238,0.15),transparent_40%),radial-gradient(circle_at_80%_0%,rgba(16,185,129,0.12),transparent_35%),radial-gradient(circle_at_50%_80%,rgba(99,102,241,0.12),transparent_35%)]"></div>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-14 relative">
-          <div className="grid lg:grid-cols-[1.1fr_0.9fr] gap-8 items-center">
-            <div className="space-y-6">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs font-semibold">
-                <Sparkles className="w-4 h-4" /> Fast, secure & agent-backed data bundles
-              </div>
-              <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black leading-tight">
-                Stay online with <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-emerald-300 to-cyan-500">zero friction</span> data purchases.
-              </h2>
-              <p className="text-dark-200 text-base sm:text-lg max-w-2xl">
-                Browse curated bundles, pay securely, and get instant delivery. Track every order with your phone number or order ID—no guesswork.
-              </p>
-              <div className="flex flex-wrap gap-3">
-                <button onClick={scrollToProducts} className="px-5 sm:px-6 py-3 rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-500 text-white font-semibold shadow-lg shadow-emerald-500/25 flex items-center gap-2 hover:translate-y-[-1px] transition-all">
-                  Browse Bundles <ArrowRight className="w-4 h-4" />
-                </button>
-                <button onClick={() => setShowTrackingModal(true)} className="px-5 sm:px-6 py-3 rounded-xl bg-dark-800 border border-dark-700 text-dark-100 font-semibold flex items-center gap-2 hover:border-cyan-500/40 transition-all">
-                  Track Order <ArrowUpRight className="w-4 h-4" />
-                </button>
-              </div>
-              <div className="grid sm:grid-cols-3 gap-3">
-                {[
-                  { icon: Shield, title: 'Secure Paystack', desc: 'Encrypted checkout with fraud checks' },
-                  { icon: Zap, title: 'Instant Delivery', desc: 'Bundles provisioned within minutes' },
-                  { icon: PhoneCall, title: 'Human Support', desc: 'Talk to our team for any issue' }
-                ].map((item) => (
-                  <div key={item.title} className="p-3 sm:p-4 rounded-2xl bg-dark-900/60 border border-dark-700/70 flex gap-3 items-start">
-                    <item.icon className="w-5 h-5 text-emerald-400 mt-1" />
-                    <div>
-                      <p className="text-sm font-semibold text-white">{item.title}</p>
-                      <p className="text-xs text-dark-300 leading-relaxed">{item.desc}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="rounded-3xl bg-dark-900/60 border border-dark-700/70 p-5 sm:p-6 shadow-2xl shadow-cyan-500/10">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-cyan-500 to-emerald-500 flex items-center justify-center text-white text-xl font-bold">
-                  {storefront?.agent?.name?.[0] || 'S'}
-                </div>
-                <div className="flex-1">
-                  <p className="text-sm text-dark-300">Store owner</p>
-                  <p className="text-lg font-semibold">{storefront?.agent?.name}</p>
-                  <p className="text-xs text-dark-400">Trusted seller · Verified payouts</p>
-                </div>
-                <div className="px-3 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-sm font-semibold">
-                  Online
-                </div>
-              </div>
-              <div className="space-y-3">
-                <div className="flex items-center gap-2 text-sm text-dark-200">
-                  <Shield className="w-4 h-4 text-emerald-400" /> Paystack-secured checkout
-                </div>
-                <div className="flex items-center gap-2 text-sm text-dark-200">
-                  <Zap className="w-4 h-4 text-cyan-400" /> Instant delivery once paid
-                </div>
-                <div className="flex items-center gap-2 text-sm text-dark-200">
-                  <Star className="w-4 h-4 text-amber-400" /> Curated bundles per network
-                </div>
-              </div>
-              <div className="mt-5 grid grid-cols-2 gap-3">
-                <div className="p-4 rounded-2xl bg-dark-800/60 border border-dark-700">
-                  <p className="text-xs text-dark-400">Network filters</p>
-                  <p className="text-lg font-bold">Smart matching</p>
-                  <p className="text-[11px] text-dark-400 mt-1">MTN · Telecel · AirtelTigo</p>
-                </div>
-                <div className="p-4 rounded-2xl bg-dark-800/60 border border-dark-700">
-                  <p className="text-xs text-dark-400">Order tracking</p>
-                  <p className="text-lg font-bold">Phone or ID</p>
-                  <p className="text-[11px] text-dark-400 mt-1">Keep receipts, stay updated</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </header>
 
       {/* Main Content */}
       <main id="products-section" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-12">
