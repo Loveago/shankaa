@@ -11,17 +11,24 @@ const getPendingCountsByNetwork = async () => {
       status: "Pending",
       batchId: null
     },
-    select: { productName: true, productPrice: true, quantity: true, product: { select: { name: true, price: true } } }
+    select: { productName: true, productPrice: true, quantity: true, productDescription: true, product: { select: { name: true, price: true, description: true } } }
   });
 
-  const networks = { MTN: { count: 0, total: 0 }, TELECEL: { count: 0, total: 0 }, "AIRTEL TIGO": { count: 0, total: 0 } };
+  const networks = { MTN: { count: 0, total: 0, gb: 0 }, TELECEL: { count: 0, total: 0, gb: 0 }, "AIRTEL TIGO": { count: 0, total: 0, gb: 0 } };
 
   for (const item of items) {
     const name = (item.productName || item.product?.name || "").toUpperCase();
+    const desc = (item.productDescription || item.product?.description || "").toLowerCase();
+    
+    // Extract GB from description
+    const gbMatch = desc.match(/(\d+(?:\.\d+)?)\s*gb/i);
+    const gbValue = gbMatch ? parseFloat(gbMatch[1]) : 0;
+    
     for (const net of Object.keys(networks)) {
       if (name.startsWith(net)) {
         networks[net].count++;
         networks[net].total += (item.productPrice || item.product?.price || 0) * item.quantity;
+        networks[net].gb += gbValue * item.quantity;
         break;
       }
     }
@@ -60,10 +67,17 @@ const exportPendingByNetwork = async (adminUserId, network) => {
     const orderIdSet = new Set(pendingItems.map(item => item.orderId));
     const orderIds = [...orderIdSet];
 
-    // Calculate totals
+    // Calculate totals including GB
     let totalPrice = 0;
+    let totalGb = 0;
     for (const item of pendingItems) {
       totalPrice += (item.productPrice || item.product.price) * item.quantity;
+      
+      // Extract GB from product description
+      const desc = (item.productDescription || item.product.description || "").toLowerCase();
+      const gbMatch = desc.match(/(\d+(?:\.\d+)?)\s*gb/i);
+      const gbValue = gbMatch ? parseFloat(gbMatch[1]) : 0;
+      totalGb += gbValue * item.quantity;
     }
 
     // Create the batch
@@ -75,6 +89,7 @@ const exportPendingByNetwork = async (adminUserId, network) => {
         network: network.toUpperCase(),
         totalItems: pendingItems.length,
         totalPrice,
+        totalGb,
         status: "Pending"
       }
     });
@@ -133,13 +148,15 @@ const getAllBatches = async (page = 1, limit = 20) => {
         network: true,
         totalItems: true,
         totalPrice: true,
+        totalGb: true,
         status: true,
         createdAt: true,
         user: { select: { id: true, name: true } },
         _count: { select: { items: true } },
         items: {
           select: {
-            id: true, status: true,
+            id: true, status: true, productDescription: true, product: { select: { description: true } },
+            quantity: true,
             order: { select: { id: true, user: { select: { id: true, name: true } } } }
           }
         }
@@ -150,6 +167,17 @@ const getAllBatches = async (page = 1, limit = 20) => {
   const result = batches.map(batch => {
     const totalItems = batch.totalItems || batch._count.items;
     let statusCounts = { Pending: 0, Processing: 0, Completed: 0, Cancelled: 0 };
+    let calculatedTotalGb = batch.totalGb || 0;
+
+    // Calculate GB from items if not stored
+    if (calculatedTotalGb === 0 && batch.items.length > 0) {
+      for (const item of batch.items) {
+        const desc = (item.productDescription || item.product?.description || "").toLowerCase();
+        const gbMatch = desc.match(/(\d+(?:\.\d+)?)\s*gb/i);
+        const gbValue = gbMatch ? parseFloat(gbMatch[1]) : 0;
+        calculatedTotalGb += gbValue * item.quantity;
+      }
+    }
 
     for (const item of batch.items) {
       const s = item.status === "Canceled" ? "Cancelled" : item.status;
@@ -180,6 +208,7 @@ const getAllBatches = async (page = 1, limit = 20) => {
       network: batch.network,
       totalItems,
       totalPrice: batch.totalPrice,
+      totalGb: calculatedTotalGb,
       status: overallStatus,
       statusCounts,
       createdAt: batch.createdAt,

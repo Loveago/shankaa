@@ -337,7 +337,7 @@ const OrderFiles = () => {
       {/* Network export cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
         {Object.entries(networkColors).map(([network, colors]) => {
-          const data = pendingCounts[network] || { count: 0, total: 0 };
+          const data = pendingCounts[network] || { count: 0, total: 0, gb: 0 };
           const isExporting = exporting === network;
           return (
             <div key={network} className={`bg-gradient-to-br ${colors.bg} border ${colors.border} rounded-2xl p-5`}>
@@ -349,6 +349,9 @@ const OrderFiles = () => {
               </div>
               <p className="text-dark-300 text-sm mb-4">
                 Total: <span className="text-white font-medium">GHS {data.total.toFixed(2)}</span>
+              </p>
+              <p className="text-dark-300 text-sm">
+                Data: <span className="text-cyan-400 font-semibold">{data.gb ? `${data.gb} GB` : '0 GB'}</span>
               </p>
               <button
                 onClick={() => handleExportNetwork(network)}
@@ -396,6 +399,7 @@ const OrderFiles = () => {
                   <th className="px-4 py-3 text-left text-dark-400 font-medium">Network</th>
                   <th className="px-4 py-3 text-left text-dark-400 font-medium">Agents</th>
                   <th className="px-4 py-3 text-center text-dark-400 font-medium">Orders</th>
+                  <th className="px-4 py-3 text-center text-dark-400 font-medium">Total GB</th>
                   <th className="px-4 py-3 text-right text-dark-400 font-medium">Total Price</th>
                   <th className="px-4 py-3 text-center text-dark-400 font-medium">Status</th>
                   <th className="px-4 py-3 text-center text-dark-400 font-medium">Actions</th>
@@ -417,6 +421,7 @@ const OrderFiles = () => {
                       </td>
                       <td className="px-4 py-3 text-dark-300 max-w-[180px] truncate" title={agentNames}>{agentNames}</td>
                       <td className="px-4 py-3 text-center text-white">{batch.totalItems}</td>
+                      <td className="px-4 py-3 text-center text-cyan-400 font-semibold">{batch.totalGb ? `${batch.totalGb} GB` : '0 GB'}</td>
                       <td className="px-4 py-3 text-right text-white font-medium">GHS {batch.totalPrice.toFixed(2)}</td>
                       <td className="px-4 py-3 text-center">
                         <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium border ${statusClass}`}>

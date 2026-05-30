@@ -94,6 +94,7 @@ model OrderBatch {
   filename    String      @db.VarChar(255)
   totalItems  Int         @default(0)
   totalPrice  Float       @default(0)
+  totalGb     Float       @default(0)
   status      String      @default("Pending")
   network     String?     @db.VarChar(50)
   createdAt   DateTime    @default(now())

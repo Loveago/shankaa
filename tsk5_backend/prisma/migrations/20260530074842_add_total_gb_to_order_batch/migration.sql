@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "OrderBatch" ADD COLUMN     "totalGb" DOUBLE PRECISION NOT NULL DEFAULT 0;
