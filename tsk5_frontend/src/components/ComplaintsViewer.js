@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, memo } from 'react';
-import { MessageSquareWarning, X, CheckCircle, Clock, AlertCircle, Phone, Loader2, RefreshCw, Trash2, MessageCircle, Copy, DollarSign, Image as ImageIcon, Upload, ExternalLink } from 'lucide-react';
+import { MessageSquareWarning, X, CheckCircle, Clock, AlertCircle, Phone, Loader2, RefreshCw, Trash2, Copy, DollarSign, Image as ImageIcon, Upload, ExternalLink } from 'lucide-react';
 import axios from 'axios';
 import Swal from 'sweetalert2';
 import BASE_URL from '../endpoints/endpoints';
@@ -221,15 +221,6 @@ const ComplaintsViewer = ({ isOpen, onClose }) => {
     }
   };
 
-  const openWhatsApp = (complaint) => {
-    const phone = complaint.whatsappNumber || complaint.mobileNumber;
-    if (!phone) return;
-    let formatted = phone.replace(/\D/g, '');
-    if (formatted.startsWith('0')) formatted = '233' + formatted.slice(1);
-    const message = `Hello! Regarding your complaint (ID: ${complaint.id}):\n"${complaint.message.slice(0, 100)}..."`;
-    window.open(`https://wa.me/${formatted}?text=${encodeURIComponent(message)}`, '_blank');
-  };
-
   if (!isOpen) return null;
 
   return (
@@ -361,10 +352,6 @@ const ComplaintsViewer = ({ isOpen, onClose }) => {
                         )}
                       </div>
                       <div className="flex flex-col items-center gap-2 shrink-0">
-                        <button onClick={() => openWhatsApp(complaint)} className="p-2 bg-emerald-500/20 text-emerald-400 rounded-lg hover:bg-emerald-500/30">
-                          <MessageCircle className="w-4 h-4" />
-                        </button>
-
                         {/* Upload proof image button */}
                         {!complaint.proofImage && (
                           <button
