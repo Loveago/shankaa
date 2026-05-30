@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import Swal from 'sweetalert2';
 import { CreditCard, CheckCircle, Clock, X, RefreshCw, DollarSign, User, Phone, Package } from 'lucide-react';
@@ -14,7 +14,7 @@ const VerifyPayment = ({ isOpen, onClose }) => {
     if (storedUserId) setUserId(parseInt(storedUserId));
   }, []);
 
-  const fetchPendingPayments = async () => {
+  const fetchPendingPayments = useCallback(async () => {
     if (!userId) return;
     setLoading(true);
     try {
@@ -24,7 +24,7 @@ const VerifyPayment = ({ isOpen, onClose }) => {
       });
       
       // Filter only pending referral orders for this user
-      const pending = res.data?.orders?.filter(order => 
+      const pending = res.data?.orders?.filter(order =>
         order.userId === userId && order.paymentStatus === 'Pending'
       ) || [];
       
@@ -35,7 +35,7 @@ const VerifyPayment = ({ isOpen, onClose }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [userId]);
 
   useEffect(() => {
     if (isOpen) fetchPendingPayments();
