@@ -247,6 +247,11 @@ exports.reportBulkOrderIssue = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Order item not found' });
     }
 
+    // Only completed orders can be reported
+    if (item.status !== 'Completed') {
+      return res.status(400).json({ success: false, message: 'Only completed orders can be reported' });
+    }
+
     // Check if complaint already exists for this order item
     const existingComplaint = await prisma.complaint.findFirst({
       where: { orderItemId: itemId, status: { in: ['pending', 'reviewed'] } }

@@ -184,14 +184,18 @@ const BulkOrderDetailsModal = ({ isOpen, onClose, order }) => {
                               )}
                             </div>
                           ) : (
-                            <button
-                              onClick={() => handleReport(fullOrder.id, item.id)}
-                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-500/10 text-red-300 border border-red-500/30 hover:bg-red-500/20 text-xs font-medium transition-colors"
-                              title="Report issue with this order"
-                            >
-                              <AlertTriangle className="w-3.5 h-3.5" />
-                              Report
-                            </button>
+                            item.status === 'Completed' ? (
+                              <button
+                                onClick={() => handleReport(fullOrder.id, item.id)}
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-500/10 text-red-300 border border-red-500/30 hover:bg-red-500/20 text-xs font-medium transition-colors"
+                                title="Report issue with this order"
+                              >
+                                <AlertTriangle className="w-3.5 h-3.5" />
+                                Report
+                              </button>
+                            ) : (
+                              <span className="text-xs text-dark-500 italic">Only completed orders can be reported</span>
+                            )
                           )}
                         </td>
                       </tr>

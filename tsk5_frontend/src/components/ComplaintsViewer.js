@@ -69,7 +69,17 @@ const ComplaintsViewer = ({ isOpen, onClose }) => {
       const res = await axios.get(`${BASE_URL}/api/complaints${statusParam}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      setComplaints(res.data.data || []);
+      let complaintsData = res.data.data || [];
+      // Sort complaints: pending first, then reviewed, resolved, refunded
+      const statusOrder = { pending: 0, reviewed: 1, resolved: 2, refunded: 3 };
+      complaintsData.sort((a, b) => {
+        const aOrder = statusOrder[a.status] ?? 99;
+        const bOrder = statusOrder[b.status] ?? 99;
+        if (aOrder !== bOrder) return aOrder - bOrder;
+        // Within same status, sort by createdAt descending (newest first)
+        return new Date(b.createdAt) - new Date(a.createdAt);
+      });
+      setComplaints(complaintsData);
     } catch (err) {
       setComplaints([]);
     } finally {
