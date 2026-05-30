@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import Swal from 'sweetalert2';
-import { Menu, X, Users, Package, ShoppingCart, Bell, RefreshCw, Loader2, Search, Plus, Edit, Trash2, CheckCircle, XCircle, BarChart3, Wallet, User, LogOut, RotateCcw, Eye, EyeOff, Save, Banknote, DollarSign, Table2, Key, AlertTriangle, Wifi, FileText, Landmark, Gift, Settings } from 'lucide-react';
+import { Menu, X, Users, Package, ShoppingCart, Bell, RefreshCw, Loader2, Search, Plus, Edit, Trash2, CheckCircle, XCircle, BarChart3, Wallet, User, LogOut, RotateCcw, Eye, EyeOff, Save, Banknote, DollarSign, Table2, Key, AlertTriangle, Wifi, FileText, Landmark, Gift, Settings, Store } from 'lucide-react';
 import BASE_URL from '../endpoints/endpoints';
 import { io as socketIO } from 'socket.io-client';
 import ProductDialog from '../components/ProductDialog';
@@ -21,6 +21,7 @@ import SuspiciousActivity from '../components/SuspiciousActivity';
 import OrderFiles from '../components/OrderFiles';
 import StorefrontWithdrawalAdmin from '../components/StorefrontWithdrawalAdmin';
 import ReferralCodeManager from '../components/ReferralCodeManager';
+import ManageStorefront from '../components/ManageStorefront';
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
@@ -70,6 +71,7 @@ const AdminDashboard = () => {
   const [showOrderTracker, setShowOrderTracker] = useState(false);
   const [showSuspiciousActivity, setShowSuspiciousActivity] = useState(false);
   const [showStorefrontWithdrawals, setShowStorefrontWithdrawals] = useState(false);
+  const [showManageStorefront, setShowManageStorefront] = useState(false);
   const [fraudAlerts, setFraudAlerts] = useState([]);
   const [fraudBlinking, setFraudBlinking] = useState(false);
   // Settings state
@@ -576,6 +578,10 @@ const AdminDashboard = () => {
           <button onClick={() => { setShowStorefrontWithdrawals(true); setIsSidebarOpen(false); }}
             className="w-full flex items-center gap-3 px-4 py-3 text-dark-300 hover:text-white hover:bg-dark-700/50 rounded-xl transition-all">
             <Landmark className="w-5 h-5" /><span>Storefront Withdrawals</span>
+          </button>
+          <button onClick={() => { setShowManageStorefront(true); setIsSidebarOpen(false); }}
+            className="w-full flex items-center gap-3 px-4 py-3 text-dark-300 hover:text-white hover:bg-dark-700/50 rounded-xl transition-all">
+            <Store className="w-5 h-5" /><span>Manage Storefronts</span>
           </button>
           <hr className="border-dark-700 my-2" />
           <button onClick={() => navigate('/profile')}
@@ -1232,6 +1238,9 @@ const AdminDashboard = () => {
 
       {/* Storefront Withdrawals Modal */}
       <StorefrontWithdrawalAdmin isOpen={showStorefrontWithdrawals} onClose={() => setShowStorefrontWithdrawals(false)} />
+
+      {/* Manage Storefront Modal */}
+      <ManageStorefront isOpen={showManageStorefront} onClose={() => setShowManageStorefront(false)} />
 
       {/* Floating Chat */}
       <FloatingChatButton currentUser={{ id: parseInt(localStorage.getItem('userId')), name: localStorage.getItem('name'), role: 'admin' }} />

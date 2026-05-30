@@ -17,6 +17,7 @@ import UserApiKeys from '../components/UserApiKeys';
 import FloatingChatButton from '../components/FloatingChatButton';
 import ComplaintsTracker from '../components/ComplaintsTracker';
 import BulkOrdersPage from './BulkOrdersPage';
+import VerifyPayment from '../components/VerifyPayment';
 
 const SUPPORTED_ROLES = new Set(['USER', 'PREMIUM', 'NORMAL', 'SUPER', 'OTHER']);
 
@@ -58,6 +59,7 @@ const UserDashboard = () => {
   const [showApiKeys, setShowApiKeys] = useState(false);
   const [viewingBulkOrdersPage, setViewingBulkOrdersPage] = useState(false);
   const [showComplaints, setShowComplaints] = useState(false);
+  const [showVerifyPayment, setShowVerifyPayment] = useState(false);
   const [isSuspended, setIsSuspended] = useState(localStorage.getItem('isSuspended') === 'true');
 
   const userName = localStorage.getItem('name') || 'User';
@@ -443,6 +445,7 @@ const UserDashboard = () => {
         onOpenStorefront={() => setShowStorefront(true)}
         onOpenBulkOrders={() => setViewingBulkOrdersPage(true)}
         onOpenComplaints={() => setShowComplaints(true)}
+        onOpenVerifyPayment={() => setShowVerifyPayment(true)}
         isSuspended={isSuspended}
       />
 
@@ -799,6 +802,9 @@ const UserDashboard = () => {
 
       {/* Complaints Tracker */}
       <ComplaintsTracker isOpen={showComplaints} onClose={() => setShowComplaints(false)} />
+
+      {/* Verify Payment Modal */}
+      <VerifyPayment isOpen={showVerifyPayment} onClose={() => setShowVerifyPayment(false)} />
 
       {/* Floating Chat */}
       <FloatingChatButton currentUser={{ id: parseInt(localStorage.getItem('userId')), name: localStorage.getItem('name'), role: 'USER' }} />

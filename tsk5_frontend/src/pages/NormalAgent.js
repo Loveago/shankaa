@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import getSocket from '../utils/socket';
 import Swal from 'sweetalert2';
-import { Menu, Wallet, Package, Clock, CheckCircle, ShoppingCart, Loader2, RefreshCw, Trash2, UserCircle, History, X, Banknote, Key } from 'lucide-react';
+import { Menu, Wallet, Package, Clock, CheckCircle, ShoppingCart, Loader2, RefreshCw, Trash2, UserCircle, History, X, Banknote, Key, CreditCard } from 'lucide-react';
 import BASE_URL from '../endpoints/endpoints';
 import Sidebar from '../components/Sidebar';
 import TopUp from '../components/TopUp';
@@ -17,6 +17,7 @@ import FloatingChatButton from '../components/FloatingChatButton';
 import UserApiKeys from '../components/UserApiKeys';
 import ComplaintsTracker from '../components/ComplaintsTracker';
 import BulkOrdersPage from './BulkOrdersPage';
+import VerifyPayment from '../components/VerifyPayment';
 
 const SUPPORTED_ROLES = new Set(['USER', 'PREMIUM', 'NORMAL', 'SUPER', 'OTHER']);
 
@@ -58,6 +59,7 @@ const NormalAgent = () => {
   const [showApiKeys, setShowApiKeys] = useState(false);
   const [viewingBulkOrdersPage, setViewingBulkOrdersPage] = useState(false);
   const [showComplaints, setShowComplaints] = useState(false);
+  const [showVerifyPayment, setShowVerifyPayment] = useState(false);
   const [isSuspended, setIsSuspended] = useState(localStorage.getItem('isSuspended') === 'true');
 
   const userName = localStorage.getItem('name') || 'Agent';
@@ -345,11 +347,11 @@ const NormalAgent = () => {
 
   return (
     <div className="min-h-screen bg-dark-950">
-      <Sidebar 
-        isOpen={isSidebarOpen} 
-        setIsOpen={setIsSidebarOpen} 
-        selectedCategory={selectedCategory} 
-        handleCategorySelect={handleCategorySelect} 
+      <Sidebar
+        isOpen={isSidebarOpen}
+        setIsOpen={setIsSidebarOpen}
+        selectedCategory={selectedCategory}
+        handleCategorySelect={handleCategorySelect}
         logoutUser={logoutUser}
         onOpenTransactions={() => setShowTransactions(true)}
         onOpenUploadExcel={() => setShowUploadExcel(true)}
@@ -357,6 +359,7 @@ const NormalAgent = () => {
         onOpenStorefront={() => setShowStorefront(true)}
         onOpenBulkOrders={() => setViewingBulkOrdersPage(true)}
         onOpenComplaints={() => setShowComplaints(true)}
+        onOpenVerifyPayment={() => setShowVerifyPayment(true)}
         isSuspended={isSuspended}
       />
       <div className="md:ml-72">
@@ -495,6 +498,7 @@ const NormalAgent = () => {
       <UploadExcel isOpen={showUploadExcel} onClose={() => setShowUploadExcel(false)} onUploadSuccess={fetchData} />
       <PasteOrders isOpen={showPasteOrders} onClose={() => setShowPasteOrders(false)} onUploadSuccess={fetchData} />
       <Storefront isOpen={showStorefront} onClose={() => setShowStorefront(false)} userId={localStorage.getItem('userId')} />
+      <VerifyPayment isOpen={showVerifyPayment} onClose={() => setShowVerifyPayment(false)} />
 
       {showCart && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">

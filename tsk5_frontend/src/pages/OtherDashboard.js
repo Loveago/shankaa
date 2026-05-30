@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import getSocket from '../utils/socket';
 import Swal from 'sweetalert2';
-import { Menu, Wallet, Package, Clock, CheckCircle, ShoppingCart, Loader2, RefreshCw, Trash2, Layers, History, X, Banknote, Key } from 'lucide-react';
+import { Menu, Wallet, Package, Clock, CheckCircle, ShoppingCart, Loader2, RefreshCw, Trash2, Layers, History, X, Banknote, Key, CreditCard } from 'lucide-react';
 import BASE_URL from '../endpoints/endpoints';
 import Sidebar from '../components/Sidebar';
 import TopUp from '../components/TopUp';
@@ -17,6 +17,7 @@ import FloatingChatButton from '../components/FloatingChatButton';
 import UserApiKeys from '../components/UserApiKeys';
 import ComplaintsTracker from '../components/ComplaintsTracker';
 import BulkOrdersPage from './BulkOrdersPage';
+import VerifyPayment from '../components/VerifyPayment';
 
 const SUPPORTED_ROLES = new Set(['USER', 'PREMIUM', 'NORMAL', 'SUPER', 'OTHER']);
 
@@ -58,6 +59,7 @@ const OtherDashboard = () => {
   const [showApiKeys, setShowApiKeys] = useState(false);
   const [viewingBulkOrdersPage, setViewingBulkOrdersPage] = useState(false);
   const [showComplaints, setShowComplaints] = useState(false);
+  const [showVerifyPayment, setShowVerifyPayment] = useState(false);
   const [isSuspended, setIsSuspended] = useState(localStorage.getItem('isSuspended') === 'true');
 
   const userName = localStorage.getItem('name') || 'User';
@@ -350,11 +352,11 @@ const OtherDashboard = () => {
 
   return (
     <div className="min-h-screen bg-dark-950">
-      <Sidebar 
-        isOpen={isSidebarOpen} 
-        setIsOpen={setIsSidebarOpen} 
-        selectedCategory={selectedCategory} 
-        handleCategorySelect={handleCategorySelect} 
+      <Sidebar
+        isOpen={isSidebarOpen}
+        setIsOpen={setIsSidebarOpen}
+        selectedCategory={selectedCategory}
+        handleCategorySelect={handleCategorySelect}
         logoutUser={logoutUser}
         onOpenTransactions={() => setShowTransactions(true)}
         onOpenUploadExcel={() => setShowUploadExcel(true)}
@@ -362,6 +364,7 @@ const OtherDashboard = () => {
         onOpenStorefront={() => setShowStorefront(true)}
         onOpenBulkOrders={() => setViewingBulkOrdersPage(true)}
         onOpenComplaints={() => setShowComplaints(true)}
+        onOpenVerifyPayment={() => setShowVerifyPayment(true)}
         isSuspended={isSuspended}
       />
       <div className="md:ml-72">
@@ -553,6 +556,9 @@ const OtherDashboard = () => {
 
       {/* Complaints Tracker */}
       <ComplaintsTracker isOpen={showComplaints} onClose={() => setShowComplaints(false)} />
+
+      {/* Verify Payment Modal */}
+      <VerifyPayment isOpen={showVerifyPayment} onClose={() => setShowVerifyPayment(false)} />
 
       {/* Floating Chat */}
       <FloatingChatButton currentUser={{ id: parseInt(localStorage.getItem('userId')), name: localStorage.getItem('name'), role: 'OTHER' }} />

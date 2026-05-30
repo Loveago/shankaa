@@ -1,6 +1,6 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
-import { Home, LogOut, User, Wifi, X, ChevronRight, Upload, ClipboardList, History, Store, MessageSquareWarning } from "lucide-react";
+import { Home, LogOut, User, Wifi, X, ChevronRight, Upload, ClipboardList, History, Store, MessageSquareWarning, CreditCard } from "lucide-react";
 
 const Sidebar = ({
   isOpen,
@@ -14,6 +14,7 @@ const Sidebar = ({
   onOpenStorefront,
   onOpenBulkOrders,
   onOpenComplaints,
+  onOpenVerifyPayment,
   isSuspended = false
 }) => {
   const navigate = useNavigate();
@@ -167,6 +168,16 @@ const Sidebar = ({
                   >
                     <MessageSquareWarning className="w-5 h-5" />
                     <span>Complaints</span>
+                  </button>
+                )}
+
+                {onOpenVerifyPayment && (
+                  <button
+                    onClick={() => { onOpenVerifyPayment(); setIsOpen(false); }}
+                    className="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium text-dark-300 hover:bg-dark-800 hover:text-white transition-all mt-2"
+                  >
+                    <CreditCard className="w-5 h-5" />
+                    <span>Verify Payment</span>
                   </button>
                 )}
               </div>
