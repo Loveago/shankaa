@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import axios from 'axios';
 import Swal from 'sweetalert2';
-import { Package, Loader2, Phone, XCircle, Shield, X, Filter, Wifi, Zap, Star, ArrowRight, Search, MessageSquareWarning, CheckCircle, Clock, Sparkles, BadgeCheck, PhoneCall, ArrowUpRight } from 'lucide-react';
+import { Package, Loader2, Phone, XCircle, Shield, X, Filter, Wifi, Zap, Star, ArrowRight, Search, MessageSquareWarning, CheckCircle, Clock, BadgeCheck } from 'lucide-react';
 import BASE_URL from '../endpoints/endpoints';
 import ComplaintModal from '../components/ComplaintModal';
 import ShopFloatingChatButton from '../components/ShopFloatingChatButton';
@@ -310,12 +310,6 @@ const PublicStorefront = () => {
     }
   };
 
-  const scrollToProducts = () => {
-    const el = document.getElementById('products-section');
-    if (el) {
-      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
-  };
 
   if (loading) {
     return (
