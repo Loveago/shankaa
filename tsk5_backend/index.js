@@ -154,6 +154,9 @@ app.use(express.json());
 app.use(cors());
 app.use(helmet());
 
+// Serve uploaded complaint proof images
+app.use('/uploads/complaints', express.static(require('path').join(__dirname, 'uploads/complaints')));
+
 // Health check endpoint for Railway
 app.get('/health', (req, res) => {
   res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });

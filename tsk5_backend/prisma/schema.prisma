@@ -244,6 +244,7 @@ model Complaint {
   status          String    @default("pending")      // pending, reviewed, resolved, refunded
   refundStatus    String    @default("none")         // none, refunded
   refundedAt      DateTime?
+  proofImage      String?   @db.VarChar(512)         // Admin uploaded proof image path/URL
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @default(now()) @updatedAt
   adminNotes      String?   @db.Text

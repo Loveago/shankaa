@@ -1,4 +1,6 @@
 const prisma = require("../config/db");
+const path = require("path");
+const fs = require("fs");
 const { createTransaction } = require("./transactionService");
 
 class ComplaintService {
@@ -7,14 +9,11 @@ class ComplaintService {
     try {
       const { orderId, orderItemId, mobileNumber, whatsappNumber, message, complaintDate, complaintTime } = data;
       
-      // Convert date string to ISO DateTime if provided
       let complaintDateTime = null;
       if (complaintDate) {
         if (complaintTime) {
-          // Combine date and time into ISO DateTime
           complaintDateTime = new Date(`${complaintDate}T${complaintTime}:00`);
         } else {
-          // Use date with default time
           complaintDateTime = new Date(`${complaintDate}T00:00:00`);
         }
       }
@@ -42,22 +41,17 @@ class ComplaintService {
   // Get all complaints (for admin)
   async getAllComplaints(status = null) {
     try {
-      // Only add status filter if it's a valid non-empty string
       const whereClause = (status && status !== 'all' && status.trim() !== '') 
         ? { status: status.trim() } 
         : {};
-      
-      console.log('[ComplaintService] Fetching with whereClause:', JSON.stringify(whereClause));
       
       const complaints = await prisma.complaint.findMany({
         where: whereClause,
         orderBy: { createdAt: 'desc' }
       });
       
-      console.log('[ComplaintService] Found', complaints.length, 'complaints');
       return complaints;
     } catch (error) {
-      console.error('[ComplaintService] Error fetching complaints:', error);
       throw new Error(`Failed to fetch complaints: ${error.message}`);
     }
   }
@@ -68,7 +62,6 @@ class ComplaintService {
       const count = await prisma.complaint.count({
         where: { status: 'pending' }
       });
-      
       return count;
     } catch (error) {
       throw new Error(`Failed to get pending count: ${error.message}`);
@@ -81,11 +74,7 @@ class ComplaintService {
       const complaint = await prisma.complaint.findUnique({
         where: { id: parseInt(id) }
       });
-      
-      if (!complaint) {
-        throw new Error('Complaint not found');
-      }
-      
+      if (!complaint) throw new Error('Complaint not found');
       return complaint;
     } catch (error) {
       throw new Error(`Failed to fetch complaint: ${error.message}`);
@@ -96,38 +85,47 @@ class ComplaintService {
   async updateComplaintStatus(id, status, adminNotes = null) {
     try {
       const updateData = { status };
-      if (adminNotes) {
-        updateData.adminNotes = adminNotes;
-      }
+      if (adminNotes) updateData.adminNotes = adminNotes;
       
       const complaint = await prisma.complaint.update({
         where: { id: parseInt(id) },
         data: updateData
       });
-      
       return complaint;
     } catch (error) {
       throw new Error(`Failed to update complaint: ${error.message}`);
     }
   }
 
-  // Refund complaint - marks complaint as refunded and refunds the order item
+  // Upload proof image to a complaint (admin)
+  async uploadProofImage(id, file) {
+    try {
+      if (!file) throw new Error('No file uploaded');
+
+      // Build relative URL path for the uploaded file
+      const proofImageUrl = `/uploads/complaints/${file.filename}`;
+
+      const complaint = await prisma.complaint.update({
+        where: { id: parseInt(id) },
+        data: { proofImage: proofImageUrl }
+      });
+
+      return complaint;
+    } catch (error) {
+      throw new Error(`Failed to upload proof image: ${error.message}`);
+    }
+  }
+
+  // Refund complaint
   async refundComplaint(id, adminUserId) {
     try {
       return await prisma.$transaction(async (tx) => {
         const complaint = await tx.complaint.findUnique({
           where: { id: parseInt(id) }
         });
+        if (!complaint) throw new Error('Complaint not found');
+        if (complaint.refundStatus === 'refunded') throw new Error('Complaint has already been refunded');
 
-        if (!complaint) {
-          throw new Error('Complaint not found');
-        }
-
-        if (complaint.refundStatus === 'refunded') {
-          throw new Error('Complaint has already been refunded');
-        }
-
-        // If there's an orderItemId, find and refund the order item
         let refundAmount = 0;
         let refundNote = '';
 
@@ -141,7 +139,6 @@ class ComplaintService {
           });
 
           if (orderItem) {
-            // Check if already refunded
             const existingRefund = await tx.transaction.findFirst({
               where: {
                 userId: orderItem.order.userId,
@@ -152,7 +149,6 @@ class ComplaintService {
 
             if (!existingRefund) {
               refundAmount = (orderItem.productPrice != null ? orderItem.productPrice : orderItem.product.price) * orderItem.quantity;
-              
               if (refundAmount > 0) {
                 await createTransaction(
                   orderItem.order.userId,
@@ -162,14 +158,12 @@ class ComplaintService {
                   `complaint_refund:${complaint.id}`,
                   tx
                 );
-                
                 refundNote = `Refunded GHS ${refundAmount.toFixed(2)}`;
               }
             }
           }
         }
 
-        // Update complaint status and refund fields
         const updatedComplaint = await tx.complaint.update({
           where: { id: parseInt(id) },
           data: {
@@ -189,28 +183,21 @@ class ComplaintService {
     }
   }
 
-  // Delete complaint
   async deleteComplaint(id) {
     try {
-      await prisma.complaint.delete({
-        where: { id: parseInt(id) }
-      });
-      
+      await prisma.complaint.delete({ where: { id: parseInt(id) } });
       return { message: 'Complaint deleted successfully' };
     } catch (error) {
       throw new Error(`Failed to delete complaint: ${error.message}`);
     }
   }
 
-  // Get complaints by mobile number
   async getComplaintsByMobile(mobileNumber) {
     try {
-      const complaints = await prisma.complaint.findMany({
+      return await prisma.complaint.findMany({
         where: { mobileNumber },
         orderBy: { createdAt: 'desc' }
       });
-      
-      return complaints;
     } catch (error) {
       throw new Error(`Failed to fetch complaints: ${error.message}`);
     }
@@ -220,49 +207,68 @@ class ComplaintService {
   async getComplaintsByOrderItemIds(orderItemIds) {
     try {
       if (!orderItemIds || orderItemIds.length === 0) return [];
-      
-      const complaints = await prisma.complaint.findMany({
-        where: { 
-          orderItemId: { in: orderItemIds },
-          status: { not: 'deleted' }
-        },
+      return await prisma.complaint.findMany({
+        where: { orderItemId: { in: orderItemIds } },
         select: {
-          id: true,
-          orderItemId: true,
-          status: true,
-          refundStatus: true,
-          message: true,
-          createdAt: true
+          id: true, orderItemId: true, status: true, refundStatus: true,
+          proofImage: true, message: true, adminNotes: true, createdAt: true
         }
       });
-      
-      return complaints;
     } catch (error) {
-      console.error('[ComplaintService] Error fetching complaints by orderItemIds:', error);
       return [];
     }
   }
 
-  // Get complaint status for a specific order item (for user visibility)
+  // Get complaint status for a specific order item
   async getComplaintStatusForItem(orderItemId) {
     try {
-      const complaint = await prisma.complaint.findFirst({
+      return await prisma.complaint.findFirst({
         where: { orderItemId: parseInt(orderItemId) },
         select: {
-          id: true,
-          status: true,
-          refundStatus: true,
-          message: true,
-          adminNotes: true,
-          createdAt: true,
-          updatedAt: true
+          id: true, status: true, refundStatus: true, proofImage: true,
+          message: true, adminNotes: true, createdAt: true, updatedAt: true
         },
         orderBy: { createdAt: 'desc' }
       });
-      
-      return complaint;
     } catch (error) {
       return null;
+    }
+  }
+
+  // Get all complaints for a given user (by their order items)
+  async getComplaintsByUserId(userId) {
+    try {
+      // Find all order items belonging to this user's orders
+      const userOrderItems = await prisma.orderItem.findMany({
+        where: { order: { userId: parseInt(userId) } },
+        select: { id: true }
+      });
+      const itemIds = userOrderItems.map(oi => oi.id);
+      if (itemIds.length === 0) return [];
+
+      const complaints = await prisma.complaint.findMany({
+        where: { orderItemId: { in: itemIds } },
+        orderBy: { createdAt: 'desc' }
+      });
+
+      // Enrich each complaint with its associated order item details
+      const enriched = [];
+      for (const c of complaints) {
+        let item = null;
+        if (c.orderItemId) {
+          item = await prisma.orderItem.findUnique({
+            where: { id: c.orderItemId },
+            select: {
+              id: true, status: true, productName: true, productDescription: true,
+              productPrice: true, mobileNumber: true, order: { select: { id: true, orderNumber: true } }
+            }
+          });
+        }
+        enriched.push({ ...c, orderItem: item || null });
+      }
+      return enriched;
+    } catch (error) {
+      throw new Error(`Failed to fetch user complaints: ${error.message}`);
     }
   }
 }

@@ -15,6 +15,7 @@ import PasteOrders from '../components/PasteOrders';
 import Storefront from '../components/Storefront';
 import FloatingChatButton from '../components/FloatingChatButton';
 import UserApiKeys from '../components/UserApiKeys';
+import ComplaintsTracker from '../components/ComplaintsTracker';
 import BulkOrdersPage from './BulkOrdersPage';
 
 const SUPPORTED_ROLES = new Set(['USER', 'PREMIUM', 'NORMAL', 'SUPER', 'OTHER']);
@@ -56,6 +57,7 @@ const OtherDashboard = () => {
   const [showStorefront, setShowStorefront] = useState(false);
   const [showApiKeys, setShowApiKeys] = useState(false);
   const [viewingBulkOrdersPage, setViewingBulkOrdersPage] = useState(false);
+  const [showComplaints, setShowComplaints] = useState(false);
   const [isSuspended, setIsSuspended] = useState(localStorage.getItem('isSuspended') === 'true');
 
   const userName = localStorage.getItem('name') || 'User';
@@ -359,6 +361,7 @@ const OtherDashboard = () => {
         onOpenPasteOrders={() => setShowPasteOrders(true)}
         onOpenStorefront={() => setShowStorefront(true)}
         onOpenBulkOrders={() => setViewingBulkOrdersPage(true)}
+        onOpenComplaints={() => setShowComplaints(true)}
         isSuspended={isSuspended}
       />
       <div className="md:ml-72">
@@ -547,6 +550,9 @@ const OtherDashboard = () => {
         walletBalance={balance}
         onTopUp={() => { setShowApiKeys(false); setShowTopUp(true); }}
       />
+
+      {/* Complaints Tracker */}
+      <ComplaintsTracker isOpen={showComplaints} onClose={() => setShowComplaints(false)} />
 
       {/* Floating Chat */}
       <FloatingChatButton currentUser={{ id: parseInt(localStorage.getItem('userId')), name: localStorage.getItem('name'), role: 'OTHER' }} />
