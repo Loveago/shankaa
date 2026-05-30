@@ -1,10 +1,11 @@
 const prisma = require("../config/db");
+const { createTransaction } = require("./transactionService");
 
 class ComplaintService {
   // Create a new complaint
   async createComplaint(data) {
     try {
-      const { orderId, mobileNumber, whatsappNumber, message, complaintDate, complaintTime } = data;
+      const { orderId, orderItemId, mobileNumber, whatsappNumber, message, complaintDate, complaintTime } = data;
       
       // Convert date string to ISO DateTime if provided
       let complaintDateTime = null;
@@ -21,12 +22,14 @@ class ComplaintService {
       const complaint = await prisma.complaint.create({
         data: {
           orderId: orderId || null,
+          orderItemId: orderItemId || null,
           mobileNumber,
           whatsappNumber: whatsappNumber || null,
           message,
           complaintDate: complaintDateTime,
           complaintTime: complaintTime || null,
-          status: 'pending'
+          status: 'pending',
+          refundStatus: 'none'
         }
       });
       
@@ -108,6 +111,84 @@ class ComplaintService {
     }
   }
 
+  // Refund complaint - marks complaint as refunded and refunds the order item
+  async refundComplaint(id, adminUserId) {
+    try {
+      return await prisma.$transaction(async (tx) => {
+        const complaint = await tx.complaint.findUnique({
+          where: { id: parseInt(id) }
+        });
+
+        if (!complaint) {
+          throw new Error('Complaint not found');
+        }
+
+        if (complaint.refundStatus === 'refunded') {
+          throw new Error('Complaint has already been refunded');
+        }
+
+        // If there's an orderItemId, find and refund the order item
+        let refundAmount = 0;
+        let refundNote = '';
+
+        if (complaint.orderItemId) {
+          const orderItem = await tx.orderItem.findUnique({
+            where: { id: complaint.orderItemId },
+            include: { 
+              order: { select: { userId: true } },
+              product: { select: { name: true, price: true } }
+            }
+          });
+
+          if (orderItem) {
+            // Check if already refunded
+            const existingRefund = await tx.transaction.findFirst({
+              where: {
+                userId: orderItem.order.userId,
+                type: "ORDER_ITEM_REFUND",
+                reference: `complaint_refund:${complaint.id}`
+              }
+            });
+
+            if (!existingRefund) {
+              refundAmount = (orderItem.productPrice != null ? orderItem.productPrice : orderItem.product.price) * orderItem.quantity;
+              
+              if (refundAmount > 0) {
+                await createTransaction(
+                  orderItem.order.userId,
+                  refundAmount,
+                  "ORDER_ITEM_REFUND",
+                  `Refund via complaint #${complaint.id} for item #${complaint.orderItemId} (${orderItem.product.name})`,
+                  `complaint_refund:${complaint.id}`,
+                  tx
+                );
+                
+                refundNote = `Refunded GHS ${refundAmount.toFixed(2)}`;
+              }
+            }
+          }
+        }
+
+        // Update complaint status and refund fields
+        const updatedComplaint = await tx.complaint.update({
+          where: { id: parseInt(id) },
+          data: {
+            status: 'refunded',
+            refundStatus: 'refunded',
+            refundedAt: new Date(),
+            adminNotes: complaint.adminNotes 
+              ? `${complaint.adminNotes}\n[${new Date().toISOString()}] ${refundNote || 'Marked as refunded'}`
+              : `[${new Date().toISOString()}] ${refundNote || 'Marked as refunded'}`
+          }
+        });
+
+        return updatedComplaint;
+      }, { timeout: 15000 });
+    } catch (error) {
+      throw new Error(`Failed to refund complaint: ${error.message}`);
+    }
+  }
+
   // Delete complaint
   async deleteComplaint(id) {
     try {
@@ -132,6 +213,56 @@ class ComplaintService {
       return complaints;
     } catch (error) {
       throw new Error(`Failed to fetch complaints: ${error.message}`);
+    }
+  }
+
+  // Get complaints by order item IDs (for bulk lookups)
+  async getComplaintsByOrderItemIds(orderItemIds) {
+    try {
+      if (!orderItemIds || orderItemIds.length === 0) return [];
+      
+      const complaints = await prisma.complaint.findMany({
+        where: { 
+          orderItemId: { in: orderItemIds },
+          status: { not: 'deleted' }
+        },
+        select: {
+          id: true,
+          orderItemId: true,
+          status: true,
+          refundStatus: true,
+          message: true,
+          createdAt: true
+        }
+      });
+      
+      return complaints;
+    } catch (error) {
+      console.error('[ComplaintService] Error fetching complaints by orderItemIds:', error);
+      return [];
+    }
+  }
+
+  // Get complaint status for a specific order item (for user visibility)
+  async getComplaintStatusForItem(orderItemId) {
+    try {
+      const complaint = await prisma.complaint.findFirst({
+        where: { orderItemId: parseInt(orderItemId) },
+        select: {
+          id: true,
+          status: true,
+          refundStatus: true,
+          message: true,
+          adminNotes: true,
+          createdAt: true,
+          updatedAt: true
+        },
+        orderBy: { createdAt: 'desc' }
+      });
+      
+      return complaint;
+    } catch (error) {
+      return null;
     }
   }
 }

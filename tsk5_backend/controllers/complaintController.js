@@ -5,7 +5,7 @@ class ComplaintController {
   // Create a new complaint (public - from shop)
   async createComplaint(req, res) {
     try {
-      const { orderId, mobileNumber, whatsappNumber, message, complaintDate, complaintTime } = req.body;
+      const { orderId, orderItemId, mobileNumber, whatsappNumber, message, complaintDate, complaintTime } = req.body;
       
       if (!mobileNumber || !message) {
         return res.status(400).json({
@@ -16,6 +16,7 @@ class ComplaintController {
       
       const complaint = await complaintService.createComplaint({
         orderId,
+        orderItemId,
         mobileNumber,
         whatsappNumber,
         message,
@@ -138,6 +139,27 @@ class ComplaintController {
     }
   }
 
+  // Refund complaint (Admin only) - refunds the order item and marks complaint as refunded
+  async refundComplaint(req, res) {
+    try {
+      const { id } = req.params;
+      const adminUserId = req.user.id;
+      
+      const complaint = await complaintService.refundComplaint(id, adminUserId);
+      
+      res.status(200).json({
+        success: true,
+        data: complaint,
+        message: 'Complaint refunded successfully'
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        message: error.message
+      });
+    }
+  }
+
   // Delete complaint (Admin only)
   async deleteComplaint(req, res) {
     try {
@@ -170,6 +192,54 @@ class ComplaintController {
     } catch (error) {
       res.status(500).json({
         success: false,
+        message: error.message
+      });
+    }
+  }
+
+  // Get complaint status for user's order items (auth required)
+  async getComplaintStatusForItem(req, res) {
+    try {
+      const { orderItemId } = req.params;
+      const status = await complaintService.getComplaintStatusForItem(orderItemId);
+      
+      res.status(200).json({
+        success: true,
+        data: status,
+        message: 'Complaint status fetched successfully'
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        data: null,
+        message: error.message
+      });
+    }
+  }
+
+  // Get complaints for multiple order item IDs (auth required - for bulk display)
+  async getComplaintsByOrderItemIds(req, res) {
+    try {
+      const { orderItemIds } = req.body;
+      
+      if (!orderItemIds || !Array.isArray(orderItemIds) || orderItemIds.length === 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'orderItemIds array is required'
+        });
+      }
+      
+      const complaints = await complaintService.getComplaintsByOrderItemIds(orderItemIds);
+      
+      res.status(200).json({
+        success: true,
+        data: complaints,
+        message: 'Complaints fetched successfully'
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        data: [],
         message: error.message
       });
     }

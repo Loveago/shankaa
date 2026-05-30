@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import axios from 'axios';
-import { X, Loader2, RefreshCw, AlertTriangle, ChevronRight } from 'lucide-react';
+import { X, Loader2, RefreshCw, AlertTriangle, ChevronRight, CheckCircle, Clock, DollarSign } from 'lucide-react';
 import BASE_URL from '../endpoints/endpoints';
 import { toast } from 'react-toastify';
 
@@ -11,6 +11,13 @@ const statusStyles = {
   Processing: 'bg-blue-500/10 text-blue-300 border border-blue-500/30',
   Completed: 'bg-emerald-500/10 text-emerald-300 border border-emerald-500/30',
   Cancelled: 'bg-red-500/10 text-red-300 border border-red-500/30',
+};
+
+const complaintStatusStyles = {
+  pending: 'bg-amber-500/20 text-amber-400 border border-amber-500/30',
+  reviewed: 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30',
+  resolved: 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30',
+  refunded: 'bg-purple-500/20 text-purple-400 border border-purple-500/30',
 };
 
 const formatCurrency = (v) => `GHS ${(Number(v) || 0).toFixed(2)}`;
@@ -57,6 +64,8 @@ const BulkOrdersModal = ({ isOpen, onClose }) => {
     try {
       await axios.post(`${BASE_URL}/order/user/bulk-orders/${orderId}/items/${itemId}/report`, {}, { headers: getAuthHeaders() });
       toast.success('Report submitted');
+      // Reload the order details
+      loadDetail(orderId);
     } catch (error) {
       toast.error(error.response?.data?.message || 'Failed to submit report');
     }
@@ -149,7 +158,7 @@ const BulkOrdersModal = ({ isOpen, onClose }) => {
                         <th className="px-4 py-2 text-left">Bundle</th>
                         <th className="px-4 py-2 text-left">Status</th>
                         <th className="px-4 py-2 text-left">Network</th>
-                        <th className="px-4 py-2 text-left">Report</th>
+                        <th className="px-4 py-2 text-left">Complaint</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -162,13 +171,30 @@ const BulkOrdersModal = ({ isOpen, onClose }) => {
                           </td>
                           <td className="px-4 py-3 text-dark-200 whitespace-nowrap">{item.network}</td>
                           <td className="px-4 py-3">
-                            <button
-                              onClick={() => handleReport(selectedOrder.id, item.id)}
-                              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-red-500/10 text-red-300 border border-red-500/30 hover:bg-red-500/20 text-xs"
-                            >
-                              <AlertTriangle className="w-4 h-4" />
-                              Not received
-                            </button>
+                            {item.complaint ? (
+                              <div className="flex flex-col gap-1">
+                                <span className={`inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full ${complaintStatusStyles[item.complaint.status] || 'bg-dark-700 text-dark-400'}`}>
+                                  {item.complaint.status === 'pending' && <Clock className="w-3 h-3" />}
+                                  {item.complaint.status === 'reviewed' && <AlertTriangle className="w-3 h-3" />}
+                                  {item.complaint.status === 'resolved' && <CheckCircle className="w-3 h-3" />}
+                                  {item.complaint.status === 'refunded' && <DollarSign className="w-3 h-3" />}
+                                  {item.complaint.status.charAt(0).toUpperCase() + item.complaint.status.slice(1)}
+                                </span>
+                                {item.complaint.refundStatus === 'refunded' && (
+                                  <span className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full bg-purple-500/20 text-purple-400 border border-purple-500/30">
+                                    <DollarSign className="w-3 h-3" /> Refunded
+                                  </span>
+                                )}
+                              </div>
+                            ) : (
+                              <button
+                                onClick={() => handleReport(selectedOrder.id, item.id)}
+                                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-red-500/10 text-red-300 border border-red-500/30 hover:bg-red-500/20 text-xs"
+                              >
+                                <AlertTriangle className="w-4 h-4" />
+                                Not received
+                              </button>
+                            )}
                           </td>
                         </tr>
                       ))}

@@ -181,6 +181,24 @@ exports.getUserBulkOrderDetail = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Bulk order not found' });
     }
 
+    // Fetch complaint status for each order item
+    const itemIds = order.items.map(it => it.id);
+    const complaints = await prisma.complaint.findMany({
+      where: { orderItemId: { in: itemIds } },
+      select: {
+        orderItemId: true,
+        id: true,
+        status: true,
+        refundStatus: true,
+        refundedAt: true,
+        createdAt: true,
+      }
+    });
+    const complaintMap = {};
+    for (const c of complaints) {
+      complaintMap[c.orderItemId] = { complaintId: c.id, status: c.status, refundStatus: c.refundStatus, refundedAt: c.refundedAt, createdAt: c.createdAt };
+    }
+
     res.json({
       success: true,
       order: {
@@ -198,6 +216,7 @@ exports.getUserBulkOrderDetail = async (req, res) => {
           quantity: it.quantity || 1,
           mobileNumber: it.mobileNumber || '',
           network: normalizeNetworkLabel(it.productName || it.product?.name || ''),
+          complaint: complaintMap[it.id] || null,
         })),
       },
     });
@@ -228,17 +247,34 @@ exports.reportBulkOrderIssue = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Order item not found' });
     }
 
+    // Check if complaint already exists for this order item
+    const existingComplaint = await prisma.complaint.findFirst({
+      where: { orderItemId: itemId, status: { in: ['pending', 'reviewed'] } }
+    });
+
+    if (existingComplaint) {
+      return res.json({ success: true, complaint: existingComplaint, message: 'Complaint already submitted' });
+    }
+
     const complaint = await prisma.complaint.create({
       data: {
         orderId: String(orderId),
+        orderItemId: itemId,
         mobileNumber: item.mobileNumber || order.mobileNumber || '',
         message,
         status: 'pending',
+        refundStatus: 'none',
         complaintDate: new Date(),
         complaintTime: new Date().toTimeString().slice(0, 5),
         adminNotes: `Bulk order item ${itemId} report`,
       },
     });
+
+    // Emit real-time notification to admin
+    try {
+      const { io } = require('../index');
+      io.emit('new-complaint', { complaintId: complaint.id, mobileNumber: complaint.mobileNumber });
+    } catch (e) { /* socket emit is best-effort */ }
 
     res.json({ success: true, complaint });
   } catch (error) {

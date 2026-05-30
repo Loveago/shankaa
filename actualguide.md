@@ -415,7 +415,7 @@ npx prisma generate
 pm2 restart tsk5-backend
 
 # ---- Update Frontend ----
-cd ../tsk5_frontend
+cd tsk5_frontend
 npm install
 npm run build
 

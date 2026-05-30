@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import axios from 'axios';
-import { X, Loader2, AlertTriangle } from 'lucide-react';
+import { X, Loader2, AlertTriangle, CheckCircle, Clock, RefreshCw, DollarSign } from 'lucide-react';
 import BASE_URL from '../endpoints/endpoints';
 import { toast } from 'react-toastify';
 
@@ -11,6 +11,18 @@ const statusStyles = {
   Processing: 'bg-blue-500/10 text-blue-300 border border-blue-500/30',
   Completed: 'bg-emerald-500/10 text-emerald-300 border border-emerald-500/30',
   Cancelled: 'bg-red-500/10 text-red-300 border border-red-500/30',
+};
+
+const complaintStatusStyles = {
+  pending: 'bg-amber-500/20 text-amber-400 border border-amber-500/30',
+  reviewed: 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30',
+  resolved: 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30',
+  refunded: 'bg-purple-500/20 text-purple-400 border border-purple-500/30',
+};
+
+const refundStatusStyles = {
+  none: '',
+  refunded: 'bg-purple-500/20 text-purple-400 border border-purple-500/30',
 };
 
 const formatCurrency = (v) => `GHS ${(Number(v) || 0).toFixed(2)}`;
@@ -70,13 +82,22 @@ const BulkOrderDetailsModal = ({ isOpen, onClose, order }) => {
             <p className="text-xs uppercase tracking-wide text-dark-400">Individual Orders in Bulk Purchase</p>
             <h2 className="text-lg font-semibold text-white mt-1">{fullOrder?.orderNumber || order?.orderNumber}</h2>
           </div>
-          <button
-            onClick={onClose}
-            className="p-2 rounded-lg bg-dark-700 hover:bg-dark-600 text-white border border-dark-600 transition-colors"
-            title="Close"
-          >
-            <X className="w-4 h-4" />
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={loadDetail}
+              className="p-2 rounded-lg bg-dark-700 hover:bg-dark-600 text-white border border-dark-600 transition-colors"
+              title="Refresh"
+            >
+              <RefreshCw className={`w-4 h-4 ${detailLoading ? 'animate-spin' : ''}`} />
+            </button>
+            <button
+              onClick={onClose}
+              className="p-2 rounded-lg bg-dark-700 hover:bg-dark-600 text-white border border-dark-600 transition-colors"
+              title="Close"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
         </div>
 
         {/* Content */}
@@ -120,7 +141,7 @@ const BulkOrderDetailsModal = ({ isOpen, onClose, order }) => {
                       <th className="px-4 py-3 text-left font-semibold">Price</th>
                       <th className="px-4 py-3 text-left font-semibold">Network</th>
                       <th className="px-4 py-3 text-left font-semibold">Status</th>
-                      <th className="px-4 py-3 text-left font-semibold">Action</th>
+                      <th className="px-4 py-3 text-left font-semibold">Complaint</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-dark-700">
@@ -147,14 +168,31 @@ const BulkOrderDetailsModal = ({ isOpen, onClose, order }) => {
                           </span>
                         </td>
                         <td className="px-4 py-3">
-                          <button
-                            onClick={() => handleReport(fullOrder.id, item.id)}
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-500/10 text-red-300 border border-red-500/30 hover:bg-red-500/20 text-xs font-medium transition-colors"
-                            title="Report issue with this order"
-                          >
-                            <AlertTriangle className="w-3.5 h-3.5" />
-                            Report
-                          </button>
+                          {item.complaint ? (
+                            <div className="flex flex-col gap-1">
+                              <span className={`inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full ${complaintStatusStyles[item.complaint.status] || 'bg-dark-700 text-dark-400'}`}>
+                                {item.complaint.status === 'pending' && <Clock className="w-3 h-3" />}
+                                {item.complaint.status === 'reviewed' && <AlertTriangle className="w-3 h-3" />}
+                                {item.complaint.status === 'resolved' && <CheckCircle className="w-3 h-3" />}
+                                {item.complaint.status === 'refunded' && <DollarSign className="w-3 h-3" />}
+                                {item.complaint.status.charAt(0).toUpperCase() + item.complaint.status.slice(1)}
+                              </span>
+                              {item.complaint.refundStatus === 'refunded' && (
+                                <span className={`inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full ${refundStatusStyles.refunded}`}>
+                                  <DollarSign className="w-3 h-3" /> Refunded
+                                </span>
+                              )}
+                            </div>
+                          ) : (
+                            <button
+                              onClick={() => handleReport(fullOrder.id, item.id)}
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-500/10 text-red-300 border border-red-500/30 hover:bg-red-500/20 text-xs font-medium transition-colors"
+                              title="Report issue with this order"
+                            >
+                              <AlertTriangle className="w-3.5 h-3.5" />
+                              Report
+                            </button>
+                          )}
                         </td>
                       </tr>
                     ))}

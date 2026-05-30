@@ -235,12 +235,15 @@ model NotificationRead {
 model Complaint {
   id              Int       @id @default(autoincrement())
   orderId         String?
+  orderItemId     Int?                              // Link to specific OrderItem
   mobileNumber    String    @db.VarChar(20)
   whatsappNumber  String?   @db.VarChar(20)
   message         String    @db.Text
   complaintDate   DateTime?
   complaintTime   String?   @db.VarChar(10)
-  status          String    @default("pending") // pending, reviewed, resolved
+  status          String    @default("pending")      // pending, reviewed, resolved, refunded
+  refundStatus    String    @default("none")         // none, refunded
+  refundedAt      DateTime?
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @default(now()) @updatedAt
   adminNotes      String?   @db.Text

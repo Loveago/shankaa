@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, memo } from 'react';
-import { MessageSquareWarning, X, CheckCircle, Clock, AlertCircle, Phone, Loader2, RefreshCw, Trash2, MessageCircle, Copy } from 'lucide-react';
+import { MessageSquareWarning, X, CheckCircle, Clock, AlertCircle, Phone, Loader2, RefreshCw, Trash2, MessageCircle, Copy, DollarSign } from 'lucide-react';
 import axios from 'axios';
 import Swal from 'sweetalert2';
 import BASE_URL from '../endpoints/endpoints';
@@ -158,6 +158,47 @@ const ComplaintsViewer = ({ isOpen, onClose }) => {
     }
   };
 
+  const handleRefund = async (id) => {
+    const result = await Swal.fire({
+      title: 'Refund Order?',
+      text: 'This will refund the customer for this complaint and mark it as refunded. Continue?',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#8b5cf6',
+      confirmButtonText: 'Yes, Refund',
+      cancelButtonText: 'Cancel',
+      background: '#1e293b',
+      color: '#f1f5f9'
+    });
+
+    if (result.isConfirmed) {
+      try {
+        const token = localStorage.getItem('token');
+        await axios.post(`${BASE_URL}/api/complaints/${id}/refund`, {}, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        Swal.fire({
+          icon: 'success',
+          title: 'Refunded!',
+          text: 'The complaint has been refunded successfully.',
+          timer: 2000,
+          background: '#1e293b',
+          color: '#f1f5f9'
+        });
+        fetchComplaints();
+        fetchPendingCount();
+      } catch (err) {
+        Swal.fire({
+          icon: 'error',
+          title: 'Refund Failed',
+          text: err.response?.data?.message || 'Failed to process refund',
+          background: '#1e293b',
+          color: '#f1f5f9'
+        });
+      }
+    }
+  };
+
   const handleDelete = async (id) => {
     const result = await Swal.fire({
       title: 'Delete Complaint?', text: 'This action cannot be undone', icon: 'warning',
@@ -180,6 +221,7 @@ const ComplaintsViewer = ({ isOpen, onClose }) => {
       case 'pending': return 'bg-amber-500/20 text-amber-400 border-amber-500/30';
       case 'reviewed': return 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30';
       case 'resolved': return 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30';
+      case 'refunded': return 'bg-purple-500/20 text-purple-400 border-purple-500/30';
       default: return 'bg-dark-700 text-dark-400';
     }
   };
@@ -189,6 +231,7 @@ const ComplaintsViewer = ({ isOpen, onClose }) => {
       case 'pending': return <Clock className="w-3 h-3" />;
       case 'reviewed': return <AlertCircle className="w-3 h-3" />;
       case 'resolved': return <CheckCircle className="w-3 h-3" />;
+      case 'refunded': return <DollarSign className="w-3 h-3" />;
       default: return <Clock className="w-3 h-3" />;
     }
   };
@@ -227,7 +270,7 @@ const ComplaintsViewer = ({ isOpen, onClose }) => {
             </div>
 
             <div className="flex gap-2 p-4 border-b border-dark-700 bg-dark-900/50">
-              {['all', 'pending', 'reviewed', 'resolved'].map((filter) => (
+              {['all', 'pending', 'reviewed', 'resolved', 'refunded'].map((filter) => (
                 <button key={filter} onClick={() => setStatusFilter(filter)}
                   className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                     statusFilter === filter ? 'bg-red-500 text-white' : 'bg-dark-700 text-dark-300 hover:bg-dark-600'
@@ -255,6 +298,11 @@ const ComplaintsViewer = ({ isOpen, onClose }) => {
                             <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium border ${getStatusStyle(complaint.status)}`}>
                               {getStatusIcon(complaint.status)} {complaint.status}
                             </span>
+                            {complaint.refundStatus === 'refunded' && (
+                              <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium border bg-purple-500/20 text-purple-400 border-purple-500/30">
+                                <DollarSign className="w-3 h-3" /> Refunded
+                              </span>
+                            )}
                             <span className="text-xs text-dark-500">
                               Submitted: {new Date(complaint.createdAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}, {new Date(complaint.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'numeric', year: 'numeric' })}
                             </span>
@@ -283,22 +331,37 @@ const ComplaintsViewer = ({ isOpen, onClose }) => {
                               </button>
                             </span>
                             {complaint.orderId && <span className="text-dark-500">Order: #{complaint.orderId}</span>}
+                            {complaint.orderItemId && <span className="text-dark-500">Item: #{complaint.orderItemId}</span>}
+                            {complaint.refundedAt && (
+                              <span className="text-purple-400 text-xs">
+                                Refunded: {new Date(complaint.refundedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                              </span>
+                            )}
                           </div>
                           <p className="text-dark-200">{complaint.message}</p>
                           {complaint.adminNotes && (
                             <div className="mt-2 p-2 bg-cyan-500/10 border border-cyan-500/20 rounded-lg text-sm">
                               <span className="font-medium text-cyan-400">Admin Notes:</span>
-                              <p className="text-cyan-300">{complaint.adminNotes}</p>
+                              <p className="text-cyan-300 whitespace-pre-wrap">{complaint.adminNotes}</p>
                             </div>
                           )}
                         </div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex flex-col items-center gap-2">
                           <button onClick={() => openWhatsApp(complaint)} className="p-2 bg-emerald-500/20 text-emerald-400 rounded-lg hover:bg-emerald-500/30">
                             <MessageCircle className="w-4 h-4" />
                           </button>
-                          {complaint.status !== 'resolved' && (
-                            <button onClick={() => setSelectedComplaint(complaint)}
-                              className="px-3 py-2 bg-cyan-500 text-white text-sm rounded-lg hover:bg-cyan-600">Update</button>
+                          {complaint.status !== 'resolved' && complaint.status !== 'refunded' && (
+                            <>
+                              <button onClick={() => setSelectedComplaint(complaint)}
+                                className="px-3 py-2 bg-cyan-500 text-white text-sm rounded-lg hover:bg-cyan-600">Update</button>
+                              {/* Refund button - only show if not already refunded */}
+                              {complaint.refundStatus !== 'refunded' && (
+                                <button onClick={() => handleRefund(complaint.id)}
+                                  className="inline-flex items-center gap-1 px-3 py-2 bg-purple-600 text-white text-sm rounded-lg hover:bg-purple-700">
+                                  <DollarSign className="w-4 h-4" /> Refund
+                                </button>
+                              )}
+                            </>
                           )}
                           <button onClick={() => handleDelete(complaint.id)} className="p-2 text-red-400 hover:bg-red-500/20 rounded-lg">
                             <Trash2 className="w-4 h-4" />
