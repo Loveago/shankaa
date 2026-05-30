@@ -22,19 +22,6 @@ import OrderFiles from '../components/OrderFiles';
 import StorefrontWithdrawalAdmin from '../components/StorefrontWithdrawalAdmin';
 import ReferralCodeManager from '../components/ReferralCodeManager';
 
-// Notification sound
-const notificationSound = new Audio('/notification-sound.mp3');
-notificationSound.volume = 0.5;
-
-const playNotificationSound = () => {
-  try {
-    notificationSound.currentTime = 0;
-    notificationSound.play().catch(e => console.log('Audio play failed:', e));
-  } catch (e) {
-    console.log('Audio error:', e);
-  }
-};
-
 const AdminDashboard = () => {
   const navigate = useNavigate();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -58,28 +45,18 @@ const AdminDashboard = () => {
   const [showProductDialog, setShowProductDialog] = useState(false);
   const [showOrderTable, setShowOrderTable] = useState(false);
   
+  // Notification state (bell only - no auto-popup)
+  const [orderCount, setOrderCount] = useState(0);
+  const [complaintCount, setComplaintCount] = useState(0);
+  const [topupCount, setTopupCount] = useState(0);
+  const [showNotificationDropdown, setShowNotificationDropdown] = useState(false);
+  
   // Loan/Refund state
   const [showRefundModal, setShowRefundModal] = useState(false);
   const [refundUserId, setRefundUserId] = useState(null);
   const [refundAmount, setRefundAmount] = useState('');
   const [editingLoanUserId, setEditingLoanUserId] = useState(null);
   const [newLoanBalance, setNewLoanBalance] = useState('');
-  
-  // Topups state
-  const [topupCount, setTopupCount] = useState(0);
-  const [hasNewTopups, setHasNewTopups] = useState(false);
-  
-  // Notification state for orders/complaints
-  const [orderCount, setOrderCount] = useState(0);
-  const [hasNewOrders, setHasNewOrders] = useState(false);
-  const [showNotificationDropdown, setShowNotificationDropdown] = useState(false);
-  
-  // Complaints state
-  const [complaintCount, setComplaintCount] = useState(0);
-  const [hasNewComplaints, setHasNewComplaints] = useState(false);
-  
-  // Track previous counts for notification sound (-1 means first load)
-  const prevCountsRef = useRef({ orders: -1, topups: -1, complaints: -1 });
   
   // Modal states for sidebar components
   const [showAnnouncementModal, setShowAnnouncementModal] = useState(false);
@@ -142,48 +119,21 @@ const AdminDashboard = () => {
       setProducts(productsData);
       setOrders(ordersData);
       
-      // Track pending topups (case-insensitive status check)
-      const pendingTopups = topupsData.filter(t => t.status?.toLowerCase() === 'pending').length;
-      const totalTopups = topupsData.length;
-      
       // Track pending orders (check multiple possible status locations, case-insensitive)
       const pendingOrders = ordersData.filter(o => {
         const status = o.order?.items?.[0]?.status || o.status || '';
         return status.toLowerCase() === 'pending';
       }).length;
       
+      // Track pending topups
+      const totalTopups = topupsData.length;
+      
       // Track pending complaints
       const pendingComplaints = complaintsRes.data?.data?.count || complaintsRes.data?.count || 0;
       
-      // Check for new notifications and play sound
-      const prev = prevCountsRef.current;
-      let shouldPlaySound = false;
-      
-      // Play sound when count increases (not just when prev > 0)
-      if (pendingTopups > prev.topups && prev.topups !== -1) {
-        setHasNewTopups(true);
-        shouldPlaySound = true;
-      }
-      
-      if (pendingOrders > prev.orders && prev.orders !== -1) {
-        setHasNewOrders(true);
-        shouldPlaySound = true;
-      }
-      
-      if (pendingComplaints > prev.complaints && prev.complaints !== -1) {
-        setHasNewComplaints(true);
-        shouldPlaySound = true;
-      }
-      
-      // Play sound once if any new notifications
-      if (shouldPlaySound) {
-        playNotificationSound();
-      }
-      
-      // Update counts
-      prevCountsRef.current = { orders: pendingOrders, topups: pendingTopups, complaints: pendingComplaints };
-      setTopupCount(totalTopups);
+      // Update notification counts
       setOrderCount(pendingOrders);
+      setTopupCount(totalTopups);
       setComplaintCount(pendingComplaints);
 
       const totalRevenue = ordersData
@@ -289,22 +239,6 @@ const AdminDashboard = () => {
     }
   }, [activeTab, fetchSettings]);
 
-  // Real-time order notifications via socket
-  useEffect(() => {
-    const socket = socketIO(BASE_URL, { transports: ['websocket', 'polling'] });
-    socket.on('new-order', () => {
-      // Immediately refresh data when a new order is placed
-      fetchData(false);
-      fetchFraudAlerts();
-    });
-    return () => socket.disconnect();
-  }, [fetchData, fetchFraudAlerts]);
-
-  useEffect(() => {
-    const role = localStorage.getItem('role');
-    if (role !== 'ADMIN') navigate('/');
-  }, [navigate]);
-
   // Close notification dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -321,6 +255,22 @@ const AdminDashboard = () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [showNotificationDropdown]);
+
+  // Real-time order notifications via socket
+  useEffect(() => {
+    const socket = socketIO(BASE_URL, { transports: ['websocket', 'polling'] });
+    socket.on('new-order', () => {
+      // Immediately refresh data when a new order is placed
+      fetchData(false);
+      fetchFraudAlerts();
+    });
+    return () => socket.disconnect();
+  }, [fetchData, fetchFraudAlerts]);
+
+  useEffect(() => {
+    const role = localStorage.getItem('role');
+    if (role !== 'ADMIN') navigate('/');
+  }, [navigate]);
 
   const logoutUser = async () => {
     try {
@@ -681,7 +631,7 @@ const AdminDashboard = () => {
                   <button onClick={() => setShowNotificationDropdown(!showNotificationDropdown)} className="p-2 bg-dark-800 rounded-xl hover:bg-dark-700 relative">
                     <Bell className="w-5 h-5 text-dark-400" />
                     {(orderCount + topupCount + complaintCount > 0) && (
-                      <span className={`absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full min-w-5 h-5 px-1 flex items-center justify-center ${(hasNewOrders || hasNewTopups || hasNewComplaints) ? 'animate-pulse' : ''}`}>
+                      <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full min-w-5 h-5 px-1 flex items-center justify-center animate-pulse">
                         {orderCount + topupCount + complaintCount > 99 ? '99+' : orderCount + topupCount + complaintCount}
                       </span>
                     )}
@@ -692,44 +642,26 @@ const AdminDashboard = () => {
                         <h3 className="text-white font-semibold">Notifications</h3>
                       </div>
                       <div className="divide-y divide-dark-700 max-h-80 overflow-y-auto">
-                        {hasNewOrders && (
-                          <button onClick={() => { setShowOrderTable(true); setHasNewOrders(false); setShowNotificationDropdown(false); }} className="w-full p-3 text-left hover:bg-dark-700/50 flex items-center gap-3">
-                            <div className="p-2 bg-amber-500/10 rounded-lg"><ShoppingCart className="w-4 h-4 text-amber-400" /></div>
-                            <div><p className="text-white text-sm font-medium">New Pending Orders</p><p className="text-dark-400 text-xs">{orderCount} orders awaiting</p></div>
-                          </button>
-                        )}
-                        {hasNewTopups && (
-                          <button onClick={() => { setShowTopupsModal(true); setHasNewTopups(false); setShowNotificationDropdown(false); }} className="w-full p-3 text-left hover:bg-dark-700/50 flex items-center gap-3">
-                            <div className="p-2 bg-emerald-500/10 rounded-lg"><Wallet className="w-4 h-4 text-emerald-400" /></div>
-                            <div><p className="text-white text-sm font-medium">New Topup Requests</p><p className="text-dark-400 text-xs">{topupCount} topups pending</p></div>
-                          </button>
-                        )}
-                        {orderCount > 0 && !hasNewOrders && (
+                        {orderCount > 0 && (
                           <button onClick={() => { setShowOrderTable(true); setShowNotificationDropdown(false); }} className="w-full p-3 text-left hover:bg-dark-700/50 flex items-center gap-3">
                             <div className="p-2 bg-amber-500/10 rounded-lg"><ShoppingCart className="w-4 h-4 text-amber-400" /></div>
                             <div><p className="text-dark-300 text-sm">Pending Orders</p><p className="text-dark-400 text-xs">{orderCount} orders</p></div>
                           </button>
                         )}
-                        {topupCount > 0 && !hasNewTopups && (
+                        {topupCount > 0 && (
                           <button onClick={() => { setShowTopupsModal(true); setShowNotificationDropdown(false); }} className="w-full p-3 text-left hover:bg-dark-700/50 flex items-center gap-3">
                             <div className="p-2 bg-emerald-500/10 rounded-lg"><Wallet className="w-4 h-4 text-emerald-400" /></div>
                             <div><p className="text-dark-300 text-sm">Topup Requests</p><p className="text-dark-400 text-xs">{topupCount} total</p></div>
                           </button>
                         )}
-                        {hasNewComplaints && (
-                          <button onClick={() => { setShowComplaintsModal(true); setHasNewComplaints(false); setShowNotificationDropdown(false); }} className="w-full p-3 text-left hover:bg-dark-700/50 flex items-center gap-3">
-                            <div className="p-2 bg-red-500/10 rounded-lg"><Package className="w-4 h-4 text-red-400" /></div>
-                            <div><p className="text-white text-sm font-medium">New Complaints</p><p className="text-dark-400 text-xs">{complaintCount} complaints pending</p></div>
-                          </button>
-                        )}
-                        {complaintCount > 0 && !hasNewComplaints && (
+                        {complaintCount > 0 && (
                           <button onClick={() => { setShowComplaintsModal(true); setShowNotificationDropdown(false); }} className="w-full p-3 text-left hover:bg-dark-700/50 flex items-center gap-3">
                             <div className="p-2 bg-red-500/10 rounded-lg"><Package className="w-4 h-4 text-red-400" /></div>
                             <div><p className="text-dark-300 text-sm">Pending Complaints</p><p className="text-dark-400 text-xs">{complaintCount} complaints</p></div>
                           </button>
                         )}
-                        {!hasNewOrders && !hasNewTopups && !hasNewComplaints && orderCount === 0 && topupCount === 0 && complaintCount === 0 && (
-                          <div className="p-4 text-center"><p className="text-dark-400 text-sm">No new notifications</p></div>
+                        {orderCount === 0 && topupCount === 0 && complaintCount === 0 && (
+                          <div className="p-4 text-center"><p className="text-dark-400 text-sm">No notifications</p></div>
                         )}
                       </div>
                     </div>
@@ -791,12 +723,7 @@ const AdminDashboard = () => {
                       <p className="text-2xl sm:text-3xl font-bold text-white">{stats.products}</p>
                       <p className="text-dark-400 text-xs sm:text-sm">Products</p>
                     </div>
-                    <div className="bg-dark-800/50 backdrop-blur rounded-xl sm:rounded-2xl border border-dark-700 p-4 sm:p-6 cursor-pointer active:scale-95 hover:border-amber-500/50 transition-all relative" onClick={() => setShowOrderTable(true)}>
-                      {orderCount > 0 && (
-                        <span className="absolute top-2 right-2 bg-amber-500 text-white text-xs font-bold rounded-full min-w-6 h-6 px-1.5 flex items-center justify-center">
-                          {orderCount > 99 ? '99+' : orderCount}
-                        </span>
-                      )}
+                    <div className="bg-dark-800/50 backdrop-blur rounded-xl sm:rounded-2xl border border-dark-700 p-4 sm:p-6 cursor-pointer active:scale-95 hover:border-amber-500/50 transition-all" onClick={() => setShowOrderTable(true)}>
                       <div className="flex items-center gap-2 sm:gap-3 mb-2 sm:mb-3">
                         <div className="p-2 sm:p-3 bg-amber-500/10 rounded-xl">
                           <ShoppingCart className="w-5 h-5 sm:w-6 sm:h-6 text-amber-500" />
@@ -804,16 +731,6 @@ const AdminDashboard = () => {
                       </div>
                       <p className="text-2xl sm:text-3xl font-bold text-white">{stats.orders}</p>
                       <p className="text-dark-400 text-xs sm:text-sm">Total Orders</p>
-                    </div>
-                    
-                    <div className="bg-dark-800/50 backdrop-blur rounded-xl sm:rounded-2xl border border-dark-700 p-4 sm:p-6 cursor-pointer active:scale-95 hover:border-emerald-500/50 transition-all" onClick={() => setShowTopupsModal(true)}>
-                      <div className="flex items-center gap-2 sm:gap-3 mb-2 sm:mb-3">
-                        <div className="p-2 sm:p-3 bg-emerald-500/10 rounded-xl">
-                          <Wallet className="w-5 h-5 sm:w-6 sm:h-6 text-emerald-500" />
-                        </div>
-                      </div>
-                      <p className="text-2xl sm:text-3xl font-bold text-white">{topupCount}</p>
-                      <p className="text-dark-400 text-xs sm:text-sm">Topup Requests</p>
                     </div>
                   </div>
                   
