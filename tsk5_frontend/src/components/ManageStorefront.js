@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import Swal from 'sweetalert2';
-import { Store, Users, ShoppingCart, CheckCircle, XCircle, RefreshCw, Eye, ToggleLeft, ToggleRight, ExternalLink } from 'lucide-react';
+import { Store, Users, ShoppingCart, CheckCircle, XCircle, RefreshCw, Eye, ToggleLeft, ToggleRight, ExternalLink, X } from 'lucide-react';
 import BASE_URL from '../endpoints/endpoints';
 
 const ManageStorefront = ({ isOpen, onClose }) => {
