@@ -1140,7 +1140,7 @@ const AdminDashboard = () => {
       <OrderTable isOpen={showOrderTable} onClose={() => setShowOrderTable(false)} />
 
       {/* Topups Modal */}
-      <TopupsOrdered isOpen={showTopupsModal} onClose={() => setShowTopupsModal(false)} justCount={topupCount} hasNewTopups={hasNewTopups} setHasNewTopups={setHasNewTopups} />
+      <TopupsOrdered isOpen={showTopupsModal} onClose={() => setShowTopupsModal(false)} justCount={topupCount} />
 
       {/* Agent Commission Modal */}
       <AgentCommissionModal isOpen={showCommissionModal} onClose={() => setShowCommissionModal(false)} />
