@@ -8,6 +8,12 @@ const PAYSTACK_INITIALIZE_URL = 'https://api.paystack.co/transaction/initialize'
 const PAYSTACK_VERIFY_URL = 'https://api.paystack.co/transaction/verify';
 const settingsService = require('./settingsService');
 
+// Paystack charges a 2% fee on all transactions.
+// We add this fee on top so the seller receives the full base amount.
+const PAYSTACK_FEE_RATE = 0.02;
+/** Given a base amount, return the total (including 2% Paystack fee). */
+const withPaystackFee = (amount) => parseFloat(amount) * (1 + PAYSTACK_FEE_RATE);
+
 const getPaystackSecret = async () => {
   const fromDb = await settingsService.getSettingValue(settingsService.SETTINGS_KEYS.PAYSTACK_SECRET);
   return fromDb || process.env.PAYSTACK_SECRET_KEY;
@@ -56,8 +62,9 @@ const initializeTopupPayment = async (userId, amount, callbackUrl) => {
   try {
     console.log('Initializing Paystack Top-up Payment...');
     
-    // Paystack amount is in pesewas, multiply by 100
-    const amountInPesewas = Math.round(parseFloat(amount) * 100);
+    // Paystack amount is in pesewas, multiply by 100.
+    // Include the 2% Paystack fee on top so the seller receives the full base amount.
+    const amountInPesewas = Math.round(withPaystackFee(amount) * 100);
 
     const secret = await getPaystackSecret();
     const response = await axios({

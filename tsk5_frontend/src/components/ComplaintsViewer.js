@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, memo } from 'react';
+import React, { useState, useEffect, useRef, useCallback, memo } from 'react';
 import { MessageSquareWarning, X, CheckCircle, Clock, AlertCircle, Phone, Loader2, RefreshCw, Trash2, Copy, DollarSign, Image as ImageIcon, Upload, ExternalLink, ClipboardPaste } from 'lucide-react';
 import axios from 'axios';
 import Swal from 'sweetalert2';
@@ -54,6 +54,8 @@ const ComplaintsViewer = ({ isOpen, onClose }) => {
   const [uploadingId, setUploadingId] = useState(null);
   const [pastingId, setPastingId] = useState(null);
   const fileInputRef = useRef(null);
+  const hiddenPasteRef = useRef(null);
+  const pasteComplaintIdRef = useRef(null);
   const statusFilterRef = useRef(statusFilter);
   const socketRef = useRef(null);
 
@@ -192,45 +194,45 @@ const ComplaintsViewer = ({ isOpen, onClose }) => {
     }
   };
 
-  // Paste image from clipboard using navigator.clipboard API
-  const handlePasteClipboard = async (complaintId) => {
-    try {
-      // Check if clipboard API is available
-      if (!navigator.clipboard || !navigator.clipboard.read) {
+  // Paste image from clipboard using a hidden textarea + paste event.
+  // This works on all browsers (PC + mobile) without requiring clipboard-read permission.
+  const handlePasteEvent = useCallback(async (e) => {
+    const files = e.clipboardData?.files;
+    if (files && files.length > 0) {
+      const file = files[0];
+      if (file.type.startsWith('image/')) {
+        const complaintId = pasteComplaintIdRef.current;
+        if (complaintId) {
+          e.preventDefault();
+          await handleUploadProof(complaintId, file);
+        }
+      } else {
         Swal.fire({
-          icon: 'warning', title: 'Clipboard Not Supported',
-          text: 'Your browser does not support reading from clipboard. Try using the upload button instead.',
+          icon: 'warning', title: 'Not an Image',
+          text: 'Clipboard does not contain an image. Copy an image first, then paste again.',
           background: '#1e293b', color: '#f1f5f9'
         });
-        return;
       }
+    }
+    // Reset pasting state
+    setPastingId(null);
+    pasteComplaintIdRef.current = null;
+  }, []);
 
-      setPastingId(complaintId);
-      const clipboardItems = await navigator.clipboard.read();
-      for (const item of clipboardItems) {
-        for (const type of item.types) {
-          if (type.startsWith('image/')) {
-            const blob = await item.getType(type);
-            const file = new File([blob], 'pasted-image.png', { type });
-            await handleUploadProof(complaintId, file);
-            setPastingId(null);
-            return;
-          }
-        }
-      }
-      setPastingId(null);
-
+  const handlePasteClipboard = (complaintId) => {
+    pasteComplaintIdRef.current = complaintId;
+    setPastingId(complaintId);
+    if (hiddenPasteRef.current) {
+      hiddenPasteRef.current.focus();
       Swal.fire({
-        icon: 'info', title: 'No Image Found',
-        text: 'No image was found in your clipboard. Copy an image first, then try again.',
-        background: '#1e293b', color: '#f1f5f9'
-      });
-    } catch (err) {
-      setPastingId(null);
-      Swal.fire({
-        icon: 'error', title: 'Paste Failed',
-        text: 'Could not read from clipboard. Try using the upload button instead.',
-        background: '#1e293b', color: '#f1f5f9'
+        icon: 'info',
+        title: 'Ready to Paste',
+        text: 'Press Ctrl+V (or Cmd+V) now to paste the image from your clipboard.',
+        timer: 3000,
+        timerProgressBar: true,
+        background: '#1e293b',
+        color: '#f1f5f9',
+        showConfirmButton: false
       });
     }
   };
@@ -314,6 +316,15 @@ const ComplaintsViewer = ({ isOpen, onClose }) => {
           if (file && complaintId) handleUploadProof(parseInt(complaintId), file);
           e.target.value = '';
         }}
+      />
+
+      {/* Hidden textarea for clipboard paste (works on PC + mobile) */}
+      <textarea
+        ref={hiddenPasteRef}
+        className="absolute opacity-0 pointer-events-none w-0 h-0"
+        onChange={() => {}}
+        onPaste={handlePasteEvent}
+        tabIndex={-1}
       />
 
       <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
