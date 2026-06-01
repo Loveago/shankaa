@@ -7,7 +7,9 @@ const SETTINGS_KEYS = {
   REGISTRATION_ENABLED: 'registration_enabled',
   AUTO_PROCESS_ORDERS: 'auto_process_orders',
   SKANKA5_API_KEY: 'skanka5_api_key',
-  SKANKA5_WEBHOOK_SECRET: 'skanka5_webhook_secret'
+  SKANKA5_WEBHOOK_SECRET: 'skanka5_webhook_secret',
+  MTN_EXPRESS_BUNDLE_SIZE: 'mtn_express_bundle_size',
+  MTN_EXPRESS_AMOUNT: 'mtn_express_amount'
 };
 
 const getAllSettings = async () => {

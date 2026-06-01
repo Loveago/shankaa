@@ -1,8 +1,31 @@
 const prisma = require('../config/db');
 
+const settingsService = require('./settingsService');
+
 class MtnExpressService {
+  async getDefaultConfig() {
+    try {
+      const [bundleSize, amount] = await Promise.all([
+        settingsService.getSettingValue(settingsService.SETTINGS_KEYS.MTN_EXPRESS_BUNDLE_SIZE, '214GB'),
+        settingsService.getSettingValue(settingsService.SETTINGS_KEYS.MTN_EXPRESS_AMOUNT, '300')
+      ]);
+      return { bundleSize, amount: parseFloat(amount) || 300 };
+    } catch (error) {
+      return { bundleSize: '214GB', amount: 300 };
+    }
+  }
+
+  async updateConfig({ bundleSize, amount }) {
+    const updates = {};
+    if (bundleSize) updates[settingsService.SETTINGS_KEYS.MTN_EXPRESS_BUNDLE_SIZE] = bundleSize;
+    if (amount !== undefined) updates[settingsService.SETTINGS_KEYS.MTN_EXPRESS_AMOUNT] = String(amount);
+    await settingsService.upsertSettings(updates);
+    return this.getDefaultConfig();
+  }
+
   async createOrder(data) {
     try {
+      const config = await this.getDefaultConfig();
       const { receiptNumber, phoneNumber, bundleSize, amount, userId } = data;
       if (!receiptNumber || !phoneNumber) {
         throw new Error('Receipt number and phone number are required');
@@ -11,8 +34,8 @@ class MtnExpressService {
         data: {
           receiptNumber,
           phoneNumber,
-          bundleSize: bundleSize || '214GB',
-          amount: amount || 300,
+          bundleSize: bundleSize || config.bundleSize,
+          amount: amount || config.amount,
           userId: userId || null,
           status: 'pending'
         }

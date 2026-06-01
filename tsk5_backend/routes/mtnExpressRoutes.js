@@ -10,6 +10,8 @@ router.post('/', authMiddleware, mtnExpressController.createOrder);
 
 // Protected routes (Admin only)
 router.get('/', authMiddleware, adminMiddleware, mtnExpressController.getAllOrders);
+router.get('/config', authMiddleware, adminMiddleware, mtnExpressController.getConfig);
+router.put('/config', authMiddleware, adminMiddleware, mtnExpressController.updateConfig);
 router.get('/pending/count', authMiddleware, adminMiddleware, mtnExpressController.getPendingCount);
 router.get('/:id', authMiddleware, adminMiddleware, mtnExpressController.getOrderById);
 router.put('/:id', authMiddleware, adminMiddleware, mtnExpressController.updateOrderStatus);

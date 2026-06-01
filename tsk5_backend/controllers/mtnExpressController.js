@@ -78,6 +78,27 @@ class MtnExpressController {
       res.status(500).json({ success: false, message: error.message });
     }
   }
+
+  // Get MTN Express config (Admin only)
+  async getConfig(req, res) {
+    try {
+      const config = await mtnExpressService.getDefaultConfig();
+      res.status(200).json({ success: true, data: config });
+    } catch (error) {
+      res.status(500).json({ success: false, message: error.message });
+    }
+  }
+
+  // Update MTN Express config (Admin only)
+  async updateConfig(req, res) {
+    try {
+      const { bundleSize, amount } = req.body;
+      const config = await mtnExpressService.updateConfig({ bundleSize, amount });
+      res.status(200).json({ success: true, data: config, message: 'MTN Express configuration updated' });
+    } catch (error) {
+      res.status(500).json({ success: false, message: error.message });
+    }
+  }
 }
 
 module.exports = new MtnExpressController();

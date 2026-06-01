@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ArrowLeft, Package, Loader2, Phone, Receipt, CheckCircle } from 'lucide-react';
 import axios from 'axios';
 import Swal from 'sweetalert2';
@@ -13,6 +13,22 @@ const MtnExpressForm = ({ onBack }) => {
   const [receiptNumber, setReceiptNumber] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [config, setConfig] = useState({ bundleSize: '214GB', amount: 300 });
+  const [configLoading, setConfigLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchConfig = async () => {
+      try {
+        const res = await axios.get(`${BASE_URL}/api/mtn-express/config`, { headers: getAuthHeaders() });
+        if (res.data.success) setConfig(res.data.data);
+      } catch (err) {
+        console.error('Failed to fetch config, using defaults:', err);
+      } finally {
+        setConfigLoading(false);
+      }
+    };
+    fetchConfig();
+  }, []);
 
   const validate = () => {
     if (!phoneNumber.trim() || phoneNumber.trim().length < 5) {
@@ -34,14 +50,14 @@ const MtnExpressForm = ({ onBack }) => {
       await axios.post(`${BASE_URL}/api/mtn-express`, {
         receiptNumber: receiptNumber.trim(),
         phoneNumber: phoneNumber.trim(),
-        bundleSize: '214GB',
-        amount: 300
+        bundleSize: config.bundleSize,
+        amount: config.amount
       }, { headers: getAuthHeaders() });
 
       Swal.fire({
         icon: 'success',
         title: 'Order Submitted!',
-        text: 'Your MTN Express 214GB order has been received. Admin will process it shortly.',
+        text: `Your MTN Express ${config.bundleSize} order has been received. Admin will process it shortly.`,
         timer: 2500,
         showConfirmButton: false,
         background: '#1e293b',
@@ -66,7 +82,7 @@ const MtnExpressForm = ({ onBack }) => {
       <div className="bg-dark-900/50 border border-emerald-500/30 rounded-2xl p-8 text-center">
         <CheckCircle className="w-16 h-16 text-emerald-400 mx-auto mb-4" />
         <h3 className="text-xl font-bold text-white mb-2">Order Submitted!</h3>
-        <p className="text-dark-300 mb-6">Your MTN Express 214GB order is being processed.</p>
+        <p className="text-dark-300 mb-6">Your MTN Express {config.bundleSize} order is being processed.</p>
         <button onClick={onBack}
           className="px-6 py-2.5 bg-dark-700 text-dark-300 rounded-xl hover:bg-dark-600 font-medium transition-colors">
           Back to Dashboard
@@ -81,6 +97,11 @@ const MtnExpressForm = ({ onBack }) => {
         <ArrowLeft className="w-4 h-4" /> Back
       </button>
 
+      {configLoading ? (
+        <div className="flex items-center justify-center py-8 mb-6">
+          <Loader2 className="w-6 h-6 animate-spin text-yellow-500" />
+        </div>
+      ) : (
       <div className="bg-gradient-to-r from-yellow-500/20 to-cyan-500/20 rounded-2xl p-6 border border-yellow-500/30 mb-6">
         <div className="flex items-center gap-3 mb-3">
           <div className="p-3 bg-cyan-500/20 rounded-xl">
@@ -88,13 +109,14 @@ const MtnExpressForm = ({ onBack }) => {
           </div>
           <div>
             <h2 className="text-xl font-bold text-white">MTN Express Bundle</h2>
-            <p className="text-yellow-400 text-sm font-semibold">214GB @ GHS 300</p>
+            <p className="text-yellow-400 text-sm font-semibold">{config.bundleSize} @ GHS {config.amount}</p>
           </div>
         </div>
         <p className="text-dark-300 text-sm">
-          Pay GHS 300 via Mobile Money to the admin number and submit your receipt number below to place your order.
+          Pay GHS {config.amount} via Mobile Money to the admin number and submit your receipt number below to place your order.
         </p>
       </div>
+      )}
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
@@ -129,7 +151,7 @@ const MtnExpressForm = ({ onBack }) => {
           className="w-full bg-gradient-to-r from-yellow-500 to-cyan-500 text-white font-bold py-3 px-6 rounded-xl hover:opacity-90 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
         >
           {submitting ? <Loader2 className="w-5 h-5 animate-spin" /> : <Package className="w-5 h-5" />}
-          {submitting ? 'Submitting...' : 'Place Order - GHS 300'}
+          {submitting ? 'Submitting...' : `Place Order - GHS ${config.amount}`}
         </button>
       </form>
     </div>

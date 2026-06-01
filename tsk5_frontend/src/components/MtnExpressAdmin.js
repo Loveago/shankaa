@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
-import { Loader2, RefreshCw, Search, CheckCircle, XCircle, Eye, Trash2, Clock, Phone, Receipt, Package, Hash } from 'lucide-react';
+import { Loader2, RefreshCw, Search, CheckCircle, XCircle, Eye, Trash2, Clock, Phone, Receipt, Package, Hash, Settings, Save } from 'lucide-react';
 import BASE_URL from '../endpoints/endpoints';
 import Swal from 'sweetalert2';
 
@@ -31,6 +31,24 @@ const MtnExpressAdmin = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [showDetail, setShowDetail] = useState(false);
+  const [showConfig, setShowConfig] = useState(false);
+  const [config, setConfig] = useState({ bundleSize: '214GB', amount: 300 });
+  const [configSaving, setConfigSaving] = useState(false);
+  const [configLoading, setConfigLoading] = useState(true);
+
+  const fetchConfig = useCallback(async () => {
+    setConfigLoading(true);
+    try {
+      const res = await axios.get(`${BASE_URL}/api/mtn-express/config`, { headers: getAuthHeaders() });
+      if (res.data.success) {
+        setConfig(res.data.data);
+      }
+    } catch (err) {
+      console.error('Fetch config error:', err);
+    } finally {
+      setConfigLoading(false);
+    }
+  }, []);
 
   const fetchOrders = useCallback(async () => {
     setLoading(true);
@@ -50,7 +68,7 @@ const MtnExpressAdmin = () => {
     }
   }, [statusFilter]);
 
-  useEffect(() => { fetchOrders(); }, [fetchOrders]);
+  useEffect(() => { fetchOrders(); fetchConfig(); }, [fetchOrders, fetchConfig]);
 
   const handleUpdateStatus = async (id, newStatus) => {
     const result = await Swal.fire({
@@ -113,6 +131,24 @@ const MtnExpressAdmin = () => {
     }
   };
 
+  const handleSaveConfig = async () => {
+    setConfigSaving(true);
+    try {
+      const res = await axios.put(`${BASE_URL}/api/mtn-express/config`, {
+        bundleSize: config.bundleSize,
+        amount: parseFloat(config.amount)
+      }, { headers: getAuthHeaders() });
+      if (res.data.success) {
+        setConfig(res.data.data);
+        Swal.fire({ icon: 'success', title: 'Configuration saved', background: '#1e293b', color: '#f1f5f9', timer: 1500, showConfirmButton: false });
+      }
+    } catch (err) {
+      Swal.fire({ icon: 'error', title: 'Failed to save config', text: err.response?.data?.message || 'Error', background: '#1e293b', color: '#f1f5f9' });
+    } finally {
+      setConfigSaving(false);
+    }
+  };
+
   const filteredOrders = orders.filter(o =>
     searchTerm === '' ||
     o.receiptNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -127,11 +163,16 @@ const MtnExpressAdmin = () => {
           <h3 className="text-lg font-bold text-white flex items-center gap-2">
             <Package className="w-5 h-5 text-yellow-400" /> MTN Express Orders
           </h3>
-          <p className="text-dark-400 text-sm">214GB @ GHS 300 - Manage customer orders</p>
+          <p className="text-dark-400 text-sm">{config.bundleSize} @ GHS {config.amount} - Manage customer orders</p>
         </div>
-        <button onClick={fetchOrders} className="p-2 bg-dark-700 rounded-lg hover:bg-dark-600 transition-colors">
-          <RefreshCw className={`w-4 h-4 text-dark-300 ${loading ? 'animate-spin' : ''}`} />
-        </button>
+        <div className="flex gap-2">
+          <button onClick={() => setShowConfig(true)} className="p-2 bg-dark-700 rounded-lg hover:bg-dark-600 transition-colors" title="Configure Price">
+            <Settings className="w-4 h-4 text-dark-300" />
+          </button>
+          <button onClick={fetchOrders} className="p-2 bg-dark-700 rounded-lg hover:bg-dark-600 transition-colors">
+            <RefreshCw className={`w-4 h-4 text-dark-300 ${loading ? 'animate-spin' : ''}`} />
+          </button>
+        </div>
       </div>
 
       <div className="flex flex-wrap gap-2 mb-4">
@@ -238,6 +279,58 @@ const MtnExpressAdmin = () => {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* Config Modal */}
+      {showConfig && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setShowConfig(false)}>
+          <div className="bg-dark-800 border border-dark-700 rounded-2xl p-6 w-full max-w-md" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                <Settings className="w-5 h-5 text-cyan-400" /> MTN Express Configuration
+              </h3>
+              <button onClick={() => setShowConfig(false)} className="p-1.5 bg-dark-700 rounded-lg">
+                <XCircle className="w-4 h-4 text-dark-300" />
+              </button>
+            </div>
+            {configLoading ? (
+              <div className="flex justify-center py-8">
+                <Loader2 className="w-6 h-6 animate-spin text-cyan-500" />
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-dark-300 mb-1.5">Bundle Size</label>
+                  <input
+                    type="text"
+                    value={config.bundleSize}
+                    onChange={(e) => setConfig({ ...config, bundleSize: e.target.value })}
+                    placeholder="e.g. 214GB"
+                    className="w-full bg-dark-900 border border-dark-600 rounded-xl px-4 py-2.5 text-white placeholder-dark-500 focus:border-cyan-500 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-dark-300 mb-1.5">Price (GHS)</label>
+                  <input
+                    type="number"
+                    value={config.amount}
+                    onChange={(e) => setConfig({ ...config, amount: e.target.value })}
+                    placeholder="e.g. 300"
+                    className="w-full bg-dark-900 border border-dark-600 rounded-xl px-4 py-2.5 text-white placeholder-dark-500 focus:border-cyan-500 focus:outline-none"
+                  />
+                </div>
+                <button
+                  onClick={handleSaveConfig}
+                  disabled={configSaving}
+                  className="w-full bg-gradient-to-r from-cyan-500 to-yellow-500 text-white font-bold py-3 px-6 rounded-xl hover:opacity-90 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {configSaving ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
+                  {configSaving ? 'Saving...' : 'Save Configuration'}
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       )}
 
