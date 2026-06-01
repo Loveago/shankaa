@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import axios from 'axios';
-import { ArrowLeft, Loader2, CheckCircle, AlertCircle, User, Phone, MapPin, Briefcase, CreditCard, Hash } from 'lucide-react';
+import { ArrowLeft, Loader2, CheckCircle, User, Phone, MapPin, Briefcase, CreditCard, Hash } from 'lucide-react';
 import BASE_URL from '../endpoints/endpoints';
 import { toast } from 'react-toastify';
 

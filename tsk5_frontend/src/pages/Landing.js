@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Menu, X, Phone, Mail, MapPin, Star, Shield, Zap, Clock, ChevronLeft, ChevronRight, Wifi, ArrowRight, CheckCircle, Globe, Sparkles } from 'lucide-react';
+import { Menu, X, Phone, Star, Shield, Zap, Clock, ChevronLeft, ChevronRight, Wifi, ArrowRight, CheckCircle, Globe, Sparkles } from 'lucide-react';
 import { Dialog } from "@headlessui/react";
 import { motion, useInView, AnimatePresence } from "framer-motion";
 
