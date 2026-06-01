@@ -19,7 +19,6 @@ const MtnExpressForm = ({ onBack }) => {
   const [paymentRef, setPaymentRef] = useState(null);
   const [paymentUrl, setPaymentUrl] = useState(null);
   const [paymentMessage, setPaymentMessage] = useState('');
-  const [orderId, setOrderId] = useState(null);
   const popupRef = useRef(null);
   const pollIntervalRef = useRef(null);
   const [pollsRemaining, setPollsRemaining] = useState(40); // ~2 minutes
@@ -140,7 +139,6 @@ const MtnExpressForm = ({ onBack }) => {
       if (res.data.success) {
         setPaymentRef(res.data.paymentRef);
         setPaymentUrl(res.data.paymentUrl);
-        setOrderId(res.data.orderId);
         setPaymentMessage('Payment initialized! Click the button to pay via Paystack.');
       } else {
         setPaymentStep('failed');
