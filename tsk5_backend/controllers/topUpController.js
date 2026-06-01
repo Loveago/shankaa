@@ -43,7 +43,30 @@ const initializeTopup = async (req, res) => {
         message: "Minimum top-up amount is GHS 1",
       });
     }
-    const callbackUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/user?topup=callback`;
+
+    // Determine the correct dashboard path based on user role
+    let dashboardPath = '/user';
+    try {
+      const user = await prisma.user.findUnique({
+        where: { id: parseInt(userId) },
+        select: { role: true }
+      });
+      if (user?.role) {
+        const role = user.role.trim().toLowerCase();
+        const rolePaths = {
+          'premium': '/premium',
+          'super': '/superagent',
+          'normal': '/normalagent',
+          'other': '/otherdashboard',
+          'user': '/user'
+        };
+        dashboardPath = rolePaths[role] || '/user';
+      }
+    } catch (e) {
+      // fallback to /user
+    }
+
+    const callbackUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}${dashboardPath}?topup=callback`;
     const result = await topupPaymentService.initializeTopupPayment(userId, amount, callbackUrl);
 
     if (result.success) {

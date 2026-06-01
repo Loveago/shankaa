@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import getSocket from '../utils/socket';
 import Swal from 'sweetalert2';
-import { Menu, Wallet, Package, Clock, CheckCircle, ShoppingCart, Loader2, RefreshCw, Trash2, Crown, History, X, Banknote, Key } from 'lucide-react';
+import { Menu, Wallet, Package, Clock, CheckCircle, ShoppingCart, Loader2, RefreshCw, Trash2, Crown, History, X, Banknote, Key, ShieldCheck } from 'lucide-react';
 import BASE_URL from '../endpoints/endpoints';
 import Sidebar from '../components/Sidebar';
 import TopUp from '../components/TopUp';
@@ -17,6 +17,7 @@ import FloatingChatButton from '../components/FloatingChatButton';
 import UserApiKeys from '../components/UserApiKeys';
 import ComplaintsTracker from '../components/ComplaintsTracker';
 import BulkOrdersPage from './BulkOrdersPage';
+import VerifyPayment from '../components/VerifyPayment';
 import AfaRegistrationForm from '../components/AfaRegistrationForm';
 import MtnExpressForm from '../components/MtnExpressForm';
 
@@ -57,6 +58,7 @@ const Premium = () => {
   const [showUploadExcel, setShowUploadExcel] = useState(false);
   const [showPasteOrders, setShowPasteOrders] = useState(false);
   const [showStorefront, setShowStorefront] = useState(false);
+  const [showVerifyPayment, setShowVerifyPayment] = useState(false);
   const [showApiKeys, setShowApiKeys] = useState(false);
   const [viewingBulkOrdersPage, setViewingBulkOrdersPage] = useState(false);
   const [showComplaints, setShowComplaints] = useState(false);
@@ -361,6 +363,7 @@ const Premium = () => {
         onOpenStorefront={() => setShowStorefront(true)}
         onOpenBulkOrders={() => setViewingBulkOrdersPage(true)}
         onOpenComplaints={() => setShowComplaints(true)}
+        onOpenVerifyPayment={() => setShowVerifyPayment(true)}
         onOpenAfaRegistration={() => setViewingAfaRegistration(true)}
         onOpenMtnExpress={() => setViewingMtnExpress(true)}
         isSuspended={isSuspended}
@@ -556,6 +559,9 @@ const Premium = () => {
         onTopUp={() => { setShowApiKeys(false); setShowTopUp(true); }}
       />
 
+
+      {/* Verify Payment Modal */}
+      <VerifyPayment isOpen={showVerifyPayment} onClose={() => setShowVerifyPayment(false)} />
 
       {/* Complaints Tracker */}
       <ComplaintsTracker isOpen={showComplaints} onClose={() => setShowComplaints(false)} />

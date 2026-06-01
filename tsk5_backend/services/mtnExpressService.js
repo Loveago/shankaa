@@ -69,6 +69,30 @@ class MtnExpressService {
       formattedPhone = '233' + formattedPhone;
     }
 
+    // Determine the correct dashboard path based on user role
+    let dashboardPath = '/user';
+    if (userId) {
+      try {
+        const user = await prisma.user.findUnique({
+          where: { id: parseInt(userId) },
+          select: { role: true }
+        });
+        if (user?.role) {
+          const role = user.role.trim().toLowerCase();
+          const rolePaths = {
+            'premium': '/premium',
+            'super': '/superagent',
+            'normal': '/normalagent',
+            'other': '/otherdashboard',
+            'user': '/user'
+          };
+          dashboardPath = rolePaths[role] || '/user';
+        }
+      } catch (e) {
+        // fallback to /user
+      }
+    }
+
     const secret = await getPaystackSecret();
     const amountInPesewas = Math.round(config.amount * 100);
 
@@ -85,7 +109,7 @@ class MtnExpressService {
           amount: amountInPesewas,
           currency: 'GHS',
           reference: paymentRef,
-          callback_url: process.env.PAYSTACK_CALLBACK_URL || `${process.env.FRONTEND_URL || 'http://localhost:3000'}/dashboard?mtnExpress=callback`,
+          callback_url: `${process.env.FRONTEND_URL || 'http://localhost:3000'}${dashboardPath}?mtnExpress=callback`,
           metadata: {
             type: 'mtn_express',
             phoneNumber: formattedPhone,
