@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
-import { Loader2, RefreshCw, Search, CheckCircle, XCircle, Eye, Trash2, Clock, Phone, Receipt, Package, Hash, Settings, Save } from 'lucide-react';
+import { Loader2, RefreshCw, Search, CheckCircle, XCircle, Eye, Trash2, Clock, Phone, Receipt, Package, Hash, Settings, Save, ToggleLeft, ToggleRight, CreditCard } from 'lucide-react';
 import BASE_URL from '../endpoints/endpoints';
 import Swal from 'sweetalert2';
 
@@ -35,6 +35,8 @@ const MtnExpressAdmin = () => {
   const [config, setConfig] = useState({ bundleSize: '214GB', amount: 300 });
   const [configSaving, setConfigSaving] = useState(false);
   const [configLoading, setConfigLoading] = useState(true);
+  const [enabled, setEnabled] = useState(true);
+  const [toggling, setToggling] = useState(false);
 
   const fetchConfig = useCallback(async () => {
     setConfigLoading(true);
@@ -47,6 +49,17 @@ const MtnExpressAdmin = () => {
       console.error('Fetch config error:', err);
     } finally {
       setConfigLoading(false);
+    }
+  }, []);
+
+  const fetchAvailability = useCallback(async () => {
+    try {
+      const res = await axios.get(`${BASE_URL}/api/mtn-express/available`);
+      if (res.data.success) {
+        setEnabled(res.data.data.enabled !== false);
+      }
+    } catch (err) {
+      console.error('Fetch availability error:', err);
     }
   }, []);
 
@@ -68,7 +81,32 @@ const MtnExpressAdmin = () => {
     }
   }, [statusFilter]);
 
-  useEffect(() => { fetchOrders(); fetchConfig(); }, [fetchOrders, fetchConfig]);
+  useEffect(() => { fetchOrders(); fetchConfig(); fetchAvailability(); }, [fetchOrders, fetchConfig, fetchAvailability]);
+
+  const handleToggleEnabled = async () => {
+    setToggling(true);
+    try {
+      const res = await axios.put(`${BASE_URL}/api/mtn-express/toggle`,
+        { enabled: !enabled },
+        { headers: getAuthHeaders() }
+      );
+      if (res.data.success) {
+        setEnabled(!enabled);
+        Swal.fire({
+          icon: 'success',
+          title: `MTN Express ${!enabled ? 'Enabled' : 'Disabled'}`,
+          timer: 1500,
+          showConfirmButton: false,
+          background: '#1e293b',
+          color: '#f1f5f9'
+        });
+      }
+    } catch (err) {
+      Swal.fire({ icon: 'error', title: 'Failed to toggle', background: '#1e293b', color: '#f1f5f9' });
+    } finally {
+      setToggling(false);
+    }
+  };
 
   const handleUpdateStatus = async (id, newStatus) => {
     const result = await Swal.fire({
@@ -153,7 +191,8 @@ const MtnExpressAdmin = () => {
     searchTerm === '' ||
     o.receiptNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     o.phoneNumber?.includes(searchTerm) ||
-    o.id?.toString().includes(searchTerm)
+    o.id?.toString().includes(searchTerm) ||
+    (o.email && o.email.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
   return (
@@ -163,9 +202,28 @@ const MtnExpressAdmin = () => {
           <h3 className="text-lg font-bold text-white flex items-center gap-2">
             <Package className="w-5 h-5 text-yellow-400" /> MTN Express Orders
           </h3>
-          <p className="text-dark-400 text-sm">{config.bundleSize} @ GHS {config.amount} - Manage customer orders</p>
+          <p className="text-dark-400 text-sm">{config.bundleSize} @ GHS {config.amount} - Paystack payment flow</p>
         </div>
         <div className="flex gap-2">
+          <button
+            onClick={handleToggleEnabled}
+            disabled={toggling}
+            className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors ${
+              enabled
+                ? 'bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30'
+                : 'bg-red-500/20 text-red-400 hover:bg-red-500/30'
+            }`}
+            title={enabled ? 'Disable MTN Express' : 'Enable MTN Express'}
+          >
+            {toggling ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : enabled ? (
+              <ToggleRight className="w-4 h-4" />
+            ) : (
+              <ToggleLeft className="w-4 h-4" />
+            )}
+            <span className="text-xs font-medium">{enabled ? 'Enabled' : 'Disabled'}</span>
+          </button>
           <button onClick={() => setShowConfig(true)} className="p-2 bg-dark-700 rounded-lg hover:bg-dark-600 transition-colors" title="Configure Price">
             <Settings className="w-4 h-4 text-dark-300" />
           </button>
@@ -197,7 +255,7 @@ const MtnExpressAdmin = () => {
           type="text"
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          placeholder="Search by receipt, phone, or ID..."
+          placeholder="Search by receipt, phone, email, or ID..."
           className="w-full bg-dark-900/50 border border-dark-600 rounded-xl pl-10 pr-4 py-2 text-white text-sm placeholder-dark-500 focus:border-cyan-500 focus:outline-none"
         />
       </div>
@@ -227,10 +285,12 @@ const MtnExpressAdmin = () => {
                       <span className="text-xs text-dark-500">{formatDate(order.createdAt)}</span>
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-1 text-sm">
-                      <span className="flex items-center gap-2 text-dark-300">
-                        <Receipt className="w-3.5 h-3.5 text-yellow-400" />
-                        Receipt: <span className="text-white font-medium truncate">{order.receiptNumber}</span>
-                      </span>
+                      {order.receiptNumber && (
+                        <span className="flex items-center gap-2 text-dark-300">
+                          <Receipt className="w-3.5 h-3.5 text-yellow-400" />
+                          Receipt: <span className="text-white font-medium truncate">{order.receiptNumber}</span>
+                        </span>
+                      )}
                       <span className="flex items-center gap-2 text-dark-300">
                         <Phone className="w-3.5 h-3.5 text-cyan-400" />
                         Phone: <span className="text-white">{order.phoneNumber}</span>
@@ -243,6 +303,18 @@ const MtnExpressAdmin = () => {
                         <Hash className="w-3.5 h-3.5 text-purple-400" />
                         Amount: <span className="text-white font-medium">GHS {order.amount}</span>
                       </span>
+                      {order.paymentRef && (
+                        <span className="flex items-center gap-2 text-dark-300 col-span-full">
+                          <CreditCard className="w-3.5 h-3.5 text-blue-400" />
+                          Payment Ref: <span className="text-white font-mono text-xs">{order.paymentRef}</span>
+                        </span>
+                      )}
+                      {order.email && (
+                        <span className="flex items-center gap-2 text-dark-300">
+                          <span className="text-dark-400">Email:</span>
+                          <span className="text-white">{order.email}</span>
+                        </span>
+                      )}
                     </div>
                     {order.adminNotes && (
                       <p className="mt-2 text-xs text-dark-400 bg-dark-800 rounded-lg p-2">
@@ -352,11 +424,19 @@ const MtnExpressAdmin = () => {
                   {selectedOrder.status}
                 </span>
               </div>
-              <div className="flex justify-between"><span className="text-dark-400">Receipt:</span><span className="text-white font-medium">{selectedOrder.receiptNumber}</span></div>
+              {selectedOrder.receiptNumber ? (
+                <div className="flex justify-between"><span className="text-dark-400">Receipt:</span><span className="text-white font-medium">{selectedOrder.receiptNumber}</span></div>
+              ) : null}
+              {selectedOrder.paymentRef ? (
+                <div className="flex justify-between"><span className="text-dark-400">Payment Ref:</span><span className="text-white font-mono text-xs">{selectedOrder.paymentRef}</span></div>
+              ) : null}
               <div className="flex justify-between"><span className="text-dark-400">Phone:</span><span className="text-white">{selectedOrder.phoneNumber}</span></div>
               <div className="flex justify-between"><span className="text-dark-400">Bundle:</span><span className="text-white">{selectedOrder.bundleSize}</span></div>
               <div className="flex justify-between"><span className="text-dark-400">Amount:</span><span className="text-emerald-400 font-bold">GHS {selectedOrder.amount}</span></div>
               <div className="flex justify-between"><span className="text-dark-400">Submitted:</span><span className="text-dark-300">{formatDate(selectedOrder.createdAt)}</span></div>
+              {selectedOrder.email && (
+                <div className="flex justify-between"><span className="text-dark-400">Email:</span><span className="text-dark-300">{selectedOrder.email}</span></div>
+              )}
               {selectedOrder.adminNotes && (
                 <div className="bg-dark-900 rounded-lg p-3 mt-2">
                   <span className="text-cyan-400 font-medium block mb-1">Admin Notes:</span>

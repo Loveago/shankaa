@@ -2,7 +2,67 @@
 const mtnExpressService = require('../services/mtnExpressService');
 
 class MtnExpressController {
-  // Create a new MTN Express order (public/authenticated)
+  // Initialize Paystack payment for MTN Express (authenticated users)
+  async initializePayment(req, res) {
+    try {
+      const { phoneNumber, email } = req.body;
+      const userId = req.user?.id || null;
+
+      if (!phoneNumber) {
+        return res.status(400).json({ success: false, message: 'Phone number is required' });
+      }
+
+      const result = await mtnExpressService.initializePayment({
+        phoneNumber, email, userId
+      });
+
+      res.status(200).json({
+        success: true,
+        message: 'Payment initialized',
+        paymentUrl: result.paymentUrl,
+        paymentRef: result.paymentRef,
+        orderId: result.orderId
+      });
+    } catch (error) {
+      const status = error.message.includes('disabled') ? 400 : 500;
+      res.status(status).json({ success: false, message: error.message });
+    }
+  }
+
+  // Verify Paystack payment after redirect (authenticated)
+  async verifyPayment(req, res) {
+    try {
+      const { reference } = req.body;
+      if (!reference) {
+        return res.status(400).json({ success: false, message: 'Payment reference is required' });
+      }
+
+      const result = await mtnExpressService.verifyPayment(reference);
+      res.status(200).json({
+        success: true,
+        message: 'Payment verified successfully. Awaiting admin approval.',
+        order: result.order
+      });
+    } catch (error) {
+      res.status(400).json({ success: false, message: error.message });
+    }
+  }
+
+  // Check if MTN Express is available/enabled (public)
+  async getAvailability(req, res) {
+    try {
+      const enabled = await mtnExpressService.isEnabled();
+      const config = await mtnExpressService.getDefaultConfig();
+      res.status(200).json({
+        success: true,
+        data: { enabled, ...config }
+      });
+    } catch (error) {
+      res.status(500).json({ success: false, message: error.message });
+    }
+  }
+
+  // Create a new MTN Express order (public/authenticated) — legacy receipt flow
   async createOrder(req, res) {
     try {
       const { receiptNumber, phoneNumber, bundleSize, amount } = req.body;
@@ -95,6 +155,18 @@ class MtnExpressController {
       const { bundleSize, amount } = req.body;
       const config = await mtnExpressService.updateConfig({ bundleSize, amount });
       res.status(200).json({ success: true, data: config, message: 'MTN Express configuration updated' });
+    } catch (error) {
+      res.status(500).json({ success: false, message: error.message });
+    }
+  }
+
+  // Toggle MTN Express enabled/disabled (Admin only)
+  async toggleEnabled(req, res) {
+    try {
+      const { enabled } = req.body;
+      if (enabled === undefined) return res.status(400).json({ success: false, message: 'enabled field is required' });
+      const result = await mtnExpressService.setEnabled(enabled);
+      res.status(200).json({ success: true, data: result, message: `MTN Express ${enabled ? 'enabled' : 'disabled'} successfully` });
     } catch (error) {
       res.status(500).json({ success: false, message: error.message });
     }

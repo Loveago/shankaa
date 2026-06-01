@@ -9,7 +9,8 @@ const SETTINGS_KEYS = {
   SKANKA5_API_KEY: 'skanka5_api_key',
   SKANKA5_WEBHOOK_SECRET: 'skanka5_webhook_secret',
   MTN_EXPRESS_BUNDLE_SIZE: 'mtn_express_bundle_size',
-  MTN_EXPRESS_AMOUNT: 'mtn_express_amount'
+  MTN_EXPRESS_AMOUNT: 'mtn_express_amount',
+  MTN_EXPRESS_ENABLED: 'mtn_express_enabled'
 };
 
 const getAllSettings = async () => {
