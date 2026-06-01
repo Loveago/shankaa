@@ -1,0 +1,906 @@
+API Documentation
+Interactive reference — your API key is pre-filled automatically. Order placement: POST …/orders (single MSISDN, flat JSON) or POST …/orders/bulk (recipients array); then GET …/orders/<reference> for status.
+
+← Back to Developer Portal
+Your API key is pre-filled in all requests. Click "Try it out" on any endpoint to test it.
+Skanka5 API
+ 1.0.0 
+OAS 3.0
+REST API for submitting data bundle orders programmatically. All endpoints require API key authentication via the x-api-key header.
+
+Order placement:
+
+Single line item (flat JSON): POST /orders — body: network_id, msisdn, volume_mb.
+One or many recipients (array): POST /orders/bulk — body: network_id, recipients[].
+Status: GET /orders/{reference} — reference is returned from either POST.
+Interactive docs: /api-reference on the web app; Developer portal: /developer/docs (Next app).
+
+Servers
+
+https://agent.skanka5.com/api/v1 - API Server
+
+Authorize
+Reference
+
+
+GET
+/fetch-networks
+List available networks
+
+
+Returns all active networks. Use the network ID when placing orders.
+
+Parameters
+Cancel
+No parameters
+
+Execute
+Clear
+Responses
+Server response
+Code	Details
+200	
+Response body
+Download
+[
+  {
+    "id": 1,
+    "name": "AT - iSHare",
+    "description": "60 Days"
+  },
+  {
+    "id": 2,
+    "name": "TELECEL",
+    "description": "60 Days"
+  },
+  {
+    "id": 3,
+    "name": "MTN",
+    "description": "90 Days"
+  },
+  {
+    "id": 4,
+    "name": "AT - BigTime",
+    "description": "Non Expiry"
+  },
+  {
+    "id": 5,
+    "name": "MTN AFA",
+    "description": "MTN AFA"
+  },
+  {
+    "id": 6,
+    "name": "MTN EXPRESS",
+    "description": "NON EXPIRY"
+  },
+  {
+    "id": 7,
+    "name": "MTN new numbers",
+    "description": "90 Days"
+  }
+]
+Response headers
+ alt-svc: h3=":443"; ma=86400 
+ cache-control: no-cache,private 
+ cf-cache-status: DYNAMIC 
+ cf-ray: 9fcc3050bac89cfb-LHR 
+ content-encoding: gzip 
+ content-type: application/json 
+ date: Sat,16 May 2026 17:44:09 GMT 
+ nel: {"report_to":"cf-nel","success_fraction":0.0,"max_age":604800} 
+ priority: u=1,i 
+ report-to: {"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=htMOdDZ1tmDOOvmceh5P1znxH1UbAlqFFyyvorgOs2eVe8%2B8nPFYZXU0k939FSNTvUCJ6lgG0tb3nGY4IONnm9MzeTv5liqZAfJ1cEKruAzsj%2FoWS0dc81L%2BGuhkPrDLDUbsWQ%3D%3D"}]} 
+ server: cloudflare 
+ server-timing: cfExtPri 
+ vary: Accept-Encoding,Origin 
+ x-ratelimit-limit: 120 
+ x-ratelimit-remaining: 118 
+Request duration
+796 ms
+Responses
+Code	Description	Links
+200	
+Networks list
+
+Media type
+
+application/json
+Controls Accept header.
+Example Value
+Schema
+[
+  {
+    "id": 3,
+    "name": "MTN",
+    "description": "string"
+  }
+]
+No links
+401	
+Unauthorized
+
+Media type
+
+application/json
+Example Value
+Schema
+{
+  "error": "string",
+  "message": "string"
+}
+No links
+
+GET
+/fetch-data-packages
+List data packages
+
+
+Returns all active data packages with pricing. Use volume_mb values when placing bulk orders.
+
+Parameters
+Try it out
+No parameters
+
+Responses
+Server response
+Code	Details
+200	
+Response body
+Download
+[
+  {
+    "id": 17,
+    "name": null,
+    "description": null,
+    "network_id": 3,
+    "volume": "1000",
+    "console_price": "4.15",
+    "status": "Out of Stock",
+    "network": "MTN"
+  },
+  {
+    "id": 18,
+    "name": null,
+    "description": null,
+    "network_id": 3,
+    "volume": "2000",
+    "console_price": "8.20",
+    "status": "Out of Stock",
+    "network": "MTN"
+  },
+  {
+    "id": 19,
+    "name": null,
+    "description": null,
+    "network_id": 3,
+    "volume": "3000",
+    "console_price": "12.80",
+    "status": "Out of Stock",
+    "network": "MTN"
+  },
+  {
+    "id": 20,
+    "name": null,
+    "description": null,
+    "network_id": 3,
+    "volume": "4000",
+    "console_price": "16.80",
+    "status": "Out of Stock",
+    "network": "MTN"
+  },
+  {
+    "id": 21,
+    "name": null,
+    "description": null,
+    "network_id": 3,
+    "volume": "5000",
+    "console_price": "21",
+    "status": "Out of Stock",
+    "network": "MTN"
+  },
+  {
+    "id": 22,
+    "name": null,
+    "description": null,
+    "network_id": 3,
+    "volume": "6000",
+    "console_price": "26",
+    "status": "Out of Stock",
+    "network": "MTN"
+  },
+  {
+    "id": 23,
+    "name": null,
+    "description": null,
+    "network_id": 3,
+    "volume": "7000",
+    "console_price": "32.5",
+    "status": "Out of Stock",
+    "network": "MTN"
+  },
+  {
+    "id": 24,
+    "name": null,
+    "description": null,
+    "network_id": 3,
+    "volume": "8000",
+    "console_price": "34",
+    "status": "Out of Stock",
+    "network": "MTN"
+  },
+  {
+    "id": 25,
+    "name": null,
+    "description": null,
+    "network_id": 3,
+    "volume": "10000",
+    "console_price": "39.5",
+    "status": "Out of Stock",
+    "network": "MTN"
+  },
+  {
+    "id": 26,
+    "name": null,
+    "description": null,
+    "network_id": 3,
+    "volume": "12000",
+    "console_price": "51.5",
+    "status": "Out of Stock",
+    "network": "MTN"
+  },
+  {
+    "id": 27,
+    "name": null,
+    "description": null,
+    "network_id": 3,
+    "volume": "15000",
+    "console_price": "59",
+    "status": "Out of Stock",
+    "network": "MTN"
+  },
+  {
+    "id": 28,
+    "name": null,
+    "description": null,
+    "network_id": 3,
+    "volume": "20000",
+    "console_price": "79",
+    "status": "Out of Stock",
+    "network": "MTN"
+  },
+  {
+    "id": 29,
+    "name": null,
+    "description": null,
+    "network_id": 3,
+    "volume": "25000",
+    "console_price": "99",
+    "status": "Out of Stock",
+    "network": "MTN"
+  },
+  {
+    "id": 30,
+    "name": null,
+    "description": null,
+    "network_id": 3,
+    "volume": "30000",
+    "console_price": "120",
+    "status": "Out of Stock",
+    "network": "MTN"
+  },
+  {
+    "id": 31,
+    "name": null,
+    "description": null,
+    "network_id": 3,
+    "volume": "40000",
+    "console_price": "158",
+    "status": "Out of Stock",
+    "network": "MTN"
+  },
+  {
+    "id": 32,
+    "name": null,
+    "description": null,
+    "network_id": 3,
+    "volume": "50000",
+    "console_price": "194",
+    "status": "Out of Stock",
+    "network": "MTN"
+  },
+  {
+    "id": 40,
+    "name": null,
+    "description": null,
+    "network_id": 2,
+    "volume": "5000",
+    "console_price": "19",
+    "status": "Out of Stock",
+    "network": "TELECEL"
+  },
+  {
+    "id": 41,
+    "name": null,
+    "description": null,
+    "network_id": 2,
+    "volume": "10000",
+    "console_price": "38.00",
+    "status": "Out of Stock",
+    "network": "TELECEL"
+  },
+  {
+    "id": 42,
+    "name": null,
+    "description": null,
+    "network_id": 2,
+    "volume": "15000",
+    "console_price": "59",
+    "status": "Out of Stock",
+    "network": "TELECEL"
+  },
+  {
+    "id": 43,
+    "name": null,
+    "description": null,
+    "network_id": 2,
+    "volume": "20000",
+    "console_price": "76",
+    "status": "Out of Stock",
+    "network": "TELECEL"
+  },
+  {
+    "id": 44,
+    "name": null,
+    "description": null,
+    "network_id": 2,
+    "volume": "25000",
+    "console_price": "97",
+    "status": "Out of Stock",
+    "network": "TELECEL"
+  },
+  {
+    "id": 45,
+    "name": null,
+    "description": null,
+    "network_id": 2,
+    "volume": "30000",
+    "console_price": "113",
+    "status": "Out of Stock",
+    "network": "TELECEL"
+  },
+  {
+    "id": 46,
+    "name": null,
+    "description": null,
+    "network_id": 2,
+    "volume": "40000",
+    "console_price": "149",
+    "status": "Out of Stock",
+    "network": "TELECEL"
+  },
+  {
+    "id": 47,
+    "name": null,
+    "description": null,
+    "network_id": 2,
+    "volume": "50000",
+    "console_price": "186",
+    "status": "Out of Stock",
+    "network": "TELECEL"
+  },
+  {
+    "id": 71,
+    "name": null,
+    "description": null,
+    "network_id": 6,
+    "volume": "217000",
+    "console_price": "360",
+    "status": "Out of Stock",
+    "network": "MTN EXPRESS"
+  },
+  {
+    "id": 72,
+    "name": null,
+    "description": null,
+    "network_id": 7,
+    "volume": "1000",
+    "console_price": "4",
+    "status": "Out of Stock",
+    "network": "MTN new numbers"
+  },
+  {
+    "id": 73,
+    "name": null,
+    "description": null,
+    "network_id": 7,
+    "volume": "2000",
+    "console_price": "7.6",
+    "status": "Out of Stock",
+    "network": "MTN new numbers"
+  }
+]
+Response headers
+ alt-svc: h3=":443"; ma=86400 
+ cache-control: no-cache,private 
+ cf-cache-status: DYNAMIC 
+ cf-ray: 9fcc2d6d4aad1205-LHR 
+ content-encoding: gzip 
+ content-type: application/json 
+ date: Sat,16 May 2026 17:42:11 GMT 
+ nel: {"report_to":"cf-nel","success_fraction":0.0,"max_age":604800} 
+ priority: u=1,i 
+ report-to: {"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=P1TL913JxvFLvySVerIGvdN7xgMEzEhyNcDnTAownC5gMFf6vjJ9dn%2FnxldMAa8ncbyzvJoPKy28rD%2Bc1ANX648ZNDg3aXv2T%2B0icI%2BqH1TI8bzsrEF7R9GczfFlYc4JFSUcSA%3D%3D"}]} 
+ server: cloudflare 
+ server-timing: cfExtPri 
+ vary: Accept-Encoding,Origin 
+ x-ratelimit-limit: 120 
+ x-ratelimit-remaining: 119 
+Request duration
+1888 ms
+Responses
+Code	Description	Links
+200	
+Packages list
+
+Media type
+
+application/json
+Controls Accept header.
+Example Value
+Schema
+[
+  {
+    "id": 0,
+    "name": "MTN 2GB",
+    "volume": 2000,
+    "network_id": 3,
+    "network": "MTN",
+    "status": "In Stock"
+  }
+]
+No links
+401	
+Unauthorized
+
+Media type
+
+application/json
+Example Value
+Schema
+{
+  "error": "string",
+  "message": "string"
+}
+No links
+Orders
+
+
+POST
+/orders
+Submit a single order
+
+
+Place one data order with a flat JSON body (network_id, msisdn, volume_mb). Same wallet checks, scopes, idempotency, and 202 response shape as POST /orders/bulk with a single recipient. Do not include recipients in the body — use /orders/bulk for a recipients array.
+
+Idempotency: Include an Idempotency-Key header to safely retry failed requests. The same key returns the cached response for 24 hours.
+
+Parameters
+Cancel
+Name	Description
+Idempotency-Key
+string
+(header)
+Unique key to prevent duplicate orders on retry. Recommended for all requests.
+
+Idempotency-Key
+Request body
+
+application/json
+Edit Value
+Schema
+{
+  "network_id": 3,
+  "msisdn": "0241234567",
+  "volume_mb": 2000
+}
+Execute
+Responses
+Code	Description	Links
+202	
+Order accepted and queued for processing
+
+Media type
+
+application/json
+Controls Accept header.
+Example Value
+Schema
+{
+  "success": true,
+  "reference": "ORDER-000123",
+  "status": "accepted",
+  "accepted": 1,
+  "rejected": 0,
+  "total_cost": 9,
+  "balance_after": 491,
+  "orders": [
+    {
+      "msisdn": "0241234567",
+      "volume_mb": 2000,
+      "order_code": "MTN-11074521",
+      "status": "accepted",
+      "price": 9,
+      "reason": "string"
+    }
+  ]
+}
+No links
+400	
+Validation error or business rule rejection
+
+Media type
+
+application/json
+Example Value
+Schema
+{
+  "error": "string",
+  "message": "string"
+}
+No links
+401	
+Invalid or missing API key
+
+Media type
+
+application/json
+Example Value
+Schema
+{
+  "error": "string",
+  "message": "string"
+}
+No links
+402	
+Insufficient wallet balance
+
+Media type
+
+application/json
+Example Value
+Schema
+{
+  "error": "string",
+  "message": "string"
+}
+No links
+403	
+Network not in API key scope
+
+Media type
+
+application/json
+Example Value
+Schema
+{
+  "error": "string",
+  "message": "string"
+}
+No links
+409	
+Duplicate order conflict
+
+Media type
+
+application/json
+Example Value
+Schema
+{
+  "error": "string",
+  "message": "string"
+}
+No links
+422	
+Wrong body shape (e.g. recipients array sent to this path) or no valid recipient after validation
+
+Media type
+
+application/json
+Example Value
+Schema
+{
+  "error": "string",
+  "message": "string"
+}
+No links
+429	
+Rate limit or daily order limit exceeded
+
+Media type
+
+application/json
+Example Value
+Schema
+{
+  "error": "string",
+  "message": "string"
+}
+No links
+
+POST
+/orders/bulk
+Submit bulk orders
+
+
+Submit multiple data orders for a single network in one request. For a single recipient with a flat JSON body (network_id, msisdn, volume_mb), use POST /orders instead. Orders are processed asynchronously — use the returned reference to poll for status.
+
+Idempotency: Include an Idempotency-Key header to safely retry failed requests. The same key returns the cached response for 24 hours.
+
+Pricing: Orders are priced based on your account role. Use /fetch-data-packages to see available packages and volumes.
+
+Batch size: Capped by server setting api_max_batch_size (default 500, maximum typically 2000).
+
+Parameters
+Cancel
+Name	Description
+Idempotency-Key
+string
+(header)
+Unique key to prevent duplicate orders on retry. Recommended for all requests.
+
+Idempotency-Key
+Request body
+
+application/json
+Examples: 
+Single order
+Edit Value
+Schema
+{
+  "network_id": 3,
+  "recipients": [
+    {
+      "msisdn": "0241234567",
+      "volume_mb": 2000
+    }
+  ]
+}
+Execute
+Responses
+Code	Description	Links
+202	
+Orders accepted and queued for processing
+
+Media type
+
+application/json
+Controls Accept header.
+Example Value
+Schema
+{
+  "success": true,
+  "reference": "ORDER-000123",
+  "status": "accepted",
+  "accepted": 3,
+  "rejected": 0,
+  "total_cost": 27,
+  "balance_after": 473,
+  "orders": [
+    {
+      "msisdn": "0241234567",
+      "volume_mb": 2000,
+      "order_code": "MTN-11074521",
+      "status": "accepted",
+      "price": 9,
+      "reason": "string"
+    }
+  ]
+}
+No links
+400	
+Validation error or batch too large
+
+Media type
+
+application/json
+Example Value
+Schema
+{
+  "error": "string",
+  "message": "string"
+}
+No links
+401	
+Invalid or missing API key
+
+Media type
+
+application/json
+Example Value
+Schema
+{
+  "error": "string",
+  "message": "string"
+}
+No links
+403	
+Network not in API key scope
+
+Media type
+
+application/json
+Example Value
+Schema
+{
+  "error": "string",
+  "message": "string"
+}
+No links
+409	
+Conflict (e.g. duplicate placed order detected during commit)
+
+Media type
+
+application/json
+Example Value
+Schema
+"string"
+No links
+429	
+Rate limit or daily order limit exceeded
+
+Media type
+
+application/json
+Example Value
+Schema
+{
+  "error": "string",
+  "message": "string"
+}
+No links
+
+GET
+/orders/{reference}
+Get order status
+
+
+Poll the status of an order by its reference code. Use this after submitting an order via POST /orders or POST /orders/bulk to check delivery status per recipient.
+
+Parameters
+Cancel
+Name	Description
+reference *
+string
+(path)
+The reference returned from POST /orders or POST /orders/bulk
+
+ORDER-000123
+Execute
+Responses
+Code	Description	Links
+200	
+Order status
+
+Media type
+
+application/json
+Controls Accept header.
+Example Value
+Schema
+{
+  "reference": "string",
+  "items": [
+    {
+      "id": 0,
+      "beneficiary_number": "0241234567",
+      "order_reference": "string",
+      "status": 0,
+      "api_status": "string",
+      "api_source": "string",
+      "volume": "2GB",
+      "network": "MTN",
+      "price": 9,
+      "created_at": "2026-05-16T17:44:28.442Z"
+    }
+  ]
+}
+No links
+401	
+Unauthorized
+
+Media type
+
+application/json
+Example Value
+Schema
+{
+  "error": "string",
+  "message": "string"
+}
+No links
+404	
+Order not found
+
+Media type
+
+application/json
+Example Value
+Schema
+{
+  "error": "string",
+  "message": "string"
+}
+No links
+Transactions
+
+
+GET
+/fetch-transactions
+List transactions
+
+
+Returns your API transaction history.
+
+Parameters
+Cancel
+No parameters
+
+Execute
+Responses
+Code	Description	Links
+200	
+Transactions list
+
+No links
+401	
+Unauthorized
+
+Media type
+
+application/json
+Example Value
+Schema
+{
+  "error": "string",
+  "message": "string"
+}
+No links
+
+POST
+/fetch-other-network-transaction
+Get single transaction
+
+
+Returns details of a single transaction by transaction code.
+
+Parameters
+Cancel
+No parameters
+
+Request body
+
+application/json
+Edit Value
+Schema
+{
+  "transaction_id": "trxcnsl_abc123"
+}
+Execute
+Responses
+Code	Description	Links
+200	
+Transaction detail
+
+No links
+404	
+Transaction not found
+
+Media type
+
+application/json
+Example Value
+Schema
+{
+  "error": "string",
+  "message": "string"

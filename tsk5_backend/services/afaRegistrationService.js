@@ -111,6 +111,52 @@ class AfaRegistrationService {
       throw new Error(`Failed to delete registration: ${error.message}`);
     }
   }
+
+  // Create registration with payment reference
+  async createRegistrationWithPayment(data, paymentRef) {
+    try {
+      const { fullName, phoneNumber, location, occupation, idType, idNumber, userId } = data;
+
+      const existing = await prisma.afaRegistration.findFirst({
+        where: { phoneNumber, status: 'pending' }
+      });
+      if (existing) {
+        throw new Error('A pending registration already exists for this phone number');
+      }
+
+      const registration = await prisma.afaRegistration.create({
+        data: {
+          fullName,
+          phoneNumber,
+          location,
+          occupation: occupation || null,
+          idType,
+          idNumber,
+          status: 'pending',
+          paymentRef,
+          paymentStatus: 'unpaid',
+          userId: userId ? parseInt(userId) : null
+        }
+      });
+
+      return registration;
+    } catch (error) {
+      throw new Error(`Failed to create registration: ${error.message}`);
+    }
+  }
+
+  // Mark registration as paid
+  async markAsPaid(paymentRef) {
+    try {
+      const registration = await prisma.afaRegistration.updateMany({
+        where: { paymentRef, paymentStatus: 'unpaid' },
+        data: { paymentStatus: 'paid' }
+      });
+      return registration;
+    } catch (error) {
+      throw new Error(`Failed to mark registration as paid: ${error.message}`);
+    }
+  }
 }
 
 module.exports = new AfaRegistrationService();

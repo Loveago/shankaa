@@ -18,4 +18,9 @@ router.get('/:id', authMiddleware, adminMiddleware, afaRegistrationController.ge
 router.put('/:id', authMiddleware, adminMiddleware, afaRegistrationController.updateRegistrationStatus);
 router.delete('/:id', authMiddleware, adminMiddleware, afaRegistrationController.deleteRegistration);
 
+// Payment routes
+router.post('/pay', afaRegistrationController.initializeAfaPayment);
+router.post('/pay/auth', authMiddleware, afaRegistrationController.initializeAfaPayment);
+router.post('/verify-payment', afaRegistrationController.verifyAfaPayment);
+
 module.exports = router;

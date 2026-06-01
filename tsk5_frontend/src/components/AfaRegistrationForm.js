@@ -1,13 +1,16 @@
 import React, { useState } from 'react';
 import axios from 'axios';
-import { ArrowLeft, Loader2, CheckCircle, User, Phone, MapPin, Briefcase, CreditCard, Hash } from 'lucide-react';
+import { ArrowLeft, Loader2, CheckCircle, User, Phone, MapPin, Briefcase, CreditCard, Hash, Wallet } from 'lucide-react';
 import BASE_URL from '../endpoints/endpoints';
 import { toast } from 'react-toastify';
+import Swal from 'sweetalert2';
 
 const getAuthHeaders = () => {
   const token = localStorage.getItem('token');
   return token ? { Authorization: `Bearer ${token}` } : {};
 };
+
+const AFA_FEE = 10; // 10 GHC
 
 const AfaRegistrationForm = ({ onBack }) => {
   const [formData, setFormData] = useState({
@@ -21,6 +24,7 @@ const AfaRegistrationForm = ({ onBack }) => {
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [errors, setErrors] = useState({});
+  const [paymentReference, setPaymentReference] = useState(null);
 
   const validate = () => {
     const errs = {};
@@ -37,7 +41,6 @@ const AfaRegistrationForm = ({ onBack }) => {
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
-    // Clear error on change
     if (errors[name]) {
       setErrors((prev) => {
         const copy = { ...prev };
@@ -54,18 +57,22 @@ const AfaRegistrationForm = ({ onBack }) => {
     setSubmitting(true);
     try {
       const headers = getAuthHeaders();
+      // Initialize payment with registration data
       const url = Object.keys(headers).length > 0
-        ? `${BASE_URL}/api/afa-registration/auth`
-        : `${BASE_URL}/api/afa-registration`;
+        ? `${BASE_URL}/api/afa-registration/pay/auth`
+        : `${BASE_URL}/api/afa-registration/pay`;
 
       const res = await axios.post(url, formData, { headers });
 
-      if (res.data.success) {
-        setSubmitted(true);
-        toast.success('Registration submitted successfully!');
+      if (res.data.success && res.data.paymentUrl) {
+        setPaymentReference(res.data.reference);
+        // Redirect to Paystack payment page
+        window.location.href = res.data.paymentUrl;
+      } else {
+        toast.error(res.data.message || 'Failed to initialize payment');
       }
     } catch (error) {
-      const msg = error.response?.data?.message || 'Failed to submit registration';
+      const msg = error.response?.data?.message || 'Failed to initialize payment';
       toast.error(msg);
       if (msg.includes('already exists')) {
         setErrors({ phoneNumber: msg });
@@ -74,6 +81,85 @@ const AfaRegistrationForm = ({ onBack }) => {
       setSubmitting(false);
     }
   };
+
+  const handleVerifyPayment = async () => {
+    if (!paymentReference) return;
+
+    setSubmitting(true);
+    try {
+      const res = await axios.post(`${BASE_URL}/api/afa-registration/verify-payment`, {
+        reference: paymentReference
+      });
+
+      if (res.data.success) {
+        setSubmitted(true);
+        toast.success('Registration submitted successfully!');
+      } else {
+        toast.warning('Payment not yet confirmed. Please try again.');
+      }
+    } catch (error) {
+      toast.error('Failed to verify payment. Please contact support.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  // Check for payment callback on mount
+  React.useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const paymentStatus = urlParams.get('afaPayment');
+    const reference = urlParams.get('reference') || urlParams.get('trxref');
+
+    if (paymentStatus === 'callback' && reference) {
+      window.history.replaceState({}, document.title, window.location.pathname);
+      setPaymentReference(reference);
+
+      Swal.fire({
+        title: 'Verifying Payment...',
+        html: 'Please wait while we confirm your payment.',
+        allowOutsideClick: false,
+        allowEscapeKey: false,
+        showConfirmButton: false,
+        background: '#1e293b',
+        color: '#f1f5f9',
+        didOpen: () => Swal.showLoading()
+      });
+
+      axios.post(`${BASE_URL}/api/afa-registration/verify-payment`, { reference })
+        .then((response) => {
+          if (response.data.success) {
+            setSubmitted(true);
+            Swal.fire({
+              title: 'Registration Submitted!',
+              text: 'Your AFA registration has been received and is pending review.',
+              icon: 'success',
+              background: '#1e293b',
+              color: '#f1f5f9',
+              confirmButtonColor: '#06b6d4'
+            });
+          } else {
+            Swal.fire({
+              title: 'Payment Pending',
+              text: 'Your payment has not been confirmed yet.',
+              icon: 'info',
+              background: '#1e293b',
+              color: '#f1f5f9',
+              confirmButtonColor: '#06b6d4'
+            });
+          }
+        })
+        .catch(() => {
+          Swal.fire({
+            title: 'Verification Failed',
+            text: 'Could not verify payment. Please contact support.',
+            icon: 'error',
+            background: '#1e293b',
+            color: '#f1f5f9',
+            confirmButtonColor: '#06b6d4'
+          });
+        });
+    }
+  }, []);
 
   const handleReset = () => {
     setFormData({
@@ -85,6 +171,7 @@ const AfaRegistrationForm = ({ onBack }) => {
       idNumber: ''
     });
     setSubmitted(false);
+    setPaymentReference(null);
     setErrors({});
   };
 
@@ -286,21 +373,51 @@ const AfaRegistrationForm = ({ onBack }) => {
                 {errors.idNumber && <p className="mt-1 text-xs text-red-400">{errors.idNumber}</p>}
               </div>
 
-              {/* Submit */}
-              <button
-                type="submit"
-                disabled={submitting}
-                className="w-full py-3.5 bg-gradient-to-r from-cyan-500 to-cyan-600 hover:from-cyan-600 hover:to-cyan-700 text-white font-semibold rounded-xl shadow-lg transition-all disabled:opacity-50 active:scale-[0.98] flex items-center justify-center gap-2 mt-8"
-              >
-                {submitting ? (
-                  <>
-                    <Loader2 className="w-5 h-5 animate-spin" />
-                    Submitting...
-                  </>
-                ) : (
-                  'Submit Registration'
-                )}
-              </button>
+              {/* Payment info box */}
+              <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-4 flex items-center gap-3">
+                <Wallet className="w-5 h-5 text-amber-400 flex-shrink-0" />
+                <div>
+                  <p className="text-amber-300 font-medium text-sm">Registration Fee: GHS {AFA_FEE}.00</p>
+                  <p className="text-dark-400 text-xs mt-0.5">You will be redirected to Paystack to complete payment.</p>
+                </div>
+              </div>
+
+              {/* Payment reference / verify button */}
+              {paymentReference && (
+                <div className="bg-dark-700/50 border border-dark-600 rounded-xl p-4">
+                  <p className="text-dark-300 text-sm mb-2">Payment already initiated. Click below to verify:</p>
+                  <button
+                    type="button"
+                    onClick={handleVerifyPayment}
+                    disabled={submitting}
+                    className="w-full py-3 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white font-semibold rounded-xl shadow-lg transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                  >
+                    {submitting ? <Loader2 className="w-5 h-5 animate-spin" /> : <CheckCircle className="w-5 h-5" />}
+                    Verify Payment
+                  </button>
+                </div>
+              )}
+
+              {/* Submit (Proceed to Payment) */}
+              {!paymentReference && (
+                <button
+                  type="submit"
+                  disabled={submitting}
+                  className="w-full py-3.5 bg-gradient-to-r from-cyan-500 to-cyan-600 hover:from-cyan-600 hover:to-cyan-700 text-white font-semibold rounded-xl shadow-lg transition-all disabled:opacity-50 active:scale-[0.98] flex items-center justify-center gap-2 mt-8"
+                >
+                  {submitting ? (
+                    <>
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      Redirecting to Paystack...
+                    </>
+                  ) : (
+                    <>
+                      <Wallet className="w-5 h-5" />
+                      Proceed to Payment (GHS {AFA_FEE})
+                    </>
+                  )}
+                </button>
+              )}
             </form>
           </div>
         </div>

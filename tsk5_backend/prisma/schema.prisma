@@ -513,21 +513,24 @@ model ReferralCode {
 
 // AFA Registration — user registrations for processing by admin
 model AfaRegistration {
-  id          Int      @id @default(autoincrement())
-  fullName    String   @db.VarChar(255)
-  phoneNumber String   @db.VarChar(20)
-  location    String   @db.VarChar(255)
-  occupation  String?  @db.VarChar(255)
-  idType      String   @db.VarChar(50)   // 'NATIONAL_ID' or 'VOTER_ID'
-  idNumber    String   @db.VarChar(100)
-  status      String   @default("pending") @db.VarChar(20) // pending, approved, rejected
-  adminNotes  String?  @db.Text
-  userId      Int?     // optional link to user who registered
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id            Int      @id @default(autoincrement())
+  fullName      String   @db.VarChar(255)
+  phoneNumber   String   @db.VarChar(20)
+  location      String   @db.VarChar(255)
+  occupation    String?  @db.VarChar(255)
+  idType        String   @db.VarChar(50)   // 'NATIONAL_ID' or 'VOTER_ID'
+  idNumber      String   @db.VarChar(100)
+  status        String   @default("pending") @db.VarChar(20) // pending, approved, rejected
+  adminNotes    String?  @db.Text
+  userId        Int?     // optional link to user who registered
+  paymentRef    String?  @db.VarChar(255)  // Paystack reference
+  paymentStatus String?  @default("unpaid") @db.VarChar(20) // unpaid, paid
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   @@index([status])
   @@index([phoneNumber])
+  @@index([paymentRef])
   @@map("AfaRegistration")
 }
 

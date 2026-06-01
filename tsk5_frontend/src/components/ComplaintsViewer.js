@@ -54,7 +54,6 @@ const ComplaintsViewer = ({ isOpen, onClose }) => {
   const [uploadingId, setUploadingId] = useState(null);
   const [pastingId, setPastingId] = useState(null);
   const fileInputRef = useRef(null);
-  const pasteInputRef = useRef(null);
   const statusFilterRef = useRef(statusFilter);
   const socketRef = useRef(null);
 
@@ -190,6 +189,49 @@ const ComplaintsViewer = ({ isOpen, onClose }) => {
       Swal.fire({ icon: 'error', title: 'Upload Failed', text: err.response?.data?.message || 'Failed to upload image', background: '#1e293b', color: '#f1f5f9' });
     } finally {
       setUploadingId(null);
+    }
+  };
+
+  // Paste image from clipboard using navigator.clipboard API
+  const handlePasteClipboard = async (complaintId) => {
+    try {
+      // Check if clipboard API is available
+      if (!navigator.clipboard || !navigator.clipboard.read) {
+        Swal.fire({
+          icon: 'warning', title: 'Clipboard Not Supported',
+          text: 'Your browser does not support reading from clipboard. Try using the upload button instead.',
+          background: '#1e293b', color: '#f1f5f9'
+        });
+        return;
+      }
+
+      setPastingId(complaintId);
+      const clipboardItems = await navigator.clipboard.read();
+      for (const item of clipboardItems) {
+        for (const type of item.types) {
+          if (type.startsWith('image/')) {
+            const blob = await item.getType(type);
+            const file = new File([blob], 'pasted-image.png', { type });
+            await handleUploadProof(complaintId, file);
+            setPastingId(null);
+            return;
+          }
+        }
+      }
+      setPastingId(null);
+
+      Swal.fire({
+        icon: 'info', title: 'No Image Found',
+        text: 'No image was found in your clipboard. Copy an image first, then try again.',
+        background: '#1e293b', color: '#f1f5f9'
+      });
+    } catch (err) {
+      setPastingId(null);
+      Swal.fire({
+        icon: 'error', title: 'Paste Failed',
+        text: 'Could not read from clipboard. Try using the upload button instead.',
+        background: '#1e293b', color: '#f1f5f9'
+      });
     }
   };
 
@@ -378,13 +420,7 @@ const ComplaintsViewer = ({ isOpen, onClose }) => {
                               {uploadingId === complaint.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
                             </button>
                             <button
-                              onClick={() => {
-                                if (pasteInputRef.current) {
-                                  pasteInputRef.current.dataset.complaintId = complaint.id;
-                                  pasteInputRef.current.focus();
-                                  pasteInputRef.current.click();
-                                }
-                              }}
+                              onClick={() => handlePasteClipboard(complaint.id)}
                               disabled={pastingId === complaint.id}
                               className="p-2 bg-cyan-500/20 text-cyan-400 rounded-lg hover:bg-cyan-500/30 disabled:opacity-50"
                               title="Paste image from clipboard"
@@ -442,45 +478,6 @@ const ComplaintsViewer = ({ isOpen, onClose }) => {
         </div>
       )}
 
-      {/* Hidden textarea for clipboard paste */}
-      <textarea
-        ref={pasteInputRef}
-        className="fixed opacity-0 pointer-events-none w-0 h-0"
-        tabIndex={-1}
-        onChange={async (e) => {
-          e.preventDefault();
-        }}
-        onPaste={async (e) => {
-          e.preventDefault();
-          const complaintId = e.target.dataset.complaintId;
-          if (!complaintId) return;
-          const items = e.clipboardData?.items;
-          if (!items) return;
-          for (let i = 0; i < items.length; i++) {
-            if (items[i].type.startsWith('image/')) {
-              const file = items[i].getAsFile();
-              if (file) {
-                setPastingId(parseInt(complaintId));
-                try {
-                  const token = localStorage.getItem('token');
-                  const formData = new FormData();
-                  formData.append('proofImage', file, 'pasted-image.png');
-                  await axios.post(`${BASE_URL}/api/complaints/${complaintId}/proof-image`, formData, {
-                    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' }
-                  });
-                  Swal.fire({ icon: 'success', title: 'Image Pasted!', timer: 1500, background: '#1e293b', color: '#f1f5f9' });
-                  fetchComplaints();
-                } catch (err) {
-                  Swal.fire({ icon: 'error', title: 'Paste Failed', text: err.response?.data?.message || 'Failed to upload pasted image', background: '#1e293b', color: '#f1f5f9' });
-                } finally {
-                  setPastingId(null);
-                }
-              }
-              break;
-            }
-          }
-        }}
-      />
     </>
   );
 };
