@@ -157,6 +157,42 @@ const trackOrders = async ({ mobileNumber, orderNumber }) => {
     take: 20
   });
 
+  // Fetch related complaints for these orders
+  if (orders.length > 0) {
+    const orderIds = orders.map(o => o.id);
+    const orderItemIds = orders.flatMap(o => o.items.map(i => i.id));
+
+    const complaints = await prisma.complaint.findMany({
+      where: {
+        OR: [
+          { orderId: { in: orderIds } },
+          { orderItemId: { in: orderItemIds } }
+        ]
+      },
+      select: {
+        id: true,
+        orderId: true,
+        orderItemId: true,
+        status: true,
+        refundStatus: true,
+        message: true,
+        adminNotes: true,
+        proofImage: true,
+        createdAt: true,
+        updatedAt: true
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    // Attach complaints to their orders
+    return orders.map(order => ({
+      ...order,
+      complaints: complaints.filter(
+        c => c.orderId === order.id || (c.orderItemId && order.items.some(i => i.id === c.orderItemId))
+      )
+    }));
+  }
+
   return orders;
 };
 

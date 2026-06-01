@@ -2,9 +2,8 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import axios from 'axios';
 import Swal from 'sweetalert2';
-import { Package, Loader2, Phone, XCircle, Shield, X, Filter, Wifi, Zap, Star, ArrowRight, Search, MessageSquareWarning, CheckCircle, Clock, BadgeCheck } from 'lucide-react';
+import { Package, Loader2, Phone, XCircle, Shield, Wifi, Zap, Star, ArrowRight, Search, CheckCircle, Clock, BadgeCheck, Filter, X, AlertTriangle, Image as ImageIcon, ExternalLink } from 'lucide-react';
 import BASE_URL from '../endpoints/endpoints';
-import ComplaintModal from '../components/ComplaintModal';
 import ShopFloatingChatButton from '../components/ShopFloatingChatButton';
 
 const PublicStorefront = () => {
@@ -24,11 +23,11 @@ const PublicStorefront = () => {
   
   // Tracking and Complaints
   const [showTrackingModal, setShowTrackingModal] = useState(false);
-  const [showComplaintModal, setShowComplaintModal] = useState(false);
   const [trackingNumber, setTrackingNumber] = useState('');
   const [trackingMode, setTrackingMode] = useState('phone'); // 'phone' | 'order'
   const [trackedOrders, setTrackedOrders] = useState([]);
   const [isTracking, setIsTracking] = useState(false);
+  const [selectedProofImage, setSelectedProofImage] = useState(null);
   
   // Prevent duplicate payment verification
   const verifiedRefsRef = React.useRef(new Set());
@@ -290,6 +289,63 @@ const PublicStorefront = () => {
     }
   };
 
+  const handleNotReceived = async (order, item) => {
+    // Pre-fill the complaint using order details
+    const { value: phone } = await Swal.fire({
+      title: 'Not Received?',
+      text: `Report that item "${item.productName}" was not delivered. Enter your mobile number to track the complaint status.`,
+      input: 'tel',
+      inputValue: order.mobileNumber || item.mobileNumber || '',
+      inputPlaceholder: '0XX XXX XXXX',
+      showCancelButton: true,
+      confirmButtonColor: '#ef4444',
+      confirmButtonText: 'Submit Complaint',
+      cancelButtonText: 'Cancel',
+      background: '#1e293b',
+      color: '#f1f5f9',
+      inputValidator: (value) => {
+        if (!value || value.replace(/\D/g, '').length < 9) return 'Please enter a valid mobile number';
+      }
+    });
+
+    if (!phone) return;
+
+    setIsTracking(true);
+    try {
+      const cleanedPhone = phone.replace(/\D/g, '');
+      await axios.post(`${BASE_URL}/api/complaints`, {
+        mobileNumber: cleanedPhone,
+        orderId: order.id,
+        orderItemId: item.id,
+        message: `Item not received: ${item.productName} (${item.productDescription || ''}) - Order #${order.orderNumber || order.id}`,
+        complaintDate: new Date().toISOString().split('T')[0],
+        complaintTime: new Date().toTimeString().split(' ')[0].slice(0, 5)
+      });
+      
+      await Swal.fire({
+        icon: 'success',
+        title: 'Complaint Submitted',
+        text: 'Admin has been notified. Track your order again later to see updates.',
+        background: '#1e293b',
+        color: '#f1f5f9',
+        confirmButtonColor: '#06b6d4'
+      });
+      
+      // Re-track to get updated complaints
+      await trackOrder();
+    } catch (err) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Submission Failed',
+        text: err.response?.data?.message || 'Failed to submit complaint.',
+        background: '#1e293b',
+        color: '#f1f5f9'
+      });
+    } finally {
+      setIsTracking(false);
+    }
+  };
+
   const getStatusColor = (status) => {
     switch (status?.toLowerCase()) {
       case 'completed': return 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20';
@@ -354,13 +410,6 @@ const PublicStorefront = () => {
               </div>
             </div>
             <div className="flex items-center gap-2 sm:gap-3">
-              <button
-                onClick={() => setShowComplaintModal(true)}
-                className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 rounded-xl text-red-300 font-medium transition-all active:scale-95"
-              >
-                <MessageSquareWarning className="w-4 h-4" />
-                <span className="hidden sm:inline text-sm">Support</span>
-              </button>
               <button
                 onClick={() => setShowTrackingModal(true)}
                 className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-5 py-2 sm:py-2.5 bg-gradient-to-r from-cyan-500 to-emerald-500 rounded-xl text-white text-sm sm:text-base font-semibold shadow-lg shadow-emerald-500/25 hover:from-cyan-600 hover:to-emerald-600 transition-all active:scale-95"
@@ -571,24 +620,86 @@ const PublicStorefront = () => {
 
               {trackedOrders.length > 0 && (
                 <div className="space-y-3 sm:space-y-4">
-                  {trackedOrders.map((order) => (
-                    <div key={`${order.orderNumber || order.orderId}`} className="bg-dark-900/50 rounded-xl p-3 sm:p-4 border border-dark-700">
-                      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2 mb-2 sm:mb-3">
-                        <div className="min-w-0">
-                          <p className="text-white font-semibold text-sm sm:text-base">Order {order.orderNumber ? `#${order.orderNumber}` : `#${order.orderId}`}</p>
-                          <p className="text-dark-500 text-xs sm:text-sm">{new Date(order.createdAt).toLocaleDateString()}</p>
+                  {trackedOrders.map((order) => {
+                    const completedItems = order.items?.filter(i => i.status?.toLowerCase() === 'completed') || [];
+                    const orderComplaints = order.complaints || [];
+
+                    return (
+                      <div key={`${order.orderNumber || order.orderId}`} className="bg-dark-900/50 rounded-xl p-3 sm:p-4 border border-dark-700">
+                        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2 mb-2 sm:mb-3">
+                          <div className="min-w-0">
+                            <p className="text-white font-semibold text-sm sm:text-base">Order {order.orderNumber ? `#${order.orderNumber}` : `#${order.orderId}`}</p>
+                            <p className="text-dark-500 text-xs sm:text-sm">{new Date(order.createdAt).toLocaleDateString()}</p>
+                          </div>
+                          <span className={`inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1 rounded-full text-xs font-medium border whitespace-nowrap flex-shrink-0 ${getStatusColor(order.items?.[0]?.status)}`}>
+                            {getStatusIcon(order.items?.[0]?.status)} {order.items?.[0]?.status || 'Pending'}
+                          </span>
                         </div>
-                        <span className={`inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1 rounded-full text-xs font-medium border whitespace-nowrap flex-shrink-0 ${getStatusColor(order.items?.[0]?.status)}`}>
-                          {getStatusIcon(order.items?.[0]?.status)} {order.items?.[0]?.status || 'Pending'}
-                        </span>
+                        {order.items?.map((item, idx) => {
+                          // Find complaints for this specific item
+                          const itemComplaints = orderComplaints.filter(c => c.orderItemId === item.id);
+
+                          return (
+                            <div key={idx} className="space-y-2">
+                              <div className="flex items-center justify-between gap-2">
+                                <div className="text-dark-300 text-xs sm:text-sm break-words flex-1">
+                                  <span className="text-white font-medium">{item.productName}</span> - {item.productDescription}
+                                </div>
+                                {/* Show "Not Received" button only for completed items with no active complaint */}
+                                {item.status?.toLowerCase() === 'completed' && itemComplaints.length === 0 && (
+                                  <button
+                                    onClick={() => handleNotReceived(order, item)}
+                                    disabled={isTracking}
+                                    className="shrink-0 flex items-center gap-1 px-2.5 py-1.5 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 rounded-lg text-red-300 text-xs font-medium transition-all disabled:opacity-50"
+                                  >
+                                    <AlertTriangle className="w-3.5 h-3.5" />
+                                    <span>Not Received</span>
+                                  </button>
+                                )}
+                              </div>
+
+                              {/* Show complaint status for items with active complaints */}
+                              {itemComplaints.map((complaint) => (
+                                <div key={complaint.id} className="mt-2 p-2.5 bg-dark-800/80 rounded-lg border border-dark-600 space-y-1.5">
+                                  <div className="flex items-center gap-2">
+                                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium border ${
+                                      complaint.status === 'resolved' ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' :
+                                      complaint.status === 'reviewed' ? 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30' :
+                                      'bg-amber-500/20 text-amber-400 border-amber-500/30'
+                                    }`}>
+                                      {complaint.status === 'resolved' ? <CheckCircle className="w-3 h-3" /> :
+                                       complaint.status === 'reviewed' ? <Clock className="w-3 h-3" /> :
+                                       <AlertTriangle className="w-3 h-3" />}
+                                      <span className="capitalize">{complaint.status}</span>
+                                    </span>
+                                    <span className="text-dark-500 text-[10px]">
+                                      {new Date(complaint.createdAt).toLocaleDateString()}
+                                    </span>
+                                  </div>
+                                  {complaint.adminNotes && (
+                                    <p className="text-dark-200 text-xs whitespace-pre-wrap">
+                                      <span className="text-cyan-400 font-medium">Admin: </span>
+                                      {complaint.adminNotes}
+                                    </p>
+                                  )}
+                                  {complaint.proofImage && (
+                                    <button
+                                      onClick={() => setSelectedProofImage(`${BASE_URL}/api/complaints/image/${complaint.proofImage.split('/').pop()}`)}
+                                      className="flex items-center gap-1.5 text-emerald-400 hover:text-emerald-300 text-xs mt-1 transition-colors"
+                                    >
+                                      <ImageIcon className="w-3.5 h-3.5" />
+                                      <span>View Proof Image</span>
+                                      <ExternalLink className="w-3 h-3" />
+                                    </button>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          );
+                        })}
                       </div>
-                      {order.items?.map((item, idx) => (
-                        <div key={idx} className="text-dark-300 text-xs sm:text-sm break-words">
-                          <span className="text-white font-medium">{item.productName}</span> - {item.productDescription}
-                        </div>
-                      ))}
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -596,8 +707,23 @@ const PublicStorefront = () => {
         </div>
       )}
 
-      <ComplaintModal isOpen={showComplaintModal} onClose={() => setShowComplaintModal(false)} />
       <ShopFloatingChatButton />
+      
+      {/* Proof Image Preview Modal */}
+      {selectedProofImage && (
+        <div className="fixed inset-0 bg-black/90 backdrop-blur-sm flex items-center justify-center z-[60] p-4" onClick={() => setSelectedProofImage(null)}>
+          <button onClick={() => setSelectedProofImage(null)} className="absolute top-4 right-4 p-2 bg-white/10 hover:bg-white/20 rounded-lg z-10">
+            <X className="w-6 h-6 text-white" />
+          </button>
+          <img
+            src={selectedProofImage}
+            alt="Proof"
+            className="max-w-full max-h-[90vh] rounded-xl shadow-2xl object-contain"
+            onClick={(e) => e.stopPropagation()}
+            onError={(e) => { e.target.style.display = 'none'; }}
+          />
+        </div>
+      )}
       
       {/* WhatsApp Contact Bubble */}
       {storefront?.agent?.whatsapp && (
