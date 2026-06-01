@@ -97,7 +97,7 @@ const ComplaintsViewer = ({ isOpen, onClose }) => {
     }
   }, []);
 
-  const fetchPendingCount = async () => {
+  const fetchPendingCount = useCallback(async () => {
     const token = localStorage.getItem('token');
     const role = localStorage.getItem('role');
     if (!token || role?.toUpperCase() !== 'ADMIN') return;
@@ -107,7 +107,7 @@ const ComplaintsViewer = ({ isOpen, onClose }) => {
       });
       setPendingCount(res.data.data?.count || 0);
     } catch (err) { /* silent */ }
-  };
+  }, []);
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -120,7 +120,7 @@ const ComplaintsViewer = ({ isOpen, onClose }) => {
 
   useEffect(() => {
     if (isOpen) fetchComplaints();
-  }, [isOpen, statusFilter]);
+  }, [isOpen, statusFilter, fetchComplaints]);
 
   useEffect(() => {
     if (!isOpen) {
@@ -131,7 +131,7 @@ const ComplaintsViewer = ({ isOpen, onClose }) => {
     socketRef.current = socket;
     socket.on('new-complaint', () => { fetchComplaints(); fetchPendingCount(); });
     return () => { socket.disconnect(); socketRef.current = null; };
-  }, [isOpen]);
+  }, [isOpen, fetchComplaints, fetchPendingCount]);
 
   const handleUpdateStatus = async (id, newStatus, adminNotes = '') => {
     try {
@@ -192,7 +192,7 @@ const ComplaintsViewer = ({ isOpen, onClose }) => {
     } finally {
       setUploadingId(null);
     }
-  }, []);
+  }, [fetchComplaints]);
 
   // Paste image from clipboard using a hidden textarea + paste event.
   // This works on all browsers (PC + mobile) without requiring clipboard-read permission.
