@@ -28,12 +28,15 @@ const emitTopupBalanceUpdate = async (userId, type = 'TOPUP', amount = 0) => {
 // Initialize Paystack payment for wallet top-up
 const initializeTopup = async (req, res) => {
   try {
-    const { userId, amount } = req.body;
+    // userId MUST come from the authenticated JWT token, not from req.body.
+    // Otherwise User A could top up User B's wallet by injecting a different userId.
+    const userId = req.user.id;
+    const { amount } = req.body;
 
-    if (!userId || !amount) {
+    if (!amount) {
       return res.status(400).json({
         success: false,
-        message: "User ID and amount are required",
+        message: "Amount is required",
       });
     }
 
@@ -124,6 +127,17 @@ const verifyTopup = async (req, res) => {
 // Handle Paystack webhook for top-ups
 const handleWebhook = async (req, res) => {
   try {
+    // Verify webhook signature (same pattern as paymentController)
+    const crypto = require('crypto');
+    const hash = crypto.createHmac('sha512', process.env.PAYSTACK_SECRET_KEY)
+      .update(JSON.stringify(req.body))
+      .digest('hex');
+    
+    if (hash !== req.headers['x-paystack-signature']) {
+      console.error('Invalid Paystack webhook signature on topup webhook');
+      return res.status(400).json({ success: false, error: 'Invalid signature' });
+    }
+
     const result = await topupPaymentService.handleTopupWebhook(req.body);
     res.status(200).json(result);
   } catch (error) {
@@ -171,12 +185,15 @@ const deleteTopup = async (req, res) => {
 // Verify top-up using Transaction ID (SMS verification)
 const verifyTransactionId = async (req, res) => {
   try {
-    const { userId, referenceId } = req.body;
+    // userId MUST come from the authenticated JWT token, never from req.body.
+    // Otherwise User A could credit User B's wallet using User B's transaction ID.
+    const userId = req.user.id;
+    const { referenceId } = req.body;
 
-    if (!userId || !referenceId) {
+    if (!referenceId) {
       return res.status(400).json({
         success: false,
-        message: "User ID and Transaction ID are required",
+        message: "Transaction ID is required",
       });
     }
 

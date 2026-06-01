@@ -5,6 +5,7 @@ const complaintController = require('../controllers/complaintController');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const rateLimiter = require('../middleware/rateLimiter');
 
 // Ensure uploads directory exists for complaint proof images
 const uploadDir = path.join(__dirname, '../uploads/complaints');
@@ -32,9 +33,13 @@ const proofUpload = multer({
 const authMiddleware = require('../middleware/authMiddleware');
 const adminMiddleware = require('../middleware/adminMiddleware');
 
+// Rate limiters for public complaint endpoints
+const complaintCreateLimiter = rateLimiter({ windowMs: 60000, maxRequests: 10 }); // 10 complaints/min per IP
+const complaintTrackLimiter = rateLimiter({ windowMs: 60000, maxRequests: 30 });  // 30 track requests/min per IP
+
 // Public routes (for shop customers)
-router.post('/', complaintController.createComplaint);
-router.get('/track/:mobileNumber', complaintController.getComplaintsByMobile);
+router.post('/', complaintCreateLimiter, complaintController.createComplaint);
+router.get('/track/:mobileNumber', complaintTrackLimiter, complaintController.getComplaintsByMobile);
 
 // Protected routes (authenticated users)
 router.post('/order-item-status', authMiddleware, complaintController.getComplaintsByOrderItemIds);

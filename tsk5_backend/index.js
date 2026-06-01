@@ -154,11 +154,22 @@ module.exports = { app, io, userSockets, socketUsers };
 
 app.set('io', io);
 app.use(express.json());
-app.use(cors());
+// Restrict CORS to the known frontend origin(s) to prevent cross-origin abuse
+const allowedOrigins = (process.env.FRONTEND_URL || 'http://localhost:3000').split(',').map(s => s.trim());
+app.use(cors({
+  origin: (origin, cb) => {
+    // Allow requests with no origin (server-to-server, curl, etc.)
+    if (!origin) return cb(null, true);
+    if (allowedOrigins.some(o => origin.startsWith(o))) return cb(null, true);
+    cb(new Error('Not allowed by CORS'));
+  }
+}));
 app.use(helmet());
 
-// Serve uploaded complaint proof images
-app.use('/uploads/complaints', express.static(require('path').join(__dirname, 'uploads/complaints')));
+// REMOVED: Static file serving for complaint images is removed for security.
+// All complaint images are served through the controller route
+// (GET /api/complaints/image/:filename) which has directory traversal protection
+// via path.basename() and proper error handling.
 
 // Health check endpoint for Railway
 app.get('/health', (req, res) => {
