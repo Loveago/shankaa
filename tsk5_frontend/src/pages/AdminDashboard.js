@@ -23,6 +23,7 @@ import StorefrontWithdrawalAdmin from '../components/StorefrontWithdrawalAdmin';
 import ReferralCodeManager from '../components/ReferralCodeManager';
 import ManageStorefront from '../components/ManageStorefront';
 import AfaRegistrationAdmin from '../components/AfaRegistrationAdmin';
+import MtnExpressAdmin from '../components/MtnExpressAdmin';
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
@@ -510,6 +511,7 @@ const AdminDashboard = () => {
     { id: 'products', label: 'Products', icon: Package },
     { id: 'referralCodes', label: 'Referral Codes', icon: Gift },
     { id: 'settings', label: 'Settings', icon: Settings },
+    { id: 'mtnExpress', label: 'MTN Express', icon: Wifi },
     { id: 'afaRegistration', label: 'AFA Registration', icon: FileText },
     { id: 'orderFiles', label: 'Order Files', icon: FileText }
   ];
@@ -575,6 +577,10 @@ const AdminDashboard = () => {
           <button onClick={() => { setActiveTab('settings'); setIsSidebarOpen(false); }}
             className="w-full flex items-center gap-3 px-4 py-3 text-dark-300 hover:text-white hover:bg-dark-700/50 rounded-xl transition-all">
             <Settings className="w-5 h-5" /><span>Settings</span>
+          </button>
+          <button onClick={() => { setActiveTab('mtnExpress'); setIsSidebarOpen(false); }}
+            className="w-full flex items-center gap-3 px-4 py-3 text-dark-300 hover:text-white hover:bg-dark-700/50 rounded-xl transition-all">
+            <Wifi className="w-5 h-5" /><span>MTN Express</span>
           </button>
           <button onClick={() => { setActiveTab('afaRegistration'); setIsSidebarOpen(false); }}
             className="w-full flex items-center gap-3 px-4 py-3 text-dark-300 hover:text-white hover:bg-dark-700/50 rounded-xl transition-all">
@@ -1025,6 +1031,11 @@ const AdminDashboard = () => {
                 </div>
               )}
 
+              {activeTab === 'mtnExpress' && (
+                <div className="bg-dark-800/50 backdrop-blur rounded-2xl border border-dark-700 p-6">
+                  <MtnExpressAdmin />
+                </div>
+              )}
               {activeTab === 'afaRegistration' && (
                 <div className="bg-dark-800/50 backdrop-blur rounded-2xl border border-dark-700 p-6">
                   <AfaRegistrationAdmin />

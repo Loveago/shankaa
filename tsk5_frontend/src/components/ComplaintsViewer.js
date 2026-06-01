@@ -252,6 +252,32 @@ const ComplaintsViewer = ({ isOpen, onClose }) => {
     }
   };
 
+  const handleDeleteImage = async (id) => {
+    const result = await Swal.fire({
+      title: 'Delete Proof Image?',
+      text: 'Remove the uploaded proof screenshot from this complaint?',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#ef4444',
+      confirmButtonText: 'Yes, Delete Image',
+      cancelButtonText: 'Cancel',
+      background: '#1e293b',
+      color: '#f1f5f9'
+    });
+    if (result.isConfirmed) {
+      try {
+        const token = localStorage.getItem('token');
+        await axios.delete(`${BASE_URL}/api/complaints/${id}/proof-image`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        Swal.fire({ icon: 'success', title: 'Image Deleted', timer: 1500, background: '#1e293b', color: '#f1f5f9' });
+        fetchComplaints();
+      } catch (err) {
+        Swal.fire({ icon: 'error', title: 'Delete Failed', text: err.response?.data?.message || 'Failed to delete image', background: '#1e293b', color: '#f1f5f9' });
+      }
+    }
+  };
+
   const getStatusStyle = (status) => {
     switch (status) {
       case 'pending': return 'bg-amber-500/20 text-amber-400 border-amber-500/30';
@@ -374,25 +400,34 @@ const ComplaintsViewer = ({ isOpen, onClose }) => {
 
                         {/* Proof image thumbnail */}
                         {complaint.proofImage && (
-                          <button
-                            onClick={() => setSelectedImage(getImageUrl(complaint.proofImage))}
-                            className="mt-2 flex items-center gap-2 px-3 py-2 bg-dark-800 border border-dark-600 rounded-lg hover:border-emerald-500/30 transition-colors group"
-                          >
-                            <div className="w-14 h-14 bg-dark-700 rounded-lg overflow-hidden flex items-center justify-center border border-dark-600 shrink-0">
-                              <img
-                                src={getImageUrl(complaint.proofImage)}
-                                alt="Proof"
-                                className="w-full h-full object-cover"
-                                onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }}
-                              />
-                              <ImageIcon className="w-5 h-5 text-dark-400 hidden" />
-                            </div>
-                            <div className="text-left">
-                              <span className="text-xs text-emerald-400 font-medium">Proof Screenshot</span>
-                              <span className="text-xs text-dark-500 block">Click to view full image</span>
-                            </div>
-                            <ExternalLink className="w-4 h-4 text-dark-400 ml-auto group-hover:text-emerald-400" />
-                          </button>
+                          <div className="mt-2 flex items-center gap-2">
+                            <button
+                              onClick={() => setSelectedImage(getImageUrl(complaint.proofImage))}
+                              className="flex items-center gap-2 px-3 py-2 bg-dark-800 border border-dark-600 rounded-lg hover:border-emerald-500/30 transition-colors group flex-1"
+                            >
+                              <div className="w-14 h-14 bg-dark-700 rounded-lg overflow-hidden flex items-center justify-center border border-dark-600 shrink-0">
+                                <img
+                                  src={getImageUrl(complaint.proofImage)}
+                                  alt="Proof"
+                                  className="w-full h-full object-cover"
+                                  onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }}
+                                />
+                                <ImageIcon className="w-5 h-5 text-dark-400 hidden" />
+                              </div>
+                              <div className="text-left">
+                                <span className="text-xs text-emerald-400 font-medium">Proof Screenshot</span>
+                                <span className="text-xs text-dark-500 block">Click to view full image</span>
+                              </div>
+                              <ExternalLink className="w-4 h-4 text-dark-400 ml-auto group-hover:text-emerald-400" />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteImage(complaint.id)}
+                              className="p-2 bg-red-500/20 text-red-400 rounded-lg hover:bg-red-500/30 transition-colors shrink-0"
+                              title="Delete proof image"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
                         )}
 
                         {complaint.adminNotes && (

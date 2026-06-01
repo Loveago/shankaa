@@ -46,8 +46,9 @@ router.get('/item/:orderItemId', authMiddleware, complaintController.getComplain
 
 // Serve complaint proof images (no auth required for display)
 router.get('/image/:filename', complaintController.getProofImage);
-// Admin: upload proof image
+// Admin: upload/delete proof image
 router.post('/:id/proof-image', authMiddleware, adminMiddleware, proofUpload.single('proofImage'), complaintController.uploadProofImage);
+router.delete('/:id/proof-image', authMiddleware, adminMiddleware, complaintController.deleteProofImage);
 
 // Protected routes (Admin only)
 router.get('/', authMiddleware, adminMiddleware, complaintController.getAllComplaints);

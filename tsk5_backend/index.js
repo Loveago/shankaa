@@ -28,6 +28,7 @@ const userApiRoutes = require('./routes/userApiRoutes');
 const settingsRoutes = require('./routes/settingsRoutes');
 const afaRegistrationRoutes = require('./routes/afaRegistrationRoutes');
 const skanka5WebhookRoutes = require('./routes/skanka5WebhookRoutes');
+const mtnExpressRoutes = require('./routes/mtnExpressRoutes');
 const { seedAdminUser } = require('./services/adminSeedService');
 
 const app = express();
@@ -191,6 +192,7 @@ app.use('/api/user-api', userApiRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/afa-registration', afaRegistrationRoutes);
 app.use('/api/skanka5', skanka5WebhookRoutes);
+app.use('/api/mtn-express', mtnExpressRoutes);
 
 const PORT = process.env.PORT || 5000;
 

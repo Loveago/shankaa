@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { X, Search, Phone, Clock, Package, CreditCard, MessageCircle, Filter, ChevronRight, Calendar, User, DollarSign, XCircle } from 'lucide-react';
+import { X, Search, Phone, Clock, Package, CreditCard, MessageCircle, Filter, ChevronRight, Calendar, User, DollarSign, XCircle, Loader2 } from 'lucide-react';
 import axios from 'axios';
 import Swal from 'sweetalert2';
 import BASE_URL from '../endpoints/endpoints';
@@ -115,19 +115,40 @@ const OrderHistory = ({ isOpen, onClose, orderHistory = [], onOrderCancelled }) 
     }
   };
 
-  const openWhatsApp = (item, order) => {
-    const url = `https://wa.me/233246444787?text=${encodeURIComponent(
-      `Hello, I have a complaint about my order:\n\n` +
-      `Order ID: ${order.id}\n` +
-      `Item ID: ${item.id}\n` +
-      `Phone: ${item.mobileNumber || 'N/A'}\n` +
-      `Date: ${new Date(order.createdAt).toLocaleDateString()}\n` +
-      `Item: ${item.product?.name || 'Unknown'}\n` +
-      `Bundle: ${item.product?.description || 'Unknown'}\n` +
-      `Status: ${item.status}\n\n` +
-      `Please assist me with this order.`
-    )}`;
-    window.open(url, '_blank');
+  const [complaintModal, setComplaintModal] = useState(null);
+  const [complaintMessage, setComplaintMessage] = useState('');
+  const [submittingComplaint, setSubmittingComplaint] = useState(false);
+  const [complaintWhatsapp, setComplaintWhatsapp] = useState('');
+
+  const handleReportIssue = (item, order) => {
+    setComplaintWhatsapp(item.mobileNumber || '');
+    setComplaintMessage(`Issue with Order #${order.id}, Item #${item.id} - ${item.product?.name || 'Unknown'} (${item.product?.description || ''})`);
+    setComplaintModal({ item, order });
+  };
+
+  const submitComplaint = async () => {
+    if (!complaintMessage.trim()) {
+      Swal.fire({ icon: 'warning', title: 'Empty Message', text: 'Please describe your issue', background: '#1e293b', color: '#f1f5f9' });
+      return;
+    }
+    setSubmittingComplaint(true);
+    try {
+      const { item, order } = complaintModal;
+      await axios.post(`${BASE_URL}/api/complaints`, {
+        orderId: order.id ? String(order.id) : undefined,
+        orderItemId: item.id,
+        mobileNumber: item.mobileNumber || order.userId?.toString() || '',
+        whatsappNumber: complaintWhatsapp || null,
+        message: complaintMessage.trim()
+      });
+      Swal.fire({ icon: 'success', title: 'Complaint Submitted', text: 'Your issue has been reported. Admin will follow up.', timer: 2500, showConfirmButton: false, background: '#1e293b', color: '#f1f5f9' });
+      setComplaintModal(null);
+      setComplaintMessage('');
+    } catch (err) {
+      Swal.fire({ icon: 'error', title: 'Submission Failed', text: err.response?.data?.message || 'Failed to submit complaint', background: '#1e293b', color: '#f1f5f9' });
+    } finally {
+      setSubmittingComplaint(false);
+    }
   };
 
   if (!isOpen) return null;
@@ -260,7 +281,7 @@ const OrderHistory = ({ isOpen, onClose, orderHistory = [], onOrderCancelled }) 
             {item.status === 'Completed' && (
               <button
                 onClick={() => {
-                  openWhatsApp(item, order);
+                  handleReportIssue(item, order);
                   onClose();
                 }}
                 className="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-semibold py-3 px-4 rounded-xl transition-colors flex items-center justify-center gap-2"
@@ -465,11 +486,66 @@ const OrderHistory = ({ isOpen, onClose, orderHistory = [], onOrderCancelled }) 
 
         {/* Order Detail Modal */}
         {selectedOrder && (
-          <OrderDetailModal 
+          <OrderDetailModal
             item={selectedOrder.item}
             order={selectedOrder.order}
             onClose={() => setSelectedOrder(null)}
           />
+        )}
+
+        {/* Complaint Modal */}
+        {complaintModal && (
+          <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-[70] p-4" onMouseDown={(e) => { if (e.target === e.currentTarget) setComplaintModal(null); }}>
+            <div className="bg-dark-800 border border-dark-700 rounded-2xl p-6 w-full max-w-lg" onMouseDown={(e) => e.stopPropagation()}>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-bold text-white">Report an Issue</h3>
+                <button onClick={() => setComplaintModal(null)} className="p-1.5 bg-dark-700 hover:bg-dark-600 rounded-lg">
+                  <X className="w-5 h-5 text-dark-300" />
+                </button>
+              </div>
+              <div className="space-y-3 mb-4">
+                <p className="text-sm text-dark-300">
+                  Item: <span className="text-white font-medium">{complaintModal.item.product?.name || 'Unknown'}</span>
+                </p>
+                <p className="text-sm text-dark-300">
+                  Order #<span className="text-white font-medium">{complaintModal.order.id}</span> | Item #<span className="text-white font-medium">{complaintModal.item.id}</span>
+                </p>
+                <div>
+                  <label className="block text-xs text-dark-400 mb-1">WhatsApp Number (optional)</label>
+                  <input
+                    type="text"
+                    value={complaintWhatsapp}
+                    onChange={(e) => setComplaintWhatsapp(e.target.value)}
+                    placeholder="024xxxxxxx"
+                    className="w-full bg-dark-900 border border-dark-600 rounded-xl px-4 py-2.5 text-white text-sm placeholder-dark-500 focus:border-cyan-500 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-dark-400 mb-1">Describe your issue</label>
+                  <textarea
+                    value={complaintMessage}
+                    onChange={(e) => setComplaintMessage(e.target.value)}
+                    placeholder="Please describe the issue with this order..."
+                    rows={4}
+                    className="w-full bg-dark-900 border border-dark-600 rounded-xl px-4 py-2.5 text-white text-sm placeholder-dark-500 focus:border-cyan-500 focus:outline-none resize-none"
+                  />
+                </div>
+              </div>
+              <div className="flex gap-3">
+                <button onClick={() => setComplaintModal(null)} className="flex-1 px-4 py-2.5 bg-dark-700 text-dark-300 rounded-xl hover:bg-dark-600 font-medium">
+                  Cancel
+                </button>
+                <button
+                  onClick={submitComplaint}
+                  disabled={submittingComplaint || !complaintMessage.trim()}
+                  className="flex-1 px-4 py-2.5 bg-emerald-500 text-white rounded-xl hover:bg-emerald-600 font-medium disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {submittingComplaint ? <Loader2 className="w-4 h-4 animate-spin" /> : <MessageCircle className="w-4 h-4" />}
+                  {submittingComplaint ? 'Submitting...' : 'Submit Complaint'}
+                </button>
+              </div>
+            </div>
+          </div>
         )}
       </div>
     </div>

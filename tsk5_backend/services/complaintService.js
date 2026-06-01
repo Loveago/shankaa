@@ -116,6 +116,34 @@ class ComplaintService {
     }
   }
 
+  // Delete proof image from a complaint (admin)
+  async deleteProofImage(id) {
+    try {
+      const complaint = await prisma.complaint.findUnique({
+        where: { id: parseInt(id) }
+      });
+      if (!complaint) throw new Error('Complaint not found');
+      if (!complaint.proofImage) throw new Error('No proof image to delete');
+
+      // Delete the physical file from disk
+      const filename = complaint.proofImage.split('/').pop();
+      const filePath = path.join(__dirname, '../uploads/complaints', filename);
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+      }
+
+      // Clear the proofImage field in database
+      const updated = await prisma.complaint.update({
+        where: { id: parseInt(id) },
+        data: { proofImage: null }
+      });
+
+      return updated;
+    } catch (error) {
+      throw new Error(`Failed to delete proof image: ${error.message}`);
+    }
+  }
+
   // Refund complaint
   async refundComplaint(id, adminUserId) {
     try {

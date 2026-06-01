@@ -107,6 +107,17 @@ class ComplaintController {
     }
   }
 
+  // Delete proof image from a complaint (Admin only)
+  async deleteProofImage(req, res) {
+    try {
+      const { id } = req.params;
+      const complaint = await complaintService.deleteProofImage(id);
+      res.status(200).json({ success: true, data: complaint, message: 'Proof image deleted successfully' });
+    } catch (error) {
+      res.status(500).json({ success: false, message: error.message });
+    }
+  }
+
   // Get complaints by mobile number (public)
   async getComplaintsByMobile(req, res) {
     try {

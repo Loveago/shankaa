@@ -537,6 +537,24 @@ model AfaRegistration {
   @@map("AfaRegistration")
 }
 
+// MTN Express Bundle Orders — users submit receipt to order 214GB @ GHS 300
+model MtnExpressOrder {
+  id            Int      @id @default(autoincrement())
+  receiptNumber String   @db.VarChar(255)
+  phoneNumber   String   @db.VarChar(20)
+  bundleSize    String   @default("214GB") @db.VarChar(20)
+  amount        Float    @default(300)
+  status        String   @default("pending") @db.VarChar(20) // pending, approved, rejected
+  adminNotes    String?  @db.Text
+  userId        Int?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([status])
+  @@index([phoneNumber])
+  @@map("MtnExpressOrder")
+}
+
 // Key-value application settings managed by admin (e.g., MoMo details, Paystack key)
 model AppSetting {
   id        Int      @id @default(autoincrement())

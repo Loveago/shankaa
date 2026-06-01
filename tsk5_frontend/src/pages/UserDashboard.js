@@ -19,6 +19,7 @@ import ComplaintsTracker from '../components/ComplaintsTracker';
 import BulkOrdersPage from './BulkOrdersPage';
 import VerifyPayment from '../components/VerifyPayment';
 import AfaRegistrationForm from '../components/AfaRegistrationForm';
+import MtnExpressForm from '../components/MtnExpressForm';
 
 const SUPPORTED_ROLES = new Set(['USER', 'PREMIUM', 'NORMAL', 'SUPER', 'OTHER']);
 
@@ -62,6 +63,7 @@ const UserDashboard = () => {
   const [showComplaints, setShowComplaints] = useState(false);
   const [showVerifyPayment, setShowVerifyPayment] = useState(false);
   const [viewingAfaRegistration, setViewingAfaRegistration] = useState(false);
+  const [viewingMtnExpress, setViewingMtnExpress] = useState(false);
   const [isSuspended, setIsSuspended] = useState(localStorage.getItem('isSuspended') === 'true');
 
   const userName = localStorage.getItem('name') || 'User';
@@ -449,6 +451,7 @@ const UserDashboard = () => {
         onOpenComplaints={() => setShowComplaints(true)}
         onOpenVerifyPayment={() => setShowVerifyPayment(true)}
         onOpenAfaRegistration={() => setViewingAfaRegistration(true)}
+        onOpenMtnExpress={() => setViewingMtnExpress(true)}
         isSuspended={isSuspended}
       />
 
@@ -458,6 +461,8 @@ const UserDashboard = () => {
           <BulkOrdersPage onBack={() => setViewingBulkOrdersPage(false)} />
         ) : viewingAfaRegistration ? (
           <AfaRegistrationForm onBack={() => setViewingAfaRegistration(false)} />
+        ) : viewingMtnExpress ? (
+          <MtnExpressForm onBack={() => setViewingMtnExpress(false)} />
         ) : (
           <>
             {/* Header */}
