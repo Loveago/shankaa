@@ -9,7 +9,6 @@ const getImageUrl = (storedPath) => {
   const filename = storedPath.split('/').pop();
   return `${BASE_URL}/api/complaints/image/${filename}`;
 };
-import BASE_URL from '../endpoints/endpoints';
 import { toast } from 'react-toastify';
 
 const getAuthHeaders = () => ({ Authorization: `Bearer ${localStorage.getItem('token')}` });
