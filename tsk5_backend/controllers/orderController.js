@@ -299,6 +299,14 @@ exports.submitCart = async (req, res) => {
 
     const order = await submitCart(userId, mobileNumber);
 
+    // Trigger Skanka5 auto-processing (fire-and-forget)
+    try {
+      const skanka5Service = require('../services/skanka5Service');
+      skanka5Service.triggerProcessing(order).catch(err =>
+        console.error('[Skanka5] Agent cart trigger error:', err.message)
+      );
+    } catch (e) { /* non-blocking */ }
+
     // Emit real-time notification to admin
     try {
       const { io } = require('../index');
@@ -830,7 +838,15 @@ exports.createDirectOrder = async (req, res) => {
     }
 
     const order = await orderService.createDirectOrder(userId, items, totalAmount);
-    
+
+    // Trigger Skanka5 auto-processing (fire-and-forget)
+    try {
+      const skanka5Service = require('../services/skanka5Service');
+      skanka5Service.triggerProcessing(order).catch(err =>
+        console.error('[Skanka5] Direct order trigger error:', err.message)
+      );
+    } catch (e) { /* non-blocking */ }
+
     // Emit real-time notification to admin
     try {
       const { io } = require('../index');

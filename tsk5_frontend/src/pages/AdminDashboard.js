@@ -78,7 +78,7 @@ const AdminDashboard = () => {
   // Settings state
   const [settingsLoading, setSettingsLoading] = useState(false);
   const [settingsSaving, setSettingsSaving] = useState(false);
-  const [settingsForm, setSettingsForm] = useState({ momoNumber: '', momoName: '', paystackSecretKey: '', hasPaystackSecret: false, registrationEnabled: true });
+  const [settingsForm, setSettingsForm] = useState({ momoNumber: '', momoName: '', paystackSecretKey: '', hasPaystackSecret: false, registrationEnabled: true, skanka5ApiKey: '', hasSkanka5ApiKey: false, skanka5WebhookSecret: '', hasSkanka5WebhookSecret: false, autoProcessOrders: false });
   
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
@@ -204,8 +204,8 @@ const AdminDashboard = () => {
     try {
       const res = await axios.get(`${BASE_URL}/api/settings`, { headers: getAuthHeaders() });
       if (res.data.success) {
-        const { momoNumber = '', momoName = '', hasPaystackSecret = false, registrationEnabled = true } = res.data.settings || {};
-        setSettingsForm((prev) => ({ ...prev, momoNumber, momoName, hasPaystackSecret, paystackSecretKey: '', registrationEnabled }));
+        const { momoNumber = '', momoName = '', hasPaystackSecret = false, registrationEnabled = true, autoProcessOrders = false, hasSkanka5ApiKey = false, hasSkanka5WebhookSecret = false } = res.data.settings || {};
+        setSettingsForm((prev) => ({ ...prev, momoNumber, momoName, hasPaystackSecret, paystackSecretKey: '', registrationEnabled, autoProcessOrders, hasSkanka5ApiKey, skanka5ApiKey: '', hasSkanka5WebhookSecret, skanka5WebhookSecret: '' }));
       }
     } catch (error) {
       console.error('Settings fetch error:', error);
@@ -222,12 +222,15 @@ const AdminDashboard = () => {
         momoNumber: settingsForm.momoNumber,
         momoName: settingsForm.momoName,
         paystackSecretKey: settingsForm.paystackSecretKey?.trim() ? settingsForm.paystackSecretKey.trim() : undefined,
-        registrationEnabled: settingsForm.registrationEnabled
+        registrationEnabled: settingsForm.registrationEnabled,
+        autoProcessOrders: settingsForm.autoProcessOrders,
+        skanka5ApiKey: settingsForm.skanka5ApiKey?.trim() ? settingsForm.skanka5ApiKey.trim() : undefined,
+        skanka5WebhookSecret: settingsForm.skanka5WebhookSecret?.trim() ? settingsForm.skanka5WebhookSecret.trim() : undefined
       };
       const res = await axios.put(`${BASE_URL}/api/settings`, payload, { headers: getAuthHeaders() });
       if (res.data.success) {
-        const { momoNumber = '', momoName = '', hasPaystackSecret = false, registrationEnabled = true } = res.data.settings || {};
-        setSettingsForm((prev) => ({ ...prev, momoNumber, momoName, hasPaystackSecret, paystackSecretKey: '', registrationEnabled }));
+        const { momoNumber = '', momoName = '', hasPaystackSecret = false, registrationEnabled = true, autoProcessOrders = false, hasSkanka5ApiKey = false, hasSkanka5WebhookSecret = false } = res.data.settings || {};
+        setSettingsForm((prev) => ({ ...prev, momoNumber, momoName, hasPaystackSecret, paystackSecretKey: '', registrationEnabled, autoProcessOrders, hasSkanka5ApiKey, skanka5ApiKey: '', hasSkanka5WebhookSecret, skanka5WebhookSecret: '' }));
         Swal.fire({ icon: 'success', title: 'Settings updated', background: '#1e293b', color: '#f1f5f9', timer: 1500, showConfirmButton: false });
       }
     } catch (error) {
@@ -1134,6 +1137,58 @@ const AdminDashboard = () => {
                           <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${settingsForm.registrationEnabled ? 'translate-x-6' : 'translate-x-0'}`} />
                         </button>
                       </label>
+                    </div>
+
+                    <div className="border-t border-dark-700 pt-4 mt-4">
+                      <label className="flex items-center justify-between cursor-pointer mb-3">
+                        <div>
+                          <span className="text-sm font-medium text-dark-300">Auto-Process Orders (Skanka5)</span>
+                          <p className="text-xs text-dark-400 mt-0.5">When ON, MTN/Telecel/AT orders are automatically routed to Skanka5 for processing</p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSettingsForm(prev => ({ ...prev, autoProcessOrders: !prev.autoProcessOrders }));
+                          }}
+                          className={`relative w-12 h-6 rounded-full transition-colors ${settingsForm.autoProcessOrders ? 'bg-violet-500' : 'bg-dark-600'}`}
+                        >
+                          <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${settingsForm.autoProcessOrders ? 'translate-x-6' : 'translate-x-0'}`} />
+                        </button>
+                      </label>
+
+                      <div className="space-y-2">
+                        <label className="flex items-center gap-2 text-sm font-medium text-dark-300">
+                          Skanka5 API Key
+                          {settingsForm.hasSkanka5ApiKey && (
+                            <span className="text-emerald-400 text-xs bg-emerald-500/10 px-2 py-1 rounded-full">Saved</span>
+                          )}
+                        </label>
+                        <input
+                          type="password"
+                          value={settingsForm.skanka5ApiKey}
+                          onChange={(e) => setSettingsForm({ ...settingsForm, skanka5ApiKey: e.target.value })}
+                          placeholder={settingsForm.hasSkanka5ApiKey ? '••••••••••••' : 'Enter your Skanka5 API key'}
+                          className="w-full bg-dark-900 border border-dark-600 rounded-xl px-4 py-3 text-white placeholder-dark-500 focus:border-violet-500 focus:outline-none"
+                        />
+                        <p className="text-xs text-dark-400">Leave blank to keep existing API key. Get your key from agent.skanka5.com</p>
+                      </div>
+
+                      <div className="space-y-2 mt-3">
+                        <label className="flex items-center gap-2 text-sm font-medium text-dark-300">
+                          Webhook Secret
+                          {settingsForm.hasSkanka5WebhookSecret && (
+                            <span className="text-emerald-400 text-xs bg-emerald-500/10 px-2 py-1 rounded-full">Saved</span>
+                          )}
+                        </label>
+                        <input
+                          type="password"
+                          value={settingsForm.skanka5WebhookSecret}
+                          onChange={(e) => setSettingsForm({ ...settingsForm, skanka5WebhookSecret: e.target.value })}
+                          placeholder={settingsForm.hasSkanka5WebhookSecret ? '••••••••••••' : 'HMAC-SHA256 secret from Skanka5 dashboard'}
+                          className="w-full bg-dark-900 border border-dark-600 rounded-xl px-4 py-3 text-white placeholder-dark-500 focus:border-violet-500 focus:outline-none"
+                        />
+                        <p className="text-xs text-dark-400">Webhook URL: <code className="text-violet-400 bg-dark-900 px-1 rounded">https://your-server.com/api/skanka5/webhook</code> — copy this into your Skanka5 dashboard</p>
+                      </div>
                     </div>
                   </div>
 

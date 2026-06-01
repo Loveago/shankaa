@@ -489,6 +489,16 @@ const verifyReferralPayment = async (reference) => {
         return { alreadyProcessed: false, order };
       }, { timeout: 15000 });
 
+      // Trigger Skanka5 auto-processing for newly created orders (fire-and-forget)
+      if (!result.alreadyProcessed && result.order) {
+        try {
+          const skanka5Service = require('./skanka5Service');
+          skanka5Service.triggerProcessing(result.order).catch(err =>
+            console.error('[Skanka5] Storefront trigger error:', err.message)
+          );
+        } catch (e) { /* non-blocking */ }
+      }
+
       return {
         success: true,
         alreadyProcessed: result.alreadyProcessed,

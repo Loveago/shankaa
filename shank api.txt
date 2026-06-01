@@ -904,3 +904,19 @@ Schema
 {
   "error": "string",
   "message": "string"
+  Webhook Configuration
+Webhook URL
+https://your-server.com/webhook
+Webhook secret
+••••••••
+Reveal
+Your endpoint must return HTTP 200. We sign every payload with HMAC-SHA256 using your webhook secret.
+
+How webhooks work
+
+Webhooks apply only to POST /orders/bulk (minimum 5 recipients). Single POST /orders uses GET /orders/{reference} polling.
+Event: orders.processed — flat items[] of newly processed lines (may span multiple bulk references in one POST).
+Save each order_code from the 202 response; update your DB by order_code when the webhook arrives.
+Poll GET /orders/{reference} using the batch reference from the accept response.
+Return HTTP 2xx quickly. Retries may repeat the same order_code.
+No webhook? You probably used single POST /orders, or bulk had fewer than 5 lines (422), or your URL is missing — use Test webhook above.

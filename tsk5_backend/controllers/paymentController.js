@@ -264,6 +264,22 @@ const verifyPaymentStatus = async (req, res) => {
         }
 
         if (orderResult && (orderResult.created || orderResult.alreadyExists)) {
+          // Trigger Skanka5 auto-processing for newly created orders (fire-and-forget)
+          if (orderResult.created) {
+            try {
+              const prisma = require('../config/db');
+              const skanka5Service = require('../services/skanka5Service');
+              prisma.order.findUnique({
+                where: { id: orderResult.orderId },
+                include: { items: true }
+              }).then(order => {
+                if (order) skanka5Service.triggerProcessing(order).catch(err =>
+                  console.error('[Skanka5] Shop payment trigger error:', err.message)
+                );
+              }).catch(() => {});
+            } catch (e) { /* non-blocking */ }
+          }
+
           res.json({
             success: true,
             message: 'Payment verified and order placed!',

@@ -27,6 +27,7 @@ const externalApiRoutes = require('./routes/externalApiRoutes');
 const userApiRoutes = require('./routes/userApiRoutes');
 const settingsRoutes = require('./routes/settingsRoutes');
 const afaRegistrationRoutes = require('./routes/afaRegistrationRoutes');
+const skanka5WebhookRoutes = require('./routes/skanka5WebhookRoutes');
 const { seedAdminUser } = require('./services/adminSeedService');
 
 const app = express();
@@ -189,6 +190,7 @@ app.use('/api/external', externalApiRoutes);
 app.use('/api/user-api', userApiRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/afa-registration', afaRegistrationRoutes);
+app.use('/api/skanka5', skanka5WebhookRoutes);
 
 const PORT = process.env.PORT || 5000;
 
@@ -242,3 +244,13 @@ setInterval(() => {
 setTimeout(() => {
   storefrontService.cleanupStalePendingReferrals().catch(() => {});
 }, 90 * 1000);
+
+// Skanka5 background poller — check pending orders every 2 minutes
+const skanka5Service = require('./services/skanka5Service');
+setInterval(() => {
+  skanka5Service.pollPendingOrders().catch((err) => console.error('[Skanka5 Poll] Error:', err.message));
+}, 2 * 60 * 1000);
+// Initial poll after 45 seconds
+setTimeout(() => {
+  skanka5Service.pollPendingOrders().catch((err) => console.error('[Skanka5 Poll] Error:', err.message));
+}, 45 * 1000);

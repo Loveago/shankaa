@@ -4,7 +4,10 @@ const SETTINGS_KEYS = {
   PAYSTACK_SECRET: 'paystack_secret_key',
   MOMO_NUMBER: 'momo_number',
   MOMO_NAME: 'momo_name',
-  REGISTRATION_ENABLED: 'registration_enabled'
+  REGISTRATION_ENABLED: 'registration_enabled',
+  AUTO_PROCESS_ORDERS: 'auto_process_orders',
+  SKANKA5_API_KEY: 'skanka5_api_key',
+  SKANKA5_WEBHOOK_SECRET: 'skanka5_webhook_secret'
 };
 
 const getAllSettings = async () => {

@@ -139,6 +139,9 @@ model OrderItem {
   productPrice       Float?
   productDescription String?
   batchId            Int?
+  skanka5Ref         String?
+  skanka5OrderCode   String?
+  skanka5Status      String?
   updatedAt          DateTime?   @updatedAt
   order              Order       @relation("OrderToOrderItem", fields: [orderId], references: [id], onDelete: NoAction)
   product            Product     @relation("ProductToOrderItem", fields: [productId], references: [id], onDelete: NoAction)
