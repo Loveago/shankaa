@@ -478,13 +478,9 @@ const verifyReferralPayment = async (reference) => {
           }
         });
 
-        // Automatically deposit commission to agent's storefront wallet
-        await tx.user.update({
-          where: { id: referralOrder.agentId },
-          data: {
-            storefrontWallet: { increment: referralOrder.commission }
-          }
-        });
+        // Commission is NOT credited here anymore.
+        // It will be credited when the order item status is changed to "Completed"
+        // See orderService.updateSingleOrderItemStatus for the commission logic
 
         return { alreadyProcessed: false, order };
       }, { timeout: 15000 });
@@ -849,16 +845,18 @@ const createWithdrawalRequest = async (agentId, amount, mobileNumber) => {
 
   if (!agent) throw new Error('Agent not found');
   if (amount <= 0) throw new Error('Invalid withdrawal amount');
-  if ((agent.storefrontWallet || 0) < amount) throw new Error('Insufficient wallet balance');
+  if (amount < 10) throw new Error('Minimum withdrawal amount is GHS 10');
+  if ((agent.storefrontWallet || 0) < (amount + 1)) throw new Error(`Insufficient wallet balance. GHS 1 fee applies, so you need at least GHS ${amount + 1}`);
 
   const result = await prisma.$transaction(async (tx) => {
-    // Deduct from wallet
+    // Deduct withdrawal amount + GHS 1 fee from wallet
+    const totalDeduction = amount + 1;
     await tx.user.update({
       where: { id: parseInt(agentId) },
-      data: { storefrontWallet: { decrement: amount } }
+      data: { storefrontWallet: { decrement: totalDeduction } }
     });
 
-    // Create withdrawal request
+    // Create withdrawal request (amount is the payout amount, fee is tracked separately)
     const withdrawal = await tx.withdrawalRequest.create({
       data: {
         agentId: parseInt(agentId),
@@ -872,6 +870,57 @@ const createWithdrawalRequest = async (agentId, amount, mobileNumber) => {
   });
 
   return result;
+};
+
+// Get all orders placed through the agent's storefront
+const getAgentStorefrontOrders = async (agentId) => {
+  const referralOrders = await prisma.referralOrder.findMany({
+    where: {
+      agentId: parseInt(agentId),
+      orderId: { not: null },
+      paymentStatus: 'Paid'
+    },
+    include: {
+      product: { select: { id: true, name: true, description: true } },
+      order: {
+        include: {
+          items: {
+            include: {
+              product: { select: { id: true, name: true, description: true } }
+            }
+          }
+        }
+      }
+    },
+    orderBy: { createdAt: 'desc' }
+  });
+
+  return referralOrders.map(ro => ({
+    id: ro.id,
+    customerName: ro.customerName,
+    customerPhone: ro.customerPhone,
+    productName: ro.product?.name || 'Unknown',
+    basePrice: ro.basePrice,
+    agentPrice: ro.agentPrice,
+    commission: ro.commission,
+    commissionPaid: ro.commissionPaid,
+    paidAt: ro.paidAt,
+    createdAt: ro.createdAt,
+    order: ro.order ? {
+      id: ro.order.id,
+      orderNumber: ro.order.orderNumber,
+      status: ro.order.status,
+      createdAt: ro.order.createdAt,
+      items: ro.order.items.map(item => ({
+        id: item.id,
+        productName: item.productName || item.product?.name,
+        quantity: item.quantity,
+        mobileNumber: item.mobileNumber,
+        status: item.status,
+        productPrice: item.productPrice
+      }))
+    } : null
+  }));
 };
 
 // Get agent's withdrawal requests
@@ -971,6 +1020,7 @@ module.exports = {
   
   // Agent commission tracking
   getAgentReferralSummary,
+  getAgentStorefrontOrders,
   
   // Admin functions
   getAllReferralOrders,

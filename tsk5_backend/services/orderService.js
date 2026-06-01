@@ -592,6 +592,45 @@ const updateSingleOrderItemStatus = async (itemId, newStatus) => {
         data: { status: newStatus }
       });
       
+      // When an item is marked as Completed, credit the storefront agent's commission
+      // if this order was placed through a referral link
+      if (newStatus === "Completed") {
+        try {
+          const referralOrder = await tx.referralOrder.findFirst({
+            where: {
+              orderId: item.orderId,
+              paymentStatus: "Paid",
+              commissionPaid: false
+            }
+          });
+          
+          if (referralOrder && referralOrder.commission > 0) {
+            // Credit commission to the agent's storefront wallet
+            await tx.user.update({
+              where: { id: referralOrder.agentId },
+              data: {
+                storefrontWallet: { increment: referralOrder.commission }
+              }
+            });
+            
+            // Mark commission as paid
+            await tx.referralOrder.update({
+              where: { id: referralOrder.id },
+              data: {
+                commissionPaid: true,
+                commissionPaymentMethod: 'wallet',
+                paidAt: new Date()
+              }
+            });
+            
+            console.log(`[Commission] Credited GHS ${referralOrder.commission} to agent #${referralOrder.agentId} for completed item #${itemId}`);
+          }
+        } catch (commissionError) {
+          // Non-blocking - don't fail the status update if commission crediting fails
+          console.error(`[Commission] Error crediting commission for item #${itemId}:`, commissionError.message);
+        }
+      }
+      
       return {
         success: true,
         item: updatedItem,

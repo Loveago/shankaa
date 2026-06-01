@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { X, Store, Plus, Trash2, Edit2, Copy, Check, ExternalLink, Loader2, RefreshCw, DollarSign, Package, TrendingUp, Link2, Eye, EyeOff, Landmark, Settings, Wallet, MessageCircle, ArrowUpRight, Clock } from 'lucide-react';
+import { X, Store, Plus, Trash2, Edit2, Copy, Check, ExternalLink, Loader2, RefreshCw, DollarSign, Package, TrendingUp, Link2, Eye, EyeOff, Landmark, Settings, Wallet, MessageCircle, ArrowUpRight, Clock, ShoppingBag } from 'lucide-react';
 import axios from 'axios';
 import Swal from 'sweetalert2';
 import BASE_URL from '../endpoints/endpoints';
@@ -40,6 +40,23 @@ const Storefront = ({ isOpen, onClose, userId }) => {
   // WhatsApp settings state
   const [whatsappNumber, setWhatsappNumber] = useState('');
   const [savingWhatsapp, setSavingWhatsapp] = useState(false);
+
+  // Orders state
+  const [storefrontOrders, setStorefrontOrders] = useState([]);
+  const [ordersLoading, setOrdersLoading] = useState(false);
+
+  const fetchStorefrontOrders = useCallback(async () => {
+    if (!userId) return;
+    setOrdersLoading(true);
+    try {
+      const res = await axios.get(`${BASE_URL}/api/storefront/agent/${userId}/orders`, { headers: getAuthHeaders() });
+      if (res.data.success) setStorefrontOrders(res.data.orders);
+    } catch (error) {
+      console.error('Error fetching storefront orders:', error);
+    } finally {
+      setOrdersLoading(false);
+    }
+  }, [userId]);
 
   const fetchStorefrontData = useCallback(async () => {
     if (!userId) return;
@@ -96,8 +113,9 @@ const Storefront = ({ isOpen, onClose, userId }) => {
       fetchStorefrontData();
       fetchReferralSummary();
       fetchWalletData();
+      fetchStorefrontOrders();
     }
-  }, [isOpen, fetchStorefrontData, fetchReferralSummary, fetchWalletData]);
+  }, [isOpen, fetchStorefrontData, fetchReferralSummary, fetchWalletData, fetchStorefrontOrders]);
 
   const copyStoreLink = () => {
     const storeUrl = `${window.location.origin}/store/${storefrontSlug}`;
@@ -214,8 +232,12 @@ const Storefront = ({ isOpen, onClose, userId }) => {
       Swal.fire({ icon: 'error', title: 'Error', text: 'Please enter a valid amount', background: '#1e293b', color: '#f1f5f9' });
       return;
     }
-    if (parseFloat(withdrawalAmount) > walletBalance) {
-      Swal.fire({ icon: 'error', title: 'Error', text: 'Amount exceeds your wallet balance', background: '#1e293b', color: '#f1f5f9' });
+    if (parseFloat(withdrawalAmount) < 10) {
+      Swal.fire({ icon: 'error', title: 'Error', text: 'Minimum withdrawal amount is GHS 10', background: '#1e293b', color: '#f1f5f9' });
+      return;
+    }
+    if ((parseFloat(withdrawalAmount) + 1) > walletBalance) {
+      Swal.fire({ icon: 'error', title: 'Error', text: `Amount plus GHS 1 fee exceeds your wallet balance. You need at least GHS ${parseFloat(withdrawalAmount) + 1}`, background: '#1e293b', color: '#f1f5f9' });
       return;
     }
     if (!withdrawalMobile.trim()) {
@@ -223,9 +245,22 @@ const Storefront = ({ isOpen, onClose, userId }) => {
       return;
     }
 
+    const fee = 1;
+    const netPayout = parseFloat(withdrawalAmount);
+    const totalDeduction = netPayout + fee;
+
     const result = await Swal.fire({
       title: 'Confirm Withdrawal',
-      text: `You are about to request a withdrawal of ${formatAmount(parseFloat(withdrawalAmount))}`,
+      html: `
+        <div style="text-align: left;">
+          <p>Withdrawal Amount: <strong>GHS ${netPayout.toFixed(2)}</strong></p>
+          <p>Fee (GHS 1): <strong style="color: #f59e0b;">GHS ${fee.toFixed(2)}</strong></p>
+          <p>Total Deduction: <strong style="color: #ef4444;">GHS ${totalDeduction.toFixed(2)}</strong></p>
+          <p>Wallet Balance After: <strong>GHS ${(walletBalance - totalDeduction).toFixed(2)}</strong></p>
+          <hr style="border-color: #334155; margin: 8px 0;" />
+          <p>You will receive <strong>GHS ${netPayout.toFixed(2)}</strong> via Mobile Money</p>
+        </div>
+      `,
       icon: 'info',
       showCancelButton: true,
       confirmButtonColor: '#10b981',
@@ -346,6 +381,10 @@ const Storefront = ({ isOpen, onClose, userId }) => {
             <button onClick={() => setActiveTab('earnings')}
               className={`flex-1 sm:flex-none px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === 'earnings' ? 'bg-violet-500 text-white' : 'text-dark-300 hover:text-white'}`}>
               <TrendingUp className="w-4 h-4 inline mr-2" />Earnings
+            </button>
+            <button onClick={() => { setActiveTab('orders'); fetchStorefrontOrders(); }}
+              className={`flex-1 sm:flex-none px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === 'orders' ? 'bg-violet-500 text-white' : 'text-dark-300 hover:text-white'}`}>
+              <ShoppingBag className="w-4 h-4 inline mr-2" />Orders
             </button>
             <button onClick={() => { setActiveTab('wallet'); fetchWalletData(); }}
               className={`flex-1 sm:flex-none px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === 'wallet' ? 'bg-violet-500 text-white' : 'text-dark-300 hover:text-white'}`}>
@@ -474,6 +513,80 @@ const Storefront = ({ isOpen, onClose, userId }) => {
                 </div>
               )}
             </div>
+          ) : activeTab === 'orders' ? (
+            <div>
+              <h3 className="text-white font-semibold mb-4 flex items-center gap-2">
+                <ShoppingBag className="w-5 h-5 text-cyan-400" />
+                Storefront Orders
+              </h3>
+              
+              {ordersLoading ? (
+                <div className="flex items-center justify-center py-12">
+                  <Loader2 className="w-8 h-8 animate-spin text-violet-500" />
+                </div>
+              ) : storefrontOrders.length === 0 ? (
+                <div className="text-center py-12">
+                  <ShoppingBag className="w-12 h-12 text-dark-600 mx-auto mb-4" />
+                  <p className="text-dark-400">No orders placed through your storefront yet</p>
+                  <p className="text-dark-500 text-sm mt-1">Share your store link to start selling</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {storefrontOrders.map((ro) => (
+                    <div key={ro.id} className="bg-dark-900/50 border border-dark-700 rounded-xl p-4">
+                      <div className="flex items-start justify-between mb-3">
+                        <div>
+                          <p className="text-white font-medium">{ro.productName}</p>
+                          <p className="text-dark-400 text-sm">Order #{ro.order?.orderNumber || 'N/A'}</p>
+                        </div>
+                        <span className="text-xs text-dark-400">{new Date(ro.createdAt).toLocaleDateString()}</span>
+                      </div>
+                      
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-3">
+                        <div className="bg-dark-800 rounded-lg p-2">
+                          <p className="text-dark-500 text-xs">Customer</p>
+                          <p className="text-white text-sm truncate">{ro.customerName}</p>
+                        </div>
+                        <div className="bg-dark-800 rounded-lg p-2">
+                          <p className="text-dark-500 text-xs">Phone</p>
+                          <p className="text-white text-sm">{ro.customerPhone}</p>
+                        </div>
+                        <div className="bg-dark-800 rounded-lg p-2">
+                          <p className="text-dark-500 text-xs">Amount</p>
+                          <p className="text-cyan-400 text-sm">{formatAmount(ro.agentPrice)}</p>
+                        </div>
+                        <div className="bg-dark-800 rounded-lg p-2">
+                          <p className="text-dark-500 text-xs">Commission</p>
+                          <p className={`text-sm font-medium ${ro.commissionPaid ? 'text-emerald-400' : 'text-amber-400'}`}>
+                            {formatAmount(ro.commission)}
+                            {ro.commissionPaid && ' ✓'}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Order Items Status */}
+                      {ro.order?.items && ro.order.items.length > 0 && (
+                        <div className="border-t border-dark-700 pt-3 mt-3">
+                          <p className="text-dark-400 text-xs mb-2">Order Items Status</p>
+                          <div className="flex flex-wrap gap-2">
+                            {ro.order.items.map((item) => (
+                              <span key={item.id} className={`px-2 py-1 rounded text-xs font-medium ${
+                                item.status === 'Completed' ? 'bg-emerald-500/20 text-emerald-400' :
+                                item.status === 'Processing' ? 'bg-cyan-500/20 text-cyan-400' :
+                                item.status === 'Pending' ? 'bg-amber-500/20 text-amber-400' :
+                                'bg-red-500/20 text-red-400'
+                              }`}>
+                                {item.mobileNumber} - {item.status}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           ) : activeTab === 'wallet' ? (
             <div>
               {/* Wallet Balance Card */}
@@ -485,7 +598,7 @@ const Storefront = ({ isOpen, onClose, userId }) => {
                 <p className="text-3xl sm:text-4xl font-bold text-white mb-1">
                   {formatAmount(walletBalance)}
                 </p>
-                <p className="text-emerald-200 text-xs">Commissions are auto-deposited after each sale</p>
+                <p className="text-emerald-200 text-xs">Commissions are credited when order items are marked Completed</p>
               </div>
 
               {/* Withdrawal Form */}
@@ -494,6 +607,12 @@ const Storefront = ({ isOpen, onClose, userId }) => {
                   <ArrowUpRight className="w-5 h-5 text-emerald-400" />
                   Request Withdrawal
                 </h4>
+                <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-3 mb-4">
+                  <p className="text-amber-400 text-xs">
+                    <strong>Minimum withdrawal: GHS 10</strong> &middot;
+                    A <strong>GHS 1 fee</strong> applies per withdrawal
+                  </p>
+                </div>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
                   <div>
                     <label className="block text-dark-300 text-sm mb-2">Amount (GHS)</label>
@@ -518,7 +637,7 @@ const Storefront = ({ isOpen, onClose, userId }) => {
                     />
                   </div>
                   <div className="flex items-end">
-                    <button onClick={handleRequestWithdrawal} disabled={requestingWithdrawal || !withdrawalAmount || parseFloat(withdrawalAmount) <= 0 || parseFloat(withdrawalAmount) > walletBalance}
+                    <button onClick={handleRequestWithdrawal} disabled={requestingWithdrawal || !withdrawalAmount || parseFloat(withdrawalAmount) < 10 || (parseFloat(withdrawalAmount) + 1) > walletBalance}
                       className="w-full px-4 py-3 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2">
                       {requestingWithdrawal ? (
                         <Loader2 className="w-5 h-5 animate-spin" />

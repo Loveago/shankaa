@@ -14,6 +14,7 @@ router.put('/agent/:userId/products/:productId', authMiddleware, storefrontContr
 router.delete('/agent/:userId/products/:productId', authMiddleware, storefrontController.removeProduct);
 router.patch('/agent/:userId/products/:productId/toggle', authMiddleware, storefrontController.toggleProduct);
 router.get('/agent/:userId/referrals', authMiddleware, storefrontController.getAgentReferralSummary);
+router.get('/agent/:userId/orders', authMiddleware, storefrontController.getAgentStorefrontOrders);
 
 // Storefront Wallet
 router.get('/agent/:userId/wallet', authMiddleware, storefrontController.getStorefrontWallet);

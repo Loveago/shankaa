@@ -257,6 +257,19 @@ const updateStorefrontWhatsapp = async (req, res) => {
   }
 };
 
+// ==================== AGENT STOREFRONT ORDERS ====================
+
+const getAgentStorefrontOrders = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const orders = await storefrontService.getAgentStorefrontOrders(userId);
+    res.status(200).json({ success: true, orders });
+  } catch (error) {
+    console.error('Error getting storefront orders:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 // ==================== WITHDRAWAL SYSTEM ====================
 
 const createWithdrawalRequest = async (req, res) => {
@@ -330,6 +343,7 @@ module.exports = {
   removeProduct,
   toggleProduct,
   getAgentReferralSummary,
+  getAgentStorefrontOrders,
   
   // Public storefront
   getPublicStorefront,
