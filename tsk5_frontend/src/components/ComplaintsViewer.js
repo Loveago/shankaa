@@ -68,7 +68,7 @@ const ComplaintsViewer = ({ isOpen, onClose }) => {
 
   useEffect(() => { statusFilterRef.current = statusFilter; }, [statusFilter]);
 
-  const fetchComplaints = async () => {
+  const fetchComplaints = useCallback(async () => {
     const token = localStorage.getItem('token');
     const role = localStorage.getItem('role');
     if (!token || role?.toUpperCase() !== 'ADMIN') return;
@@ -95,7 +95,7 @@ const ComplaintsViewer = ({ isOpen, onClose }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   const fetchPendingCount = async () => {
     const token = localStorage.getItem('token');
@@ -175,7 +175,7 @@ const ComplaintsViewer = ({ isOpen, onClose }) => {
     }
   };
 
-  const handleUploadProof = async (complaintId, file) => {
+  const handleUploadProof = useCallback(async (complaintId, file) => {
     if (!file) return;
     setUploadingId(complaintId);
     try {
@@ -192,7 +192,7 @@ const ComplaintsViewer = ({ isOpen, onClose }) => {
     } finally {
       setUploadingId(null);
     }
-  };
+  }, []);
 
   // Paste image from clipboard using a hidden textarea + paste event.
   // This works on all browsers (PC + mobile) without requiring clipboard-read permission.
