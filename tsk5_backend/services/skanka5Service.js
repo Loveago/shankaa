@@ -159,7 +159,8 @@ const mapSkanka5Status = (skanka5Item) => {
 };
 
 // Process a list of order items through Skanka5
-// Groups items by network, submits in bulk per network, and stores references
+// Groups items by network, submits individually per item (single endpoint),
+// and stores references
 const processOrderItems = async (orderItems) => {
   const enabled = await isAutoProcessingEnabled();
   if (!enabled) {
@@ -192,61 +193,36 @@ const processOrderItems = async (orderItems) => {
     return { processed: false, reason: 'no-eligible-items' };
   }
 
-  // Group by network
-  const byNetwork = {};
-  for (const si of skanka5Items) {
-    if (!byNetwork[si.networkId]) byNetwork[si.networkId] = [];
-    byNetwork[si.networkId].push(si);
-  }
-
   const results = { processed: true, references: [], errors: [] };
 
-  for (const [networkId, items] of Object.entries(byNetwork)) {
+  // Submit each item individually using the single order endpoint
+  // (bulk endpoint requires minimum 5 recipients per API docs)
+  for (const si of skanka5Items) {
     try {
-      const recipients = items.map(i => ({ msisdn: i.msisdn, volume_mb: i.volumeMb }));
-      const response = await submitBulkOrder(parseInt(networkId), recipients);
+      const response = await submitOrder(si.networkId, si.msisdn, si.volumeMb);
 
       if (response.success && response.reference) {
         results.references.push(response.reference);
 
-        // Store Skanka5 reference on each OrderItem
-        if (response.orders) {
-          for (let i = 0; i < response.orders.length && i < items.length; i++) {
-            const skOrder = response.orders[i];
-            const ourItem = items[i];
+        const skOrder = response.orders && response.orders[0] ? response.orders[0] : null;
 
-            // Update the order item with Skanka5 reference
-            await prisma.orderItem.update({
-              where: { id: ourItem.itemId },
-              data: {
-                skanka5Ref: response.reference,
-                skanka5OrderCode: skOrder.order_code || null,
-                skanka5Status: skOrder.status || 'accepted',
-                status: 'Processing' // Mark as Processing since Skanka5 accepted it
-              }
-            });
+        await prisma.orderItem.update({
+          where: { id: si.itemId },
+          data: {
+            skanka5Ref: response.reference,
+            skanka5OrderCode: skOrder?.order_code || null,
+            skanka5Status: skOrder?.status || 'accepted',
+            status: 'Processing'
           }
-        } else {
-          // No per-item response, just store reference on all items
-          for (const ourItem of items) {
-            await prisma.orderItem.update({
-              where: { id: ourItem.itemId },
-              data: {
-                skanka5Ref: response.reference,
-                skanka5Status: 'accepted',
-                status: 'Processing'
-              }
-            });
-          }
-        }
+        });
 
-        console.log(`[Skanka5] Submitted ${items.length} items to network ${networkId}, ref: ${response.reference}`);
+        console.log(`[Skanka5] Submitted item ${si.itemId} to network ${si.networkId}, ref: ${response.reference}, phone: ${si.msisdn}, volume: ${si.volumeMb}MB`);
       } else {
-        results.errors.push({ networkId, error: 'No reference returned' });
+        results.errors.push({ itemId: si.itemId, error: 'No reference returned' });
       }
     } catch (error) {
-      console.error(`[Skanka5] Failed network ${networkId}:`, error.message);
-      results.errors.push({ networkId, error: error.message });
+      console.error(`[Skanka5] Failed item ${si.itemId}:`, error.message);
+      results.errors.push({ itemId: si.itemId, error: error.message });
     }
   }
 
