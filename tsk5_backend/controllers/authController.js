@@ -284,10 +284,17 @@ const getLoggedInUsers = async (req, res) => {
 };
 
 const referralCodeService = require('../services/referralCodeService');
+const settingsService = require('../services/settingsService');
 
 const signupUser = async (req, res) => {
   try {
     const { name, email, password, phone, referralCode } = req.body;
+    
+    // Check if registration is enabled
+    const registrationEnabled = await settingsService.getSettingValue(settingsService.SETTINGS_KEYS.REGISTRATION_ENABLED, 'true');
+    if (registrationEnabled !== 'true') {
+      return res.status(403).json({ message: 'Registration is currently disabled. Please contact the administrator.' });
+    }
     
     if (!name || !email || !password || !referralCode) {
       return res.status(400).json({ message: 'Name, email, password, and referral code are required' });

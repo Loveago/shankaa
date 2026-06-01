@@ -151,6 +151,26 @@ class ComplaintController {
       res.status(500).json({ success: false, data: [], message: error.message });
     }
   }
+
+  // Serve complaint proof images
+  async getProofImage(req, res) {
+    try {
+      const path = require('path');
+      const fs = require('fs');
+      const filename = req.params.filename;
+      const safeName = path.basename(filename); // prevent directory traversal
+      const uploadDir = path.join(__dirname, '../uploads/complaints');
+      const filePath = path.join(uploadDir, safeName);
+
+      if (!fs.existsSync(filePath)) {
+        return res.status(404).json({ success: false, message: 'Image not found' });
+      }
+
+      res.sendFile(filePath);
+    } catch (err) {
+      res.status(500).json({ success: false, message: err.message });
+    }
+  }
 }
 
 module.exports = new ComplaintController();

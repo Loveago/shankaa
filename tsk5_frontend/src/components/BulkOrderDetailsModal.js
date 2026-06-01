@@ -61,7 +61,7 @@ const BulkOrderDetailsModal = ({ isOpen, onClose, order }) => {
   const handleReport = async (orderId, itemId) => {
     try {
       await axios.post(`${BASE_URL}/order/user/bulk-orders/${orderId}/items/${itemId}/report`, {}, { headers: getAuthHeaders() });
-      toast.success('Report submitted');
+      toast.success('Report submitted for review');
       // Reload the order details
       loadDetail();
     } catch (error) {

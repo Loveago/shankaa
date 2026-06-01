@@ -3,10 +3,11 @@ const settingsService = require('../services/settingsService');
 // GET /api/settings (admin)
 const getSettings = async (_req, res) => {
   try {
-    const [momoNumber, momoName, paystackSecret] = await Promise.all([
+    const [momoNumber, momoName, paystackSecret, registrationEnabled] = await Promise.all([
       settingsService.getSettingValue(settingsService.SETTINGS_KEYS.MOMO_NUMBER, ''),
       settingsService.getSettingValue(settingsService.SETTINGS_KEYS.MOMO_NAME, ''),
-      settingsService.getSettingValue(settingsService.SETTINGS_KEYS.PAYSTACK_SECRET, null)
+      settingsService.getSettingValue(settingsService.SETTINGS_KEYS.PAYSTACK_SECRET, null),
+      settingsService.getSettingValue(settingsService.SETTINGS_KEYS.REGISTRATION_ENABLED, 'true')
     ]);
 
     res.json({
@@ -14,7 +15,8 @@ const getSettings = async (_req, res) => {
       settings: {
         momoNumber,
         momoName,
-        hasPaystackSecret: Boolean(paystackSecret)
+        hasPaystackSecret: Boolean(paystackSecret),
+        registrationEnabled: registrationEnabled === 'true'
       }
     });
   } catch (error) {
@@ -41,11 +43,12 @@ const getPublicSettings = async (_req, res) => {
 // PUT /api/settings (admin)
 const updateSettings = async (req, res) => {
   try {
-    const { momoNumber, momoName, paystackSecretKey } = req.body;
+    const { momoNumber, momoName, paystackSecretKey, registrationEnabled } = req.body;
     const updates = {
       [settingsService.SETTINGS_KEYS.MOMO_NUMBER]: momoNumber,
       [settingsService.SETTINGS_KEYS.MOMO_NAME]: momoName,
-      [settingsService.SETTINGS_KEYS.PAYSTACK_SECRET]: paystackSecretKey?.trim() ? paystackSecretKey.trim() : undefined
+      [settingsService.SETTINGS_KEYS.PAYSTACK_SECRET]: paystackSecretKey?.trim() ? paystackSecretKey.trim() : undefined,
+      [settingsService.SETTINGS_KEYS.REGISTRATION_ENABLED]: registrationEnabled !== undefined ? String(registrationEnabled) : undefined
     };
     const saved = await settingsService.upsertSettings(updates);
 
@@ -54,7 +57,8 @@ const updateSettings = async (req, res) => {
       settings: {
         momoNumber: saved[settingsService.SETTINGS_KEYS.MOMO_NUMBER] ?? momoNumber ?? '',
         momoName: saved[settingsService.SETTINGS_KEYS.MOMO_NAME] ?? momoName ?? '',
-        hasPaystackSecret: Boolean(saved[settingsService.SETTINGS_KEYS.PAYSTACK_SECRET]) || Boolean(paystackSecretKey)
+        hasPaystackSecret: Boolean(saved[settingsService.SETTINGS_KEYS.PAYSTACK_SECRET]) || Boolean(paystackSecretKey),
+        registrationEnabled: saved[settingsService.SETTINGS_KEYS.REGISTRATION_ENABLED] === 'true'
       }
     });
   } catch (error) {

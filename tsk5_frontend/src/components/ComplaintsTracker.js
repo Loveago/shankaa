@@ -2,6 +2,14 @@ import React, { useEffect, useState, useCallback } from 'react';
 import axios from 'axios';
 import { MessageSquareWarning, X, Loader2, Clock, CheckCircle, AlertCircle, DollarSign, Image as ImageIcon, ExternalLink } from 'lucide-react';
 import BASE_URL from '../endpoints/endpoints';
+
+// Helper: extract filename from stored path and return API-based image URL
+const getImageUrl = (storedPath) => {
+  if (!storedPath) return '';
+  const filename = storedPath.split('/').pop();
+  return `${BASE_URL}/api/complaints/image/${filename}`;
+};
+import BASE_URL from '../endpoints/endpoints';
 import { toast } from 'react-toastify';
 
 const getAuthHeaders = () => ({ Authorization: `Bearer ${localStorage.getItem('token')}` });
@@ -135,12 +143,12 @@ const ComplaintsTracker = ({ isOpen, onClose }) => {
                     {/* Proof image thumbnail */}
                     {complaint.proofImage && (
                       <button
-                        onClick={() => setSelectedImage(complaint.proofImage)}
+                        onClick={() => setSelectedImage(getImageUrl(complaint.proofImage))}
                         className="mt-2 flex items-center gap-2 px-3 py-2 bg-dark-800 border border-dark-600 rounded-lg hover:border-cyan-500/30 transition-colors group"
                       >
                         <div className="w-12 h-12 bg-dark-700 rounded-lg overflow-hidden flex items-center justify-center border border-dark-600">
                           <img
-                            src={`${BASE_URL}${complaint.proofImage}`}
+                            src={getImageUrl(complaint.proofImage)}
                             alt="Proof"
                             className="w-full h-full object-cover"
                             onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }}
@@ -171,7 +179,7 @@ const ComplaintsTracker = ({ isOpen, onClose }) => {
             <X className="w-6 h-6 text-white" />
           </button>
           <img
-            src={`${BASE_URL}${selectedImage}`}
+            src={selectedImage}
             alt="Proof"
             className="max-w-full max-h-[90vh] rounded-xl shadow-2xl object-contain"
             onClick={(e) => e.stopPropagation()}

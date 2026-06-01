@@ -44,6 +44,8 @@ router.get('/my', authMiddleware, complaintController.getUserComplaints);
 // Specific literal routes MUST come before parameterized routes
 router.get('/item/:orderItemId', authMiddleware, complaintController.getComplaintStatusForItem);
 
+// Serve complaint proof images (no auth required for display)
+router.get('/image/:filename', complaintController.getProofImage);
 // Admin: upload proof image
 router.post('/:id/proof-image', authMiddleware, adminMiddleware, proofUpload.single('proofImage'), complaintController.uploadProofImage);
 

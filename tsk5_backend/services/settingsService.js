@@ -3,7 +3,8 @@ const prisma = require('../config/db');
 const SETTINGS_KEYS = {
   PAYSTACK_SECRET: 'paystack_secret_key',
   MOMO_NUMBER: 'momo_number',
-  MOMO_NAME: 'momo_name'
+  MOMO_NAME: 'momo_name',
+  REGISTRATION_ENABLED: 'registration_enabled'
 };
 
 const getAllSettings = async () => {

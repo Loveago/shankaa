@@ -40,7 +40,7 @@ const BulkOrdersModal = ({ isOpen, onClose }) => {
       const res = await axios.get(`${BASE_URL}/order/user/bulk-orders`, { headers: getAuthHeaders() });
       if (res.data.success) setOrders(res.data.orders || []);
     } catch (error) {
-      toast.error('Failed to load bulk orders');
+      toast.error('Failed to load order history');
     } finally {
       setLoading(false);
     }
@@ -73,7 +73,7 @@ const BulkOrdersModal = ({ isOpen, onClose }) => {
 
   const statusClass = useCallback((status) => statusStyles[status] || 'bg-dark-700 text-dark-200 border border-dark-500', []);
 
-  const headline = useMemo(() => selectedOrder ? `Bulk Order ${selectedOrder.orderNumber}` : 'Bulk Orders', [selectedOrder]);
+  const headline = useMemo(() => selectedOrder ? `Order #${selectedOrder.orderNumber}` : 'Order History', [selectedOrder]);
 
   if (!isOpen) return null;
 
@@ -82,7 +82,7 @@ const BulkOrdersModal = ({ isOpen, onClose }) => {
       <div className="w-full max-w-6xl bg-dark-900 border border-dark-700 rounded-2xl shadow-2xl overflow-hidden">
         <div className="flex items-center justify-between px-6 py-4 border-b border-dark-700">
           <div>
-            <p className="text-xs uppercase tracking-wide text-dark-400">Bulk Order Tracking</p>
+            <p className="text-xs uppercase tracking-wide text-dark-400">Order Tracking</p>
             <h2 className="text-lg font-semibold text-white">{headline}</h2>
           </div>
           <div className="flex items-center gap-2">
@@ -104,7 +104,7 @@ const BulkOrdersModal = ({ isOpen, onClose }) => {
             {loading ? (
               <div className="flex items-center justify-center py-12 text-white"><Loader2 className="w-6 h-6 animate-spin" /></div>
             ) : orders.length === 0 ? (
-              <div className="p-6 text-dark-300">No bulk orders yet. Paste or upload multiple orders to see them here.</div>
+              <div className="p-6 text-dark-300">No order history yet. Paste or upload multiple orders to see them here.</div>
             ) : (
               <div className="divide-y divide-dark-700">
                 {orders.map((order) => (

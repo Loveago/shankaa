@@ -113,9 +113,6 @@ const Landing = () => {
               <div className="w-px h-5 bg-white/10 mx-2"></div>
               <a href="/login" className="px-4 py-2 text-zinc-300 hover:text-white transition-colors text-sm font-medium">Sign In</a>
               <a href="/signup" className="px-4 py-2 text-zinc-300 hover:text-white transition-colors text-sm font-medium">Sign Up</a>
-              <a href="/shop" className="ml-1 px-5 py-2.5 bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-xl text-sm font-semibold hover:from-orange-600 hover:to-amber-600 transition-all shadow-lg shadow-orange-500/20">
-                Shop Now
-              </a>
             </div>
 
             <button onClick={() => setIsMenuOpen(!isMenuOpen)} className="md:hidden text-white p-2 -mr-2">
@@ -140,7 +137,6 @@ const Landing = () => {
                 <div className="pt-3 pb-1 space-y-2.5 border-t border-white/[0.06] mt-2">
                   <a href="/login" className="block w-full text-center px-4 py-2.5 text-orange-400 border border-orange-500/30 rounded-xl text-sm font-semibold hover:bg-orange-500/10 transition-colors">Sign In</a>
                   <a href="/signup" className="block w-full text-center px-4 py-2.5 text-zinc-300 border border-white/[0.08] rounded-xl text-sm font-semibold hover:bg-white/[0.07] transition-colors">Sign Up</a>
-                  <a href="/shop" className="block w-full text-center px-4 py-2.5 bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-xl text-sm font-semibold hover:from-orange-600 hover:to-amber-600 transition-all">Shop Now</a>
                 </div>
               </div>
             </motion.div>
@@ -481,20 +477,6 @@ const Landing = () => {
                 {['Home', 'About', 'Services', 'Packages'].map((link) => (
                   <li key={link}><a href={`#${link.toLowerCase()}`} className="text-zinc-500 hover:text-orange-400 transition-colors text-sm">{link}</a></li>
                 ))}
-              </ul>
-            </div>
-            <div>
-              <h4 className="text-white text-sm font-semibold mb-4">Contact</h4>
-              <ul className="space-y-3">
-                <li className="flex items-center gap-2.5 text-zinc-500 text-sm">
-                  <Phone className="w-4 h-4 text-orange-400/70" /> +233 24 644 4787
-                </li>
-                <li className="flex items-center gap-2.5 text-zinc-500 text-sm">
-                  <Mail className="w-4 h-4 text-orange-400/70" /> ecudjoe128@gmail.com
-                </li>
-                <li className="flex items-center gap-2.5 text-zinc-500 text-sm">
-                  <MapPin className="w-4 h-4 text-orange-400/70" /> Accra, Ghana
-                </li>
               </ul>
             </div>
           </div>

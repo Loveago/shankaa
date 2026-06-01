@@ -17,6 +17,7 @@ import FloatingChatButton from '../components/FloatingChatButton';
 import UserApiKeys from '../components/UserApiKeys';
 import ComplaintsTracker from '../components/ComplaintsTracker';
 import BulkOrdersPage from './BulkOrdersPage';
+import AfaRegistrationForm from '../components/AfaRegistrationForm';
 
 const SUPPORTED_ROLES = new Set(['USER', 'PREMIUM', 'NORMAL', 'SUPER', 'OTHER']);
 
@@ -58,6 +59,7 @@ const Premium = () => {
   const [showApiKeys, setShowApiKeys] = useState(false);
   const [viewingBulkOrdersPage, setViewingBulkOrdersPage] = useState(false);
   const [showComplaints, setShowComplaints] = useState(false);
+  const [viewingAfaRegistration, setViewingAfaRegistration] = useState(false);
   const [isSuspended, setIsSuspended] = useState(localStorage.getItem('isSuspended') === 'true');
 
   const userName = localStorage.getItem('name') || 'Premium User';
@@ -357,11 +359,14 @@ const Premium = () => {
         onOpenStorefront={() => setShowStorefront(true)}
         onOpenBulkOrders={() => setViewingBulkOrdersPage(true)}
         onOpenComplaints={() => setShowComplaints(true)}
+        onOpenAfaRegistration={() => setViewingAfaRegistration(true)}
         isSuspended={isSuspended}
       />
       <div className="md:ml-72">
         {viewingBulkOrdersPage ? (
           <BulkOrdersPage onBack={() => setViewingBulkOrdersPage(false)} />
+        ) : viewingAfaRegistration ? (
+          <AfaRegistrationForm onBack={() => setViewingAfaRegistration(false)} />
         ) : (
         <>
         <header className="bg-dark-900/80 backdrop-blur border-b border-dark-700 sticky top-0 z-30">

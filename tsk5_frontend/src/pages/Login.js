@@ -243,16 +243,6 @@ const Login = () => {
               )}
             </button>
 
-            <div className="text-center pt-1">
-              <a
-                href="https://wa.me/233246444787"
-                className="inline-flex items-center gap-1.5 text-sm text-orange-400 hover:text-orange-300 transition-colors font-medium"
-              >
-                <span>Need an account? Request access</span>
-                <ArrowRight className="w-3.5 h-3.5" />
-              </a>
-            </div>
-
             <div className="flex flex-wrap justify-center gap-3 text-xs text-zinc-600 pt-4 border-t border-white/[0.06]">
               <button type="button" onClick={() => setShowTermsModal(true)} className="hover:text-orange-400 transition-colors">
                 Terms & Conditions
@@ -697,25 +687,12 @@ const Login = () => {
               </section>
 
               <section>
-                <h3 className="font-semibold text-lg text-white mb-2">9. How do I create an account?</h3>
-                <p>To create an account, contact our registration agent via WhatsApp at 0244450003. Account creation is by invitation to maintain service quality.</p>
-              </section>
-
-              <section>
-                <h3 className="font-semibold text-lg text-white mb-2">10. How can I contact customer support?</h3>
-                <ul className="list-disc list-inside space-y-1">
-                  <li>WhatsApp: <span className="text-orange-400">0540277583</span></li>
-                  <li>Email: <a href="mailto:ecudjoe128@gmail.com" className="text-orange-400 underline">ecudjoe128@gmail.com</a></li>
-                </ul>
-              </section>
-
-              <section>
-                <h3 className="font-semibold text-lg text-white mb-2">11. Do you offer bulk data purchases?</h3>
+                <h3 className="font-semibold text-lg text-white mb-2">9. Do you offer bulk data purchases?</h3>
                 <p>Yes! We offer special rates for bulk purchases and resellers. Contact our support team for more information on bulk pricing.</p>
               </section>
 
               <section>
-                <h3 className="font-semibold text-lg text-white mb-2">12. Can I track my orders?</h3>
+                <h3 className="font-semibold text-lg text-white mb-2">10. Can I track my orders?</h3>
                 <p>Yes, you can track all your orders in your dashboard. Each order has a unique Order ID and status that you can monitor.</p>
               </section>
             </div>

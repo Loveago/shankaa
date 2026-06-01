@@ -18,6 +18,7 @@ import FloatingChatButton from '../components/FloatingChatButton';
 import ComplaintsTracker from '../components/ComplaintsTracker';
 import BulkOrdersPage from './BulkOrdersPage';
 import VerifyPayment from '../components/VerifyPayment';
+import AfaRegistrationForm from '../components/AfaRegistrationForm';
 
 const SUPPORTED_ROLES = new Set(['USER', 'PREMIUM', 'NORMAL', 'SUPER', 'OTHER']);
 
@@ -60,6 +61,7 @@ const UserDashboard = () => {
   const [viewingBulkOrdersPage, setViewingBulkOrdersPage] = useState(false);
   const [showComplaints, setShowComplaints] = useState(false);
   const [showVerifyPayment, setShowVerifyPayment] = useState(false);
+  const [viewingAfaRegistration, setViewingAfaRegistration] = useState(false);
   const [isSuspended, setIsSuspended] = useState(localStorage.getItem('isSuspended') === 'true');
 
   const userName = localStorage.getItem('name') || 'User';
@@ -446,6 +448,7 @@ const UserDashboard = () => {
         onOpenBulkOrders={() => setViewingBulkOrdersPage(true)}
         onOpenComplaints={() => setShowComplaints(true)}
         onOpenVerifyPayment={() => setShowVerifyPayment(true)}
+        onOpenAfaRegistration={() => setViewingAfaRegistration(true)}
         isSuspended={isSuspended}
       />
 
@@ -453,6 +456,8 @@ const UserDashboard = () => {
       <div className="md:ml-72">
         {viewingBulkOrdersPage ? (
           <BulkOrdersPage onBack={() => setViewingBulkOrdersPage(false)} />
+        ) : viewingAfaRegistration ? (
+          <AfaRegistrationForm onBack={() => setViewingAfaRegistration(false)} />
         ) : (
           <>
             {/* Header */}

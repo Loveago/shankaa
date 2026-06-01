@@ -511,6 +511,26 @@ model ReferralCode {
   @@map("ReferralCode")
 }
 
+// AFA Registration — user registrations for processing by admin
+model AfaRegistration {
+  id          Int      @id @default(autoincrement())
+  fullName    String   @db.VarChar(255)
+  phoneNumber String   @db.VarChar(20)
+  location    String   @db.VarChar(255)
+  occupation  String?  @db.VarChar(255)
+  idType      String   @db.VarChar(50)   // 'NATIONAL_ID' or 'VOTER_ID'
+  idNumber    String   @db.VarChar(100)
+  status      String   @default("pending") @db.VarChar(20) // pending, approved, rejected
+  adminNotes  String?  @db.Text
+  userId      Int?     // optional link to user who registered
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([status])
+  @@index([phoneNumber])
+  @@map("AfaRegistration")
+}
+
 // Key-value application settings managed by admin (e.g., MoMo details, Paystack key)
 model AppSetting {
   id        Int      @id @default(autoincrement())

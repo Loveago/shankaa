@@ -22,6 +22,7 @@ import OrderFiles from '../components/OrderFiles';
 import StorefrontWithdrawalAdmin from '../components/StorefrontWithdrawalAdmin';
 import ReferralCodeManager from '../components/ReferralCodeManager';
 import ManageStorefront from '../components/ManageStorefront';
+import AfaRegistrationAdmin from '../components/AfaRegistrationAdmin';
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
@@ -77,7 +78,7 @@ const AdminDashboard = () => {
   // Settings state
   const [settingsLoading, setSettingsLoading] = useState(false);
   const [settingsSaving, setSettingsSaving] = useState(false);
-  const [settingsForm, setSettingsForm] = useState({ momoNumber: '', momoName: '', paystackSecretKey: '', hasPaystackSecret: false });
+  const [settingsForm, setSettingsForm] = useState({ momoNumber: '', momoName: '', paystackSecretKey: '', hasPaystackSecret: false, registrationEnabled: true });
   
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
@@ -203,8 +204,8 @@ const AdminDashboard = () => {
     try {
       const res = await axios.get(`${BASE_URL}/api/settings`, { headers: getAuthHeaders() });
       if (res.data.success) {
-        const { momoNumber = '', momoName = '', hasPaystackSecret = false } = res.data.settings || {};
-        setSettingsForm((prev) => ({ ...prev, momoNumber, momoName, hasPaystackSecret, paystackSecretKey: '' }));
+        const { momoNumber = '', momoName = '', hasPaystackSecret = false, registrationEnabled = true } = res.data.settings || {};
+        setSettingsForm((prev) => ({ ...prev, momoNumber, momoName, hasPaystackSecret, paystackSecretKey: '', registrationEnabled }));
       }
     } catch (error) {
       console.error('Settings fetch error:', error);
@@ -220,12 +221,13 @@ const AdminDashboard = () => {
       const payload = {
         momoNumber: settingsForm.momoNumber,
         momoName: settingsForm.momoName,
-        paystackSecretKey: settingsForm.paystackSecretKey?.trim() ? settingsForm.paystackSecretKey.trim() : undefined
+        paystackSecretKey: settingsForm.paystackSecretKey?.trim() ? settingsForm.paystackSecretKey.trim() : undefined,
+        registrationEnabled: settingsForm.registrationEnabled
       };
       const res = await axios.put(`${BASE_URL}/api/settings`, payload, { headers: getAuthHeaders() });
       if (res.data.success) {
-        const { momoNumber = '', momoName = '', hasPaystackSecret = false } = res.data.settings || {};
-        setSettingsForm((prev) => ({ ...prev, momoNumber, momoName, hasPaystackSecret, paystackSecretKey: '' }));
+        const { momoNumber = '', momoName = '', hasPaystackSecret = false, registrationEnabled = true } = res.data.settings || {};
+        setSettingsForm((prev) => ({ ...prev, momoNumber, momoName, hasPaystackSecret, paystackSecretKey: '', registrationEnabled }));
         Swal.fire({ icon: 'success', title: 'Settings updated', background: '#1e293b', color: '#f1f5f9', timer: 1500, showConfirmButton: false });
       }
     } catch (error) {
@@ -506,6 +508,7 @@ const AdminDashboard = () => {
     { id: 'products', label: 'Products', icon: Package },
     { id: 'referralCodes', label: 'Referral Codes', icon: Gift },
     { id: 'settings', label: 'Settings', icon: Settings },
+    { id: 'afaRegistration', label: 'AFA Registration', icon: FileText },
     { id: 'orderFiles', label: 'Order Files', icon: FileText }
   ];
 
@@ -570,6 +573,10 @@ const AdminDashboard = () => {
           <button onClick={() => { setActiveTab('settings'); setIsSidebarOpen(false); }}
             className="w-full flex items-center gap-3 px-4 py-3 text-dark-300 hover:text-white hover:bg-dark-700/50 rounded-xl transition-all">
             <Settings className="w-5 h-5" /><span>Settings</span>
+          </button>
+          <button onClick={() => { setActiveTab('afaRegistration'); setIsSidebarOpen(false); }}
+            className="w-full flex items-center gap-3 px-4 py-3 text-dark-300 hover:text-white hover:bg-dark-700/50 rounded-xl transition-all">
+            <FileText className="w-5 h-5" /><span>AFA Registration</span>
           </button>
           <button onClick={() => { setActiveTab('orderFiles'); setIsSidebarOpen(false); }}
             className="w-full flex items-center gap-3 px-4 py-3 text-dark-300 hover:text-white hover:bg-dark-700/50 rounded-xl transition-all">
@@ -1016,6 +1023,12 @@ const AdminDashboard = () => {
                 </div>
               )}
 
+              {activeTab === 'afaRegistration' && (
+                <div className="bg-dark-800/50 backdrop-blur rounded-2xl border border-dark-700 p-6">
+                  <AfaRegistrationAdmin />
+                </div>
+              )}
+
               {activeTab === 'orderFiles' && (
                 <OrderFiles />
               )}
@@ -1103,6 +1116,24 @@ const AdminDashboard = () => {
                         className="w-full bg-dark-900 border border-dark-600 rounded-xl px-4 py-3 text-white placeholder-dark-500 focus:border-cyan-500 focus:outline-none"
                       />
                       <p className="text-xs text-dark-400">Leave blank to keep existing secret key.</p>
+                    </div>
+
+                    <div className="border-t border-dark-700 pt-4 mt-4">
+                      <label className="flex items-center justify-between cursor-pointer">
+                        <div>
+                          <span className="text-sm font-medium text-dark-300">Allow Public Registration</span>
+                          <p className="text-xs text-dark-400 mt-0.5">Toggle signup availability on the site</p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSettingsForm(prev => ({ ...prev, registrationEnabled: !prev.registrationEnabled }));
+                          }}
+                          className={`relative w-12 h-6 rounded-full transition-colors ${settingsForm.registrationEnabled ? 'bg-emerald-500' : 'bg-dark-600'}`}
+                        >
+                          <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${settingsForm.registrationEnabled ? 'translate-x-6' : 'translate-x-0'}`} />
+                        </button>
+                      </label>
                     </div>
                   </div>
 

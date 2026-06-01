@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef, memo } from 'react';
-import { MessageSquareWarning, X, CheckCircle, Clock, AlertCircle, Phone, Loader2, RefreshCw, Trash2, Copy, DollarSign, Image as ImageIcon, Upload, ExternalLink } from 'lucide-react';
+import React, { useState, useEffect, useRef, memo, useCallback } from 'react';
+import { MessageSquareWarning, X, CheckCircle, Clock, AlertCircle, Phone, Loader2, RefreshCw, Trash2, Copy, DollarSign, Image as ImageIcon, Upload, ExternalLink, ClipboardPaste } from 'lucide-react';
 import axios from 'axios';
 import Swal from 'sweetalert2';
 import BASE_URL from '../endpoints/endpoints';
@@ -37,6 +37,13 @@ const UpdateStatusDialog = memo(({ complaint, initialNotes, onClose, onUpdate })
   );
 });
 
+// Helper: extract filename from stored path and return API-based image URL
+const getImageUrl = (storedPath) => {
+  if (!storedPath) return '';
+  const filename = storedPath.split('/').pop();
+  return `${BASE_URL}/api/complaints/image/${filename}`;
+};
+
 const ComplaintsViewer = ({ isOpen, onClose }) => {
   const [complaints, setComplaints] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -45,7 +52,9 @@ const ComplaintsViewer = ({ isOpen, onClose }) => {
   const [statusFilter, setStatusFilter] = useState('all');
   const [selectedImage, setSelectedImage] = useState(null);
   const [uploadingId, setUploadingId] = useState(null);
+  const [pastingId, setPastingId] = useState(null);
   const fileInputRef = useRef(null);
+  const pasteInputRef = useRef(null);
   const statusFilterRef = useRef(statusFilter);
   const socketRef = useRef(null);
 
@@ -324,12 +333,12 @@ const ComplaintsViewer = ({ isOpen, onClose }) => {
                         {/* Proof image thumbnail */}
                         {complaint.proofImage && (
                           <button
-                            onClick={() => setSelectedImage(complaint.proofImage)}
+                            onClick={() => setSelectedImage(getImageUrl(complaint.proofImage))}
                             className="mt-2 flex items-center gap-2 px-3 py-2 bg-dark-800 border border-dark-600 rounded-lg hover:border-emerald-500/30 transition-colors group"
                           >
                             <div className="w-14 h-14 bg-dark-700 rounded-lg overflow-hidden flex items-center justify-center border border-dark-600 shrink-0">
                               <img
-                                src={`${BASE_URL}${complaint.proofImage}`}
+                                src={getImageUrl(complaint.proofImage)}
                                 alt="Proof"
                                 className="w-full h-full object-cover"
                                 onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }}
@@ -352,21 +361,37 @@ const ComplaintsViewer = ({ isOpen, onClose }) => {
                         )}
                       </div>
                       <div className="flex flex-col items-center gap-2 shrink-0">
-                        {/* Upload proof image button */}
+                        {/* Upload / Paste proof image buttons */}
                         {!complaint.proofImage && (
-                          <button
-                            onClick={() => {
-                              if (fileInputRef.current) {
-                                fileInputRef.current.dataset.complaintId = complaint.id;
-                                fileInputRef.current.click();
-                              }
-                            }}
-                            disabled={uploadingId === complaint.id}
-                            className="p-2 bg-emerald-500/20 text-emerald-400 rounded-lg hover:bg-emerald-500/30 disabled:opacity-50"
-                            title="Upload proof screenshot"
-                          >
-                            {uploadingId === complaint.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
-                          </button>
+                          <>
+                            <button
+                              onClick={() => {
+                                if (fileInputRef.current) {
+                                  fileInputRef.current.dataset.complaintId = complaint.id;
+                                  fileInputRef.current.click();
+                                }
+                              }}
+                              disabled={uploadingId === complaint.id}
+                              className="p-2 bg-emerald-500/20 text-emerald-400 rounded-lg hover:bg-emerald-500/30 disabled:opacity-50"
+                              title="Upload proof screenshot"
+                            >
+                              {uploadingId === complaint.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+                            </button>
+                            <button
+                              onClick={() => {
+                                if (pasteInputRef.current) {
+                                  pasteInputRef.current.dataset.complaintId = complaint.id;
+                                  pasteInputRef.current.focus();
+                                  pasteInputRef.current.click();
+                                }
+                              }}
+                              disabled={pastingId === complaint.id}
+                              className="p-2 bg-cyan-500/20 text-cyan-400 rounded-lg hover:bg-cyan-500/30 disabled:opacity-50"
+                              title="Paste image from clipboard"
+                            >
+                              {pastingId === complaint.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <ClipboardPaste className="w-4 h-4" />}
+                            </button>
+                          </>
                         )}
 
                         {complaint.status !== 'resolved' && complaint.status !== 'refunded' && (
@@ -408,13 +433,54 @@ const ComplaintsViewer = ({ isOpen, onClose }) => {
             <X className="w-6 h-6 text-white" />
           </button>
           <img
-            src={`${BASE_URL}${selectedImage}`}
+            src={selectedImage}
             alt="Proof"
             className="max-w-full max-h-[90vh] rounded-xl shadow-2xl object-contain"
             onClick={(e) => e.stopPropagation()}
+            onError={(e) => { e.target.style.display = 'none'; }}
           />
         </div>
       )}
+
+      {/* Hidden textarea for clipboard paste */}
+      <textarea
+        ref={pasteInputRef}
+        className="fixed opacity-0 pointer-events-none w-0 h-0"
+        tabIndex={-1}
+        onChange={async (e) => {
+          e.preventDefault();
+        }}
+        onPaste={async (e) => {
+          e.preventDefault();
+          const complaintId = e.target.dataset.complaintId;
+          if (!complaintId) return;
+          const items = e.clipboardData?.items;
+          if (!items) return;
+          for (let i = 0; i < items.length; i++) {
+            if (items[i].type.startsWith('image/')) {
+              const file = items[i].getAsFile();
+              if (file) {
+                setPastingId(parseInt(complaintId));
+                try {
+                  const token = localStorage.getItem('token');
+                  const formData = new FormData();
+                  formData.append('proofImage', file, 'pasted-image.png');
+                  await axios.post(`${BASE_URL}/api/complaints/${complaintId}/proof-image`, formData, {
+                    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' }
+                  });
+                  Swal.fire({ icon: 'success', title: 'Image Pasted!', timer: 1500, background: '#1e293b', color: '#f1f5f9' });
+                  fetchComplaints();
+                } catch (err) {
+                  Swal.fire({ icon: 'error', title: 'Paste Failed', text: err.response?.data?.message || 'Failed to upload pasted image', background: '#1e293b', color: '#f1f5f9' });
+                } finally {
+                  setPastingId(null);
+                }
+              }
+              break;
+            }
+          }
+        }}
+      />
     </>
   );
 };

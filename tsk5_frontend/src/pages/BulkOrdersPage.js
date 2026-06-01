@@ -46,7 +46,7 @@ const BulkOrdersPage = ({ onBack }) => {
         setOrders(res.data.orders || []);
       }
     } catch (error) {
-      toast.error('Failed to load bulk orders');
+      toast.error('Failed to load order history');
       console.error(error);
     } finally {
       setLoading(false);
@@ -77,7 +77,7 @@ const BulkOrdersPage = ({ onBack }) => {
         </button>
         <div className="flex-1">
           <p className="text-xs uppercase tracking-wide text-dark-400">Dashboard</p>
-          <h1 className="text-2xl font-semibold text-white">Bulk Orders</h1>
+          <h1 className="text-2xl font-semibold text-white">Order History</h1>
         </div>
         <button
           onClick={fetchOrders}
@@ -98,7 +98,7 @@ const BulkOrdersPage = ({ onBack }) => {
         ) : orders.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 text-center">
             <AlertCircle className="w-12 h-12 text-dark-400 mb-4" />
-            <p className="text-lg font-medium text-dark-200 mb-2">No Bulk Orders Yet</p>
+            <p className="text-lg font-medium text-dark-200 mb-2">No Order History Yet</p>
             <p className="text-dark-400">Paste or upload multiple orders to see them here.</p>
           </div>
         ) : (
