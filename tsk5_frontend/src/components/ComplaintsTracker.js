@@ -2,6 +2,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import axios from 'axios';
 import { MessageSquareWarning, X, Loader2, Clock, CheckCircle, AlertCircle, DollarSign, Image as ImageIcon, ExternalLink } from 'lucide-react';
 import BASE_URL from '../endpoints/endpoints';
+import { toast } from 'react-toastify';
 
 // Helper: extract filename from stored path and return API-based image URL
 const getImageUrl = (storedPath) => {
@@ -9,7 +10,6 @@ const getImageUrl = (storedPath) => {
   const filename = storedPath.split('/').pop();
   return `${BASE_URL}/api/complaints/image/${filename}`;
 };
-import { toast } from 'react-toastify';
 
 const getAuthHeaders = () => ({ Authorization: `Bearer ${localStorage.getItem('token')}` });
 
