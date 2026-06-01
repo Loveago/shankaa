@@ -217,7 +217,7 @@ const ComplaintsViewer = ({ isOpen, onClose }) => {
     // Reset pasting state
     setPastingId(null);
     pasteComplaintIdRef.current = null;
-  }, []);
+  }, [handleUploadProof]);
 
   const handlePasteClipboard = (complaintId) => {
     pasteComplaintIdRef.current = complaintId;
