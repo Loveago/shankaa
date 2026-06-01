@@ -116,7 +116,7 @@ const ComplaintsViewer = ({ isOpen, onClose }) => {
     fetchPendingCount();
     const interval = setInterval(fetchPendingCount, 30000);
     return () => clearInterval(interval);
-  }, []);
+  }, [fetchPendingCount]);
 
   useEffect(() => {
     if (isOpen) fetchComplaints();
