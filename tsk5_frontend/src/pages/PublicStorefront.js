@@ -621,7 +621,6 @@ const PublicStorefront = () => {
               {trackedOrders.length > 0 && (
                 <div className="space-y-3 sm:space-y-4">
                   {trackedOrders.map((order) => {
-                    const completedItems = order.items?.filter(i => i.status?.toLowerCase() === 'completed') || [];
                     const orderComplaints = order.complaints || [];
 
                     return (
