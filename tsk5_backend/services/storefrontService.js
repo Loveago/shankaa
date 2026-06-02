@@ -883,9 +883,7 @@ const createWithdrawalRequest = async (agentId, amount, mobileNumber) => {
 const getAgentStorefrontOrders = async (agentId) => {
   const referralOrders = await prisma.referralOrder.findMany({
     where: {
-      agentId: parseInt(agentId),
-      orderId: { not: null },
-      paymentStatus: 'Paid'
+      agentId: parseInt(agentId)
     },
     include: {
       product: { select: { id: true, name: true, description: true } },
