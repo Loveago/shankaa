@@ -159,7 +159,7 @@ const trackOrders = async ({ mobileNumber, orderNumber }) => {
 
   // Fetch related complaints for these orders
   if (orders.length > 0) {
-    const orderIds = orders.map(o => o.id);
+    const orderIds = orders.map(o => String(o.id));
     const orderItemIds = orders.flatMap(o => o.items.map(i => i.id));
 
     const complaints = await prisma.complaint.findMany({
@@ -184,11 +184,11 @@ const trackOrders = async ({ mobileNumber, orderNumber }) => {
       orderBy: { createdAt: 'desc' }
     });
 
-    // Attach complaints to their orders
+    // Attach complaints to their orders (orderId is String in Complaint, order.id is Int — compare as strings)
     return orders.map(order => ({
       ...order,
       complaints: complaints.filter(
-        c => c.orderId === order.id || (c.orderItemId && order.items.some(i => i.id === c.orderItemId))
+        c => c.orderId === String(order.id) || (c.orderItemId && order.items.some(i => i.id === c.orderItemId))
       )
     }));
   }
