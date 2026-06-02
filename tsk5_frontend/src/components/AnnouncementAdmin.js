@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { X, Megaphone, Plus, Edit, Trash2, Loader2, Eye, EyeOff } from 'lucide-react';
 import axios from 'axios';
 import Swal from 'sweetalert2';
@@ -31,7 +31,7 @@ const AnnouncementAdmin = ({ isOpen, onClose }) => {
   }, [isOpen]);
 
   const resetForm = () => {
-    setFormData({ title: '', message: '', isActive: true, target: 'agents', priority: 1 });
+    setFormData({ title: '', message: '', isActive: true, target: 'agents', targetAudience: 'all', priority: 1 });
     setEditingId(null);
   };
 
@@ -62,7 +62,14 @@ const AnnouncementAdmin = ({ isOpen, onClose }) => {
   };
 
   const handleEdit = (announcement) => {
-    setFormData({ title: announcement.title, message: announcement.message, isActive: announcement.isActive, target: announcement.target || 'agents', priority: announcement.priority || 1 });
+    setFormData({
+      title: announcement.title,
+      message: announcement.message,
+      isActive: announcement.isActive,
+      target: announcement.target || 'agents',
+      targetAudience: announcement.targetAudience || 'all',
+      priority: announcement.priority || 1
+    });
     setEditingId(announcement.id);
   };
 
@@ -95,6 +102,13 @@ const AnnouncementAdmin = ({ isOpen, onClose }) => {
       console.error('Error toggling announcement:', error);
     }
   };
+
+  // Update form data when target changes
+  useEffect(() => {
+    if (formData.target === 'shop-alert') {
+      setFormData(prev => ({ ...prev, targetAudience: 'all' }));
+    }
+  }, [formData.target]);
 
   if (!isOpen) return null;
 
@@ -141,6 +155,33 @@ const AnnouncementAdmin = ({ isOpen, onClose }) => {
                       Shop Alert (Popup)
                     </label>
                   </div>
+                  
+                  {/* Target Audience Selection */}
+                  {formData.target !== 'shop-alert' && (
+                    <div className="flex flex-wrap gap-4">
+                      <label className="text-dark-300 text-sm self-center">Target Audience:</label>
+                      <label className="flex items-center gap-2 text-dark-300">
+                        <input type="radio" name="targetAudience" value="all" checked={formData.targetAudience === 'all'} onChange={(e) => setFormData({ ...formData, targetAudience: e.target.value })}
+                          className="w-4 h-4 text-amber-500 focus:ring-amber-500" />
+                        All Users
+                      </label>
+                      <label className="flex items-center gap-2 text-dark-300">
+                        <input type="radio" name="targetAudience" value="admin" checked={formData.targetAudience === 'admin'} onChange={(e) => setFormData({ ...formData, targetAudience: e.target.value })}
+                          className="w-4 h-4 text-amber-500 focus:ring-amber-500" />
+                        Admin Only
+                      </label>
+                      <label className="flex items-center gap-2 text-dark-300">
+                        <input type="radio" name="targetAudience" value="agent" checked={formData.targetAudience === 'agent'} onChange={(e) => setFormData({ ...formData, targetAudience: e.target.value })}
+                          className="w-4 h-4 text-amber-500 focus:ring-amber-500" />
+                        Agents Only
+                      </label>
+                      <label className="flex items-center gap-2 text-dark-300">
+                        <input type="radio" name="targetAudience" value="user" checked={formData.targetAudience === 'user'} onChange={(e) => setFormData({ ...formData, targetAudience: e.target.value })}
+                          className="w-4 h-4 text-amber-500 focus:ring-amber-500" />
+                        Users Only
+                      </label>
+                    </div>
+                  )}
                   <div className="flex items-center justify-between">
                     <label className="flex items-center gap-2 text-dark-300">
                       <input type="checkbox" checked={formData.isActive} onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}

@@ -75,61 +75,63 @@ const SlidingNotification = ({ notifications, onClose, autoCloseDelay = 8000 }) 
   };
 
   return (
-    <div className="fixed top-4 right-4 z-[10000]">
+    <div className="fixed top-4 right-4 z-[10000] w-[calc(100%-2rem)] max-w-md sm:max-w-lg md:max-w-xl">
       <div
-        className={`bg-blue-500 rounded-full px-6 py-4 shadow-lg flex items-center gap-3 min-w-[320px] max-w-[500px] ${getAnimationClass()}`}
+        className={`bg-blue-500 rounded-full px-4 py-3 sm:px-6 sm:py-4 shadow-lg flex items-center gap-2 sm:gap-3 ${getAnimationClass()}`}
       >
         {/* Speaker Icon */}
-        <Volume2 className="w-5 h-5 text-white flex-shrink-0" />
+        <Volume2 className="w-4 h-4 sm:w-5 sm:h-5 text-white flex-shrink-0" />
         
-        {/* Notification Text */}
-        <div className="flex-1 min-w-0">
-          <p className="text-white font-semibold text-sm truncate">
+        {/* Notification Text - Scrollable on small screens */}
+        <div className="flex-1 min-w-0 overflow-hidden">
+          <p className="text-white font-semibold text-xs sm:text-sm truncate">
             {currentNotification.title}
           </p>
-          <p className="text-white/90 text-xs truncate">
+          <p className="text-white/90 text-xs truncate hidden sm:block">
             {currentNotification.message}
           </p>
         </div>
 
-        {/* Navigation Dots */}
-        <div className="flex items-center gap-1.5 mr-2">
-          {notifications.map((_, idx) => (
-            <button
-              key={idx}
-              onClick={(e) => {
-                e.stopPropagation();
-                setCurrentIndex(idx);
-              }}
-              className={`w-2 h-2 rounded-full transition-all ${
-                idx === currentIndex ? 'bg-white' : 'bg-white/40 hover:bg-white/60'
-              }`}
-              title={`Go to notification ${idx + 1}`}
-            />
-          ))}
-        </div>
+        {/* Navigation Dots - Smaller on mobile */}
+        {notifications.length > 1 && (
+          <div className="flex items-center gap-1 mr-1 sm:mr-2 flex-shrink-0">
+            {notifications.map((_, idx) => (
+              <button
+                key={idx}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setCurrentIndex(idx);
+                }}
+                className={`w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full transition-all ${
+                  idx === currentIndex ? 'bg-white' : 'bg-white/40 hover:bg-white/60'
+                }`}
+                title={`Go to notification ${idx + 1}`}
+              />
+            ))}
+          </div>
+        )}
 
-        {/* Previous Button */}
+        {/* Previous Button - Hidden on very small screens */}
         {notifications.length > 1 && (
           <button
             onClick={handlePrevious}
-            className="p-1.5 bg-white/20 hover:bg-white/30 rounded-full transition-colors"
+            className="p-1 sm:p-1.5 bg-white/20 hover:bg-white/30 rounded-full transition-colors flex-shrink-0"
             title="Previous notification"
           >
-            <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-3 h-3 sm:w-4 sm:h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
           </button>
         )}
 
-        {/* Next Button */}
+        {/* Next Button - Hidden on very small screens */}
         {notifications.length > 1 && (
           <button
             onClick={handleNext}
-            className="p-1.5 bg-white/20 hover:bg-white/30 rounded-full transition-colors"
+            className="p-1 sm:p-1.5 bg-white/20 hover:bg-white/30 rounded-full transition-colors flex-shrink-0"
             title="Next notification"
           >
-            <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-3 h-3 sm:w-4 sm:h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
             </svg>
           </button>
@@ -138,10 +140,10 @@ const SlidingNotification = ({ notifications, onClose, autoCloseDelay = 8000 }) 
         {/* Close Button */}
         <button
           onClick={handleClose}
-          className="p-1.5 bg-white/20 hover:bg-white/30 rounded-full transition-colors"
+          className="p-1 sm:p-1.5 bg-white/20 hover:bg-white/30 rounded-full transition-colors flex-shrink-0"
           title="Close notification"
         >
-          <X className="w-4 h-4 text-white" />
+          <X className="w-3 h-3 sm:w-4 sm:h-4 text-white" />
         </button>
       </div>
     </div>

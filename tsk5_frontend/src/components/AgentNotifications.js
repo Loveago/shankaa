@@ -77,12 +77,18 @@ const AgentNotifications = () => {
   // Real-time announcement updates via socket
   useEffect(() => {
     const socket = getSocket();
-    const handleAnnouncementUpdate = () => {
+    const handleAnnouncementUpdate = (data) => {
+      console.log('Announcement update received:', data);
       fetchUnreadCount();
       if (isOpen) fetchNotifications();
+      
       // Show sliding notification for new announcements
-      setShowSlidingNotification(true);
-      setTimeout(() => setShowSlidingNotification(false), 10000);
+      // Only show if it's a new announcement (not a delete)
+      if (!data.deleted) {
+        setShowSlidingNotification(true);
+        // Auto-hide after 12 seconds
+        setTimeout(() => setShowSlidingNotification(false), 12000);
+      }
     };
     socket.on('announcement:new', handleAnnouncementUpdate);
     return () => socket.off('announcement:new', handleAnnouncementUpdate);
