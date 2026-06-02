@@ -36,6 +36,14 @@ const createOrderIfNotExists = async (externalRef, productId, mobileNumber) => {
       return { created: false, error: 'Product not found' };
     }
     
+    if (product.shopStockClosed) {
+      return { created: false, error: 'Product is currently closed for purchases' };
+    }
+    
+    if (!product.showInShop) {
+      return { created: false, error: 'Product is not available in shop' };
+    }
+    
     // Create the order within the same transaction
     const order = await tx.order.create({
       data: {

@@ -192,7 +192,10 @@ const testWebhook = async (keyId, userId) => {
  */
 const getAvailableProducts = async (role = null) => {
   const products = await prisma.product.findMany({
-    where: { showForAgents: true },
+    where: {
+      showForAgents: true,
+      shopStockClosed: false
+    },
     select: {
       id: true,
       name: true,

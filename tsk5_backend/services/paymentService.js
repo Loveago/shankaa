@@ -17,16 +17,23 @@ const getPaystackSecret = async () => {
   return fromDb || process.env.PAYSTACK_SECRET_KEY;
 };
 
-// Generate unique external reference
-const generateExternalRef = () => {
+// Generate unique external reference for store orders
+const generateStoreRef = () => {
   const timestamp = Date.now();
   const random = Math.random().toString(36).substring(2, 8).toUpperCase();
-  return `TSK5-${timestamp}-${random}`;
+  return `STORE-${timestamp}-${random}`;
+};
+
+// Generate unique reference for bulk orders
+const generateBulkRef = () => {
+  const timestamp = Date.now();
+  const random = Math.random().toString(36).substring(2, 8).toUpperCase();
+  return `BULK-${timestamp}-${random}`;
 };
 
 // Initialize Paystack transaction and get payment URL
 const initializePayment = async (email, mobileNumber, amount, productId, productName, callbackUrl) => {
-  const externalRef = generateExternalRef();
+  const externalRef = generateStoreRef();
   
   // Format phone number
   let formattedPhone = mobileNumber.replace(/\D/g, '');
@@ -464,5 +471,7 @@ module.exports = {
   getAllPaymentTransactions,
   linkTransactionToOrder,
   getOrphanedSuccessfulPayments,
-  verifyAndCreateOrder
+  verifyAndCreateOrder,
+  generateStoreRef,
+  generateBulkRef
 };

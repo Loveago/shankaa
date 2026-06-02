@@ -63,11 +63,12 @@ const setAllProductStockToZero = async (stockValue) => {
   });
 };
 
-// Get products visible in shop (includes out-of-stock products)
+// Get products visible in shop (includes out-of-stock products but excludes those with shopStockClosed)
 const getShopProducts = async () => {
   return await prisma.product.findMany({
     where: {
-      showInShop: true
+      showInShop: true,
+      shopStockClosed: false
     },
     orderBy: {
       createdAt: "desc",
@@ -209,11 +210,12 @@ const bulkUpdateAgentVisibility = async (showForAgents, carrier = null) => {
   });
 };
 
-// Get products visible for agents
+// Get products visible for agents (excludes products that are shopStockClosed)
 const getAgentProducts = async () => {
   return await prisma.product.findMany({
     where: {
       showForAgents: true,
+      shopStockClosed: false
     },
     orderBy: { createdAt: "desc" },
     include: makeInclude(),

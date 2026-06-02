@@ -49,6 +49,10 @@ const createShopOrder = async (productId, mobileNumber, customerName) => {
     throw new Error("Product is not available in shop");
   }
   
+  if (product.shopStockClosed) {
+    throw new Error("Product is currently closed for purchases");
+  }
+  
   // Create the order
   const orderNumber = generateOrderNumber();
   const order = await prisma.order.create({

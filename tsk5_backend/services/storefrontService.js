@@ -19,11 +19,11 @@ const getPaystackSecret = async () => {
   return fromDb || process.env.PAYSTACK_SECRET_KEY;
 };
 
-// Generate unique reference for referral orders
+// Generate unique reference for referral/storefront orders (uses STORE- prefix like direct store orders)
 const generateReferralRef = () => {
   const timestamp = Date.now();
   const random = Math.random().toString(36).substring(2, 8).toUpperCase();
-  return `REF-${timestamp}-${random}`;
+  return `STORE-${timestamp}-${random}`;
 };
 
 // Generate unique storefront slug from agent name
@@ -79,10 +79,13 @@ const getAvailableProducts = async (agentId) => {
 
   const role = agent.role;
 
-  // Show ALL products with stock > 0 — the old name-based role filtering
-  // is obsolete now that per-account-type pricing (RolePrice) exists.
+  // Show all products with stock > 0 that are available for agents and not closed
   const products = await prisma.product.findMany({
-    where: { stock: { gt: 0 } },
+    where: {
+      stock: { gt: 0 },
+      showForAgents: true,
+      shopStockClosed: false
+    },
     include: { rolePrices: { select: { role: true, price: true } } },
     orderBy: [{ name: 'asc' }, { price: 'asc' }]
   });
@@ -248,7 +251,11 @@ const getPublicStorefront = async (slug) => {
     where: {
       agentId: agent.id,
       isActive: true,
-      product: { stock: { gt: 0 } }
+      product: {
+        stock: { gt: 0 },
+        showForAgents: true,
+        shopStockClosed: false
+      }
     },
     include: {
       product: {
