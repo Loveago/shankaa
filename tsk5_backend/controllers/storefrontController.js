@@ -262,7 +262,9 @@ const updateStorefrontWhatsapp = async (req, res) => {
 const getAgentStorefrontOrders = async (req, res) => {
   try {
     const { userId } = req.params;
+    console.log('[Storefront Orders] Fetching for userId:', userId);
     const orders = await storefrontService.getAgentStorefrontOrders(userId);
+    console.log('[Storefront Orders] Found', orders.length, 'orders');
     res.status(200).json({ success: true, orders });
   } catch (error) {
     console.error('Error getting storefront orders:', error);
