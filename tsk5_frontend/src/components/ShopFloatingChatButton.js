@@ -33,7 +33,7 @@ const ShopFloatingChatButton = () => {
       {!isOpen && (
         <button
           onClick={() => { setIsOpen(true); try { const a = new Audio('/chat-alert.mp3'); a.volume = 0; a.play().then(() => a.pause()).catch(() => {}); } catch(e) {} }}
-          className="fixed bottom-6 right-4 sm:right-6 z-50 w-14 h-14 bg-gradient-to-br from-cyan-500 to-teal-600 hover:from-cyan-600 hover:to-teal-700 text-white rounded-full shadow-lg shadow-cyan-500/25 flex items-center justify-center transition-all duration-200 hover:scale-105 active:scale-95"
+          className="fixed bottom-6 right-4 sm:right-6 md:right-8 lg:right-10 z-50 w-14 h-14 bg-gradient-to-br from-cyan-500 to-teal-600 hover:from-cyan-600 hover:to-teal-700 text-white rounded-full shadow-lg shadow-cyan-500/25 flex items-center justify-center transition-all duration-200 hover:scale-105 active:scale-95"
         >
           <MessageCircle className="w-7 h-7" />
           {unreadCount > 0 && (

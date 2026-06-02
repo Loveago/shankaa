@@ -386,28 +386,32 @@ const Storefront = ({ isOpen, onClose, userId }) => {
         </div>
 
         {/* Tabs */}
-        <div className="flex p-3 border-b border-dark-700">
-          <div className="flex bg-dark-700 rounded-xl p-1 w-full sm:w-auto">
-            <button onClick={() => setActiveTab('products')}
-              className={`flex-1 sm:flex-none px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === 'products' ? 'bg-violet-500 text-white' : 'text-dark-300 hover:text-white'}`}>
-              <Package className="w-4 h-4 inline mr-2" />Products
-            </button>
-            <button onClick={() => setActiveTab('earnings')}
-              className={`flex-1 sm:flex-none px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === 'earnings' ? 'bg-violet-500 text-white' : 'text-dark-300 hover:text-white'}`}>
-              <TrendingUp className="w-4 h-4 inline mr-2" />Earnings
-            </button>
-            <button onClick={() => { setActiveTab('orders'); fetchStorefrontOrders(); }}
-              className={`flex-1 sm:flex-none px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === 'orders' ? 'bg-violet-500 text-white' : 'text-dark-300 hover:text-white'}`}>
-              <ShoppingBag className="w-4 h-4 inline mr-2" />Orders
-            </button>
-            <button onClick={() => { setActiveTab('wallet'); fetchWalletData(); }}
-              className={`flex-1 sm:flex-none px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === 'wallet' ? 'bg-violet-500 text-white' : 'text-dark-300 hover:text-white'}`}>
-              <Landmark className="w-4 h-4 inline mr-2" />Wallet
-            </button>
-            <button onClick={() => { setActiveTab('settings'); fetchWalletData(); }}
-              className={`flex-1 sm:flex-none px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === 'settings' ? 'bg-violet-500 text-white' : 'text-dark-300 hover:text-white'}`}>
-              <Settings className="w-4 h-4 inline mr-2" />Settings
-            </button>
+        <div className="border-b border-dark-700">
+          <div className="overflow-x-auto scrollbar-hide">
+            <div className="flex p-3 gap-2 min-w-max">
+              <div className="flex bg-dark-700 rounded-xl p-1">
+                <button onClick={() => setActiveTab('products')}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${activeTab === 'products' ? 'bg-violet-500 text-white' : 'text-dark-300 hover:text-white'}`}>
+                  <Package className="w-4 h-4 inline mr-2" />Products
+                </button>
+                <button onClick={() => setActiveTab('earnings')}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${activeTab === 'earnings' ? 'bg-violet-500 text-white' : 'text-dark-300 hover:text-white'}`}>
+                  <TrendingUp className="w-4 h-4 inline mr-2" />Earnings
+                </button>
+                <button onClick={() => { setActiveTab('orders'); fetchStorefrontOrders(); }}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${activeTab === 'orders' ? 'bg-violet-500 text-white' : 'text-dark-300 hover:text-white'}`}>
+                  <ShoppingBag className="w-4 h-4 inline mr-2" />Orders
+                </button>
+                <button onClick={() => { setActiveTab('wallet'); fetchWalletData(); }}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${activeTab === 'wallet' ? 'bg-violet-500 text-white' : 'text-dark-300 hover:text-white'}`}>
+                  <Landmark className="w-4 h-4 inline mr-2" />Wallet
+                </button>
+                <button onClick={() => { setActiveTab('settings'); fetchWalletData(); }}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${activeTab === 'settings' ? 'bg-violet-500 text-white' : 'text-dark-300 hover:text-white'}`}>
+                  <Settings className="w-4 h-4 inline mr-2" />Settings
+                </button>
+              </div>
+            </div>
           </div>
         </div>
 
