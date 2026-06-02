@@ -4,6 +4,7 @@ import { Bell, X, CheckCircle, Megaphone, Loader2 } from 'lucide-react';
 import axios from 'axios';
 import BASE_URL from '../endpoints/endpoints';
 import getSocket from '../utils/socket';
+import SlidingNotification from './SlidingNotification';
 
 // Notification sound
 const notificationSound = new Audio('/notification-sound.mp3');
@@ -15,6 +16,7 @@ const AgentNotifications = () => {
   const [loading, setLoading] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const [selectedNotification, setSelectedNotification] = useState(null);
+  const [showSlidingNotification, setShowSlidingNotification] = useState(false);
 
   const userRole = localStorage.getItem('role') || 'user';
   const userId = localStorage.getItem('userId');
@@ -78,6 +80,9 @@ const AgentNotifications = () => {
     const handleAnnouncementUpdate = () => {
       fetchUnreadCount();
       if (isOpen) fetchNotifications();
+      // Show sliding notification for new announcements
+      setShowSlidingNotification(true);
+      setTimeout(() => setShowSlidingNotification(false), 10000);
     };
     socket.on('announcement:new', handleAnnouncementUpdate);
     return () => socket.off('announcement:new', handleAnnouncementUpdate);
@@ -221,6 +226,14 @@ const AgentNotifications = () => {
           </div>
         </div>,
         document.body
+      )}
+
+      {/* Sliding Notification Banner */}
+      {showSlidingNotification && (
+        <SlidingNotification
+          notifications={notifications.filter(n => !n.isRead).slice(0, 5)}
+          onClose={() => setShowSlidingNotification(false)}
+        />
       )}
     </>
   );
