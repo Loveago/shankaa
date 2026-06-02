@@ -209,19 +209,33 @@ const Storefront = ({ isOpen, onClose, userId }) => {
 
   const handleSaveWhatsapp = async () => {
     if (!whatsappNumber.trim()) {
-      Swal.fire({ icon: 'error', title: 'Error', text: 'Please enter a WhatsApp number', background: '#1e293b', color: '#f1f5f9' });
+      Swal.fire({ icon: 'error', title: 'Error', text: 'Please enter a WhatsApp link', background: '#1e293b', color: '#f1f5f9' });
       return;
     }
+    
+    // Validate WhatsApp link format (channel or group link)
+    const whatsappLinkRegex = /^(https?:\/\/)?(www\.)?(whatsapp\.com\/channel\/[a-zA-Z0-9]+|chat\.whatsapp\.com\/[a-zA-Z0-9]+)/i;
+    if (!whatsappLinkRegex.test(whatsappNumber.trim())) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Invalid Link',
+        text: 'Please enter a valid WhatsApp channel or group link (e.g., https://whatsapp.com/channel/ABC123 or https://chat.whatsapp.com/DEF456)',
+        background: '#1e293b',
+        color: '#f1f5f9'
+      });
+      return;
+    }
+    
     setSavingWhatsapp(true);
     try {
       const res = await axios.put(`${BASE_URL}/api/storefront/agent/${userId}/whatsapp`, {
         whatsappNumber: whatsappNumber.trim()
       }, { headers: getAuthHeaders() });
       if (res.data.success) {
-        Swal.fire({ icon: 'success', title: 'Saved!', text: 'WhatsApp number updated successfully', timer: 1500, background: '#1e293b', color: '#f1f5f9', showConfirmButton: false });
+        Swal.fire({ icon: 'success', title: 'Saved!', text: 'WhatsApp link updated successfully', timer: 1500, background: '#1e293b', color: '#f1f5f9', showConfirmButton: false });
       }
     } catch (error) {
-      Swal.fire({ icon: 'error', title: 'Error', text: error.response?.data?.message || 'Failed to save WhatsApp number', background: '#1e293b', color: '#f1f5f9' });
+      Swal.fire({ icon: 'error', title: 'Error', text: error.response?.data?.message || 'Failed to save WhatsApp link', background: '#1e293b', color: '#f1f5f9' });
     } finally {
       setSavingWhatsapp(false);
     }
@@ -708,22 +722,22 @@ const Storefront = ({ isOpen, onClose, userId }) => {
                     <MessageCircle className="w-6 h-6 text-emerald-400" />
                   </div>
                   <div>
-                    <h4 className="text-white font-semibold">WhatsApp Contact Number</h4>
-                    <p className="text-dark-400 text-sm">Customers will see this number as a WhatsApp bubble on your storefront page</p>
+                    <h4 className="text-white font-semibold">WhatsApp Channel/Group Link</h4>
+                    <p className="text-dark-400 text-sm">Share your WhatsApp channel or group link for customer support</p>
                   </div>
                 </div>
 
                 <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-end">
                   <div className="flex-1 w-full">
-                    <label className="block text-dark-300 text-sm mb-2">WhatsApp Number</label>
+                    <label className="block text-dark-300 text-sm mb-2">WhatsApp Link</label>
                     <input
                       type="text"
                       value={whatsappNumber}
                       onChange={(e) => setWhatsappNumber(e.target.value)}
-                      placeholder="024XXXXXXX"
+                      placeholder="https://whatsapp.com/channel/... or https://chat.whatsapp.com/..."
                       className="w-full bg-dark-800 border border-dark-600 rounded-lg px-4 py-3 text-white text-sm focus:border-emerald-500 focus:outline-none"
                     />
-                    <p className="text-dark-500 text-xs mt-1">Enter the number customers can reach you on WhatsApp (e.g., 024XXXXXXX)</p>
+                    <p className="text-dark-500 text-xs mt-1">Enter your WhatsApp channel or group link (e.g., https://whatsapp.com/channel/ABC123 or https://chat.whatsapp.com/DEF456)</p>
                   </div>
                   <button onClick={handleSaveWhatsapp} disabled={savingWhatsapp}
                     className="px-6 py-3 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg font-medium transition-colors disabled:opacity-50 flex items-center gap-2">
@@ -742,7 +756,7 @@ const Storefront = ({ isOpen, onClose, userId }) => {
                   <div className="mt-4 bg-emerald-500/10 border border-emerald-500/30 rounded-lg p-3 flex items-center gap-3">
                     <MessageCircle className="w-5 h-5 text-emerald-400" />
                     <div>
-                      <p className="text-emerald-400 text-sm font-medium">WhatsApp bubble is active</p>
+                      <p className="text-emerald-400 text-sm font-medium">WhatsApp link is active</p>
                       <p className="text-emerald-300 text-xs">Customers will see a WhatsApp contact button on your storefront</p>
                     </div>
                   </div>
