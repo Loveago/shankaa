@@ -33,7 +33,7 @@ model User {
   refundedTotal    Float         @default(0)
   storefrontSlug   String?       @unique @db.VarChar(100)
   storefrontWallet Float         @default(0)
-  storefrontWhatsapp String?    @db.VarChar(20)
+  storefrontWhatsapp String?    @db.VarChar(255)
   referralCodeId   Int?
   cart             Cart?
   orders           Order[]       @relation("UserToOrder")
