@@ -32,15 +32,18 @@ class AnnouncementService {
   // Get announcements for a specific audience (agents)
   async getAnnouncementsForAudience(audience, userId = null) {
     try {
+      // Normalize audience parameter
+      const normalizedAudience = audience ? String(audience).toLowerCase().trim() : '';
+      
       const announcements = await prisma.announcement.findMany({
         where: {
           isActive: true,
           target: { notIn: ['shop', 'shop-alert'] },
           OR: [
-            { targetAudience: audience.toLowerCase() },
+            { targetAudience: normalizedAudience },
             { targetAudience: 'all' },
-            // Also show if targetAudience is empty/null (backward compatibility)
-            { targetAudience: null }
+            { targetAudience: null },
+            { targetAudience: '' }
           ]
         },
         include: {
@@ -92,14 +95,18 @@ class AnnouncementService {
   // Get unread count for a user
   async getUnreadCount(audience, userId) {
     try {
+      // Normalize audience parameter
+      const normalizedAudience = audience ? String(audience).toLowerCase().trim() : '';
+      
       const announcements = await prisma.announcement.findMany({
         where: {
           isActive: true,
           target: { notIn: ['shop', 'shop-alert'] },
           OR: [
-            { targetAudience: audience.toLowerCase() },
+            { targetAudience: normalizedAudience },
             { targetAudience: 'all' },
-            { targetAudience: null }
+            { targetAudience: null },
+            { targetAudience: '' }
           ]
         },
         select: { id: true }
