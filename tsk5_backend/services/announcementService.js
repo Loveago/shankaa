@@ -38,7 +38,9 @@ class AnnouncementService {
           target: { notIn: ['shop', 'shop-alert'] },
           OR: [
             { targetAudience: audience.toLowerCase() },
-            { targetAudience: 'all' }
+            { targetAudience: 'all' },
+            // Also show if targetAudience is empty/null (backward compatibility)
+            { targetAudience: null }
           ]
         },
         include: {
@@ -96,7 +98,8 @@ class AnnouncementService {
           target: { notIn: ['shop', 'shop-alert'] },
           OR: [
             { targetAudience: audience.toLowerCase() },
-            { targetAudience: 'all' }
+            { targetAudience: 'all' },
+            { targetAudience: null }
           ]
         },
         select: { id: true }

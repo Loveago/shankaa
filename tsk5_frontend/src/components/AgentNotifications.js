@@ -29,7 +29,9 @@ const AgentNotifications = () => {
       const res = await axios.get(
         `${BASE_URL}/api/announcement/audience/${userRole.toLowerCase()}?userId=${userId}`
       );
-      setNotifications(res.data.data || []);
+      // Handle different response formats
+      const data = res.data?.data || res.data || [];
+      setNotifications(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error('Error fetching notifications:', err);
     } finally {
@@ -69,10 +71,24 @@ const AgentNotifications = () => {
   }, [userRole, userId, playNotificationSound]);
 
   useEffect(() => {
+    console.log('AgentNotifications mounted, role:', userRole, 'userId:', userId);
     fetchUnreadCount();
     const interval = setInterval(fetchUnreadCount, 30000);
+    
+    // Fetch notifications on mount
+    fetchNotifications();
+    
+    // Show sliding notification on mount if there are unread notifications
+    setTimeout(() => {
+      if (notifications.length > 0) {
+        console.log('Showing sliding notification with', notifications.length, 'notifications');
+        setShowSlidingNotification(true);
+        setTimeout(() => setShowSlidingNotification(false), 12000);
+      }
+    }, 1000);
+    
     return () => clearInterval(interval);
-  }, [fetchUnreadCount]);
+  }, [fetchUnreadCount, fetchNotifications, userRole, userId, notifications.length]);
 
   // Real-time announcement updates via socket
   useEffect(() => {
@@ -234,10 +250,19 @@ const AgentNotifications = () => {
         document.body
       )}
 
+      {/* Debug info - remove in production */}
+      {/*
+      <div className="fixed bottom-4 right-4 bg-gray-800 text-white p-2 rounded z-[9999]">
+        <p>Notifications: {notifications.length}</p>
+        <p>Unread: {unreadCount}</p>
+        <p>Show Slider: {showSlidingNotification.toString()}</p>
+      </div>
+      */}
+
       {/* Sliding Notification Banner */}
       {showSlidingNotification && (
         <SlidingNotification
-          notifications={notifications.filter(n => !n.isRead).slice(0, 5)}
+          notifications={notifications.slice(0, 5)}
           onClose={() => setShowSlidingNotification(false)}
         />
       )}
