@@ -114,6 +114,12 @@ const createExternalOrder = async (partnerId, items) => {
       if (!product) {
         throw new Error(`Product with ID ${item.productId} not found`);
       }
+      if (!product.showForAgents) {
+        throw new Error(`Product "${product.name}" is not available for agents`);
+      }
+      if (product.shopStockClosed) {
+        throw new Error(`Product "${product.name}" is currently closed for purchases`);
+      }
 
       // External partners use base pricing (no role)
       const effectivePrice = resolvePrice(product, null);

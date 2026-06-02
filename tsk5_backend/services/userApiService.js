@@ -283,6 +283,8 @@ const createApiOrder = async (userId, items, apiKeyId) => {
         const parsedProductId = parseInt(item.productId);
         product = productMap[parsedProductId];
         if (!product) throw new Error(`Product ID ${item.productId} not found`);
+        if (!product.showForAgents) throw new Error(`Product "${product.name}" is not available for agents`);
+        if (product.shopStockClosed) throw new Error(`Product "${product.name}" is currently closed for purchases`);
       } else {
         const networkUpper = String(item.network || '').trim().toUpperCase();
         const bundleValue = item.bundleAmount !== undefined && item.bundleAmount !== null
@@ -315,6 +317,9 @@ const createApiOrder = async (userId, items, apiKeyId) => {
 
         if (!product) {
           throw new Error(`No product found for ${productName} ${requestedDescription}`);
+        }
+        if (product.shopStockClosed) {
+          throw new Error(`Product "${product.name}" is currently closed for purchases`);
         }
       }
 

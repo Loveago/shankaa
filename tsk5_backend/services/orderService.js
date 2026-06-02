@@ -76,6 +76,16 @@ const submitCartInner = async (userId, mobileNumber = null, userRole = null) => 
       });
     }
 
+    // Validate each product is still available for agents and not closed
+    for (const item of cart.items) {
+      if (!item.product.showForAgents) {
+        throw new Error(`Product "${item.product.name}" is not available for agents`);
+      }
+      if (item.product.shopStockClosed) {
+        throw new Error(`Product "${item.product.name}" is currently closed for purchases`);
+      }
+    }
+
     // Create order with product snapshots to prevent data mismatch
     const orderNumber = generateOrderNumber();
     const order = await tx.order.create({
@@ -1025,6 +1035,29 @@ const orderService = {
 
       if (user.loanBalance < totalAmount) {
         throw new Error("Insufficient balance to place order");
+      }
+
+      // Validate products are available for agents and not closed
+      const productIds = items.map(item => parseInt(item.productId)).filter(id => !isNaN(id));
+      if (productIds.length > 0) {
+        const products = await tx.product.findMany({
+          where: { id: { in: productIds } },
+          select: { id: true, name: true, showForAgents: true, shopStockClosed: true }
+        });
+        const productMap = new Map(products.map(p => [p.id, p]));
+        for (const item of items) {
+          const pid = parseInt(item.productId);
+          if (isNaN(pid)) continue;
+          const product = productMap.get(pid);
+          if (product) {
+            if (!product.showForAgents) {
+              throw new Error(`Product "${product.name}" is not available for agents`);
+            }
+            if (product.shopStockClosed) {
+              throw new Error(`Product "${product.name}" is currently closed for purchases`);
+            }
+          }
+        }
       }
 
       const orderNumber = generateOrderNumber();
