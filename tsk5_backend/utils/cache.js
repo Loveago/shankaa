@@ -4,13 +4,13 @@
  */
 
 class MemoryCache {
-  constructor(maxSize = 100) { // Limit cache size for Railway memory constraints
+  constructor(maxSize = 200) { // Increased for storefront caching (still memory-safe)
     this.cache = new Map();
     this.ttl = new Map();
     this.maxSize = maxSize;
   }
 
-  set(key, value, ttlMs = 120000) { // Default 2 minutes TTL (reduced for Railway)
+  set(key, value, ttlMs = 60000) { // Default 1 minute TTL for faster propagation
     // Evict oldest entries if at capacity
     if (this.cache.size >= this.maxSize && !this.cache.has(key)) {
       const firstKey = this.cache.keys().next().value;

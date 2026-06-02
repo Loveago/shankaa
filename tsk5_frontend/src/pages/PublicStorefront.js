@@ -1,10 +1,54 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import axios from 'axios';
 import Swal from 'sweetalert2';
-import { Package, Loader2, Phone, XCircle, Shield, Wifi, Zap, Star, ArrowRight, Search, CheckCircle, Clock, BadgeCheck, Filter, X, AlertTriangle, Image as ImageIcon, ExternalLink } from 'lucide-react';
 import BASE_URL from '../endpoints/endpoints';
 import ShopFloatingChatButton from '../components/ShopFloatingChatButton';
+
+// Dynamically import lucide-react icons using a helper to reduce bundle size
+import { 
+  Package, Loader2, Phone, XCircle, Shield, Wifi, Zap, Star, 
+  ArrowRight, Search, CheckCircle, Clock, BadgeCheck, Filter, X, 
+  AlertTriangle, Image as ImageIcon, ExternalLink 
+} from 'lucide-react';
+
+// Cache key prefix for localStorage
+const CACHE_KEY_PREFIX = 'storefront_cache_';
+const CACHE_DURATION_MS = 2 * 60 * 1000; // 2 minutes cache on frontend
+
+// Trimmed-down skeleton loader (very small HTML payload)
+const StorefrontSkeleton = () => (
+  <div className="min-h-screen bg-dark-950">
+    <nav className="sticky top-0 z-50 border-b border-dark-800/80 bg-dark-950/70">
+      <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
+        <div className="flex justify-between items-center h-16 sm:h-20">
+          <div className="flex items-center gap-3 sm:gap-4">
+            <div className="w-11 h-11 sm:w-12 sm:h-12 bg-dark-800 rounded-2xl animate-pulse" />
+            <div className="space-y-2">
+              <div className="h-5 w-40 bg-dark-800 rounded animate-pulse" />
+            </div>
+          </div>
+          <div className="h-10 w-32 bg-dark-800 rounded-xl animate-pulse" />
+        </div>
+      </div>
+    </nav>
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-12 mt-8">
+      <div className="h-16 bg-dark-800/70 rounded-2xl animate-pulse mb-8" />
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+        {[1, 2, 3].map(i => (
+          <div key={i} className="bg-dark-900/70 rounded-2xl overflow-hidden">
+            <div className="h-32 bg-dark-800 animate-pulse" />
+            <div className="p-4 sm:p-6 space-y-4">
+              <div className="h-8 w-3/4 bg-dark-800 rounded animate-pulse" />
+              <div className="h-6 w-1/2 bg-dark-800 rounded animate-pulse" />
+              <div className="h-12 w-full bg-dark-800 rounded-xl animate-pulse" />
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  </div>
+);
 
 const PublicStorefront = () => {
   const { slug } = useParams();
@@ -24,25 +68,74 @@ const PublicStorefront = () => {
   // Tracking and Complaints
   const [showTrackingModal, setShowTrackingModal] = useState(false);
   const [trackingNumber, setTrackingNumber] = useState('');
-  const [trackingMode, setTrackingMode] = useState('phone'); // 'phone' | 'order'
+  const [trackingMode, setTrackingMode] = useState('phone');
   const [trackedOrders, setTrackedOrders] = useState([]);
   const [isTracking, setIsTracking] = useState(false);
   const [selectedProofImage, setSelectedProofImage] = useState(null);
   
   // Prevent duplicate payment verification
-  const verifiedRefsRef = React.useRef(new Set());
+  const verifiedRefsRef = useRef(new Set());
+  // Track if this is first mount vs re-visit
+  const isMountedRef = useRef(false);
 
-  const fetchStorefront = useCallback(async () => {
+  const fetchStorefront = useCallback(async ({ skipCache = false } = {}) => {
+    const cacheKey = `${CACHE_KEY_PREFIX}${slug}`;
+
+    // Try localStorage cache first (instant load for repeat visits)
+    if (!skipCache) {
+      try {
+        const cachedRaw = localStorage.getItem(cacheKey);
+        if (cachedRaw) {
+          const cached = JSON.parse(cachedRaw);
+          if (Date.now() - cached.timestamp < CACHE_DURATION_MS) {
+            setStorefront(cached.data);
+            setLoading(false);
+            return;
+          } else {
+            localStorage.removeItem(cacheKey);
+          }
+        }
+      } catch (e) {
+        // Corrupted cache, ignore
+        localStorage.removeItem(cacheKey);
+      }
+    }
+
     setLoading(true);
     setError(null);
     try {
-      const res = await axios.get(`${BASE_URL}/api/storefront/public/${slug}`);
+      const res = await axios.get(`${BASE_URL}/api/storefront/public/${slug}`, {
+        timeout: 15000,
+        headers: { 'Accept-Encoding': 'gzip, deflate' }
+      });
       if (res.data.success) {
-        setStorefront(res.data);
+        const data = res.data;
+        setStorefront(data);
+        // Cache in localStorage for instant repeat visits
+        try {
+          localStorage.setItem(cacheKey, JSON.stringify({
+            data,
+            timestamp: Date.now()
+          }));
+        } catch (e) {
+          // localStorage full — silently ignore
+        }
       } else {
         setError('Storefront not found');
       }
     } catch (err) {
+      // On network error, try to serve stale cache
+      try {
+        const cachedRaw = localStorage.getItem(cacheKey);
+        if (cachedRaw) {
+          const cached = JSON.parse(cachedRaw);
+          if (cached.data) {
+            setStorefront(cached.data);
+            setError(null);
+            return;
+          }
+        }
+      } catch (e) { /* ignore */ }
       setError(err.response?.data?.message || 'Storefront not found');
     } finally {
       setLoading(false);
@@ -60,7 +153,7 @@ const PublicStorefront = () => {
         color: '#f1f5f9'
       });
 
-      const res = await axios.post(`${BASE_URL}/api/storefront/verify`, { reference });
+      const res = await axios.post(`${BASE_URL}/api/storefront/verify`, { reference }, { timeout: 30000 });
       
       if (res.data.success) {
         const orderNum = res.data?.order?.orderNumber || `#${res.data?.order?.id || 'N/A'}`;
@@ -94,9 +187,29 @@ const PublicStorefront = () => {
     }
   }, [slug]);
 
+  // On mount: show cached data instantly, then fetch fresh data in background
   useEffect(() => {
+    // Instant render from cache if available
+    const cacheKey = `${CACHE_KEY_PREFIX}${slug}`;
+    try {
+      const cachedRaw = localStorage.getItem(cacheKey);
+      if (cachedRaw) {
+        const cached = JSON.parse(cachedRaw);
+        if (Date.now() - cached.timestamp < CACHE_DURATION_MS && cached.data) {
+          setStorefront(cached.data);
+          setLoading(false);
+          isMountedRef.current = true;
+          // Fetch fresh data in background (stale-while-revalidate)
+          setTimeout(() => fetchStorefront({ skipCache: true }), 100);
+          return;
+        }
+      }
+    } catch (e) { /* ignore */ }
+
+    // No cache — do normal fetch
     fetchStorefront();
-  }, [fetchStorefront]);
+    isMountedRef.current = true;
+  }, [fetchStorefront, slug]);
 
   useEffect(() => {
     const payment = searchParams.get('payment');
@@ -111,7 +224,7 @@ const PublicStorefront = () => {
     }
   }, [searchParams, slug, verifyPayment]);
 
-  // Filter products
+  // Filter products (memoized — only recomputes when products or filter changes)
   const filteredProducts = useMemo(() => {
     if (!storefront?.products) return [];
     
@@ -147,13 +260,29 @@ const PublicStorefront = () => {
     });
   }, [storefront?.products, activeFilter]);
 
-  const getCarrierGradient = (name) => {
+  // Pre-compute gradient map to avoid calling function in render
+  const gradientMap = useMemo(() => {
+    const map = {};
+    if (storefront?.products) {
+      storefront.products.forEach(p => {
+        const name = p.name?.toUpperCase() || '';
+        if (name.includes('MTN')) map[p.id] = 'from-yellow-500 to-amber-600';
+        else if (name.includes('TELECEL') || name.includes('VODAFONE')) map[p.id] = 'from-red-500 to-rose-600';
+        else if (name.includes('AIRTEL') || name.includes('TIGO')) map[p.id] = 'from-blue-500 to-indigo-600';
+        else map[p.id] = 'from-dark-600 to-dark-700';
+      });
+    }
+    return map;
+  }, [storefront?.products]);
+
+  const getCarrierGradient = useCallback((name, productId) => {
+    if (productId && gradientMap[productId]) return gradientMap[productId];
     const upperName = name?.toUpperCase() || '';
     if (upperName.includes('MTN')) return 'from-yellow-500 to-amber-600';
     if (upperName.includes('TELECEL') || upperName.includes('VODAFONE')) return 'from-red-500 to-rose-600';
     if (upperName.includes('AIRTEL') || upperName.includes('TIGO')) return 'from-blue-500 to-indigo-600';
     return 'from-dark-600 to-dark-700';
-  };
+  }, [gradientMap]);
 
   const handleCloseModal = () => {
     setSelectedProduct(null);
@@ -200,7 +329,7 @@ const PublicStorefront = () => {
         storefrontProductId: selectedProduct.id,
         customerName: storefront?.agent?.name || 'Customer',
         customerPhone: mobileNumber.trim()
-      });
+      }, { timeout: 30000 });
 
       if (res.data.success && res.data.paymentUrl) {
         window.location.href = res.data.paymentUrl;
@@ -263,7 +392,7 @@ const PublicStorefront = () => {
         ? { mobileNumber: cleaned.replace(/\D/g, '') }
         : { orderNumber: cleaned.toUpperCase() };
 
-      const response = await axios.get(`${BASE_URL}/api/shop/track`, { params });
+      const response = await axios.get(`${BASE_URL}/api/shop/track`, { params, timeout: 15000 });
       setTrackedOrders(response.data.orders || []);
       if (response.data.orders?.length === 0) {
         Swal.fire({
@@ -290,7 +419,6 @@ const PublicStorefront = () => {
   };
 
   const handleNotReceived = async (order, item) => {
-    // Pre-fill the complaint using order details
     const { value: phone } = await Swal.fire({
       title: 'Not Received?',
       text: `Report that item "${item.productName}" was not delivered. Enter your mobile number to track the complaint status.`,
@@ -320,7 +448,7 @@ const PublicStorefront = () => {
         message: `Item not received: ${item.productName} (${item.productDescription || ''}) - Order #${order.orderNumber || order.id}`,
         complaintDate: new Date().toISOString().split('T')[0],
         complaintTime: new Date().toTimeString().split(' ')[0].slice(0, 5)
-      });
+      }, { timeout: 15000 });
       
       await Swal.fire({
         icon: 'success',
@@ -366,19 +494,11 @@ const PublicStorefront = () => {
     }
   };
 
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-dark-950 flex items-center justify-center">
-        <div className="flex flex-col items-center">
-          <div className="w-16 h-16 rounded-full border-4 border-dark-700 border-t-cyan-500 animate-spin"></div>
-          <p className="mt-6 text-dark-400 font-medium">Loading store...</p>
-        </div>
-      </div>
-    );
+  if (loading && !storefront) {
+    return <StorefrontSkeleton />;
   }
 
-  if (error) {
+  if (error && !storefront) {
     return (
       <div className="min-h-screen bg-dark-950 flex items-center justify-center p-4">
         <div className="text-center">
@@ -421,7 +541,6 @@ const PublicStorefront = () => {
           </div>
         </div>
       </nav>
-
 
       {/* Main Content */}
       <main id="products-section" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-12">
@@ -468,9 +587,10 @@ const PublicStorefront = () => {
             {filteredProducts.map((product) => (
               <div
                 key={product.id}
+                style={{ contentVisibility: 'auto' }}
                 className="group relative bg-dark-900/70 backdrop-blur rounded-2xl border border-dark-800 overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:border-emerald-400/40 hover:shadow-2xl hover:shadow-emerald-500/10"
               >
-                <div className={`relative p-4 sm:p-6 bg-gradient-to-br ${getCarrierGradient(product.name)}`}>
+                <div className={`relative p-4 sm:p-6 bg-gradient-to-br ${getCarrierGradient(product.name, product.id)}`}>
                   <div className="absolute inset-0 bg-black/25"></div>
                   <div className="relative flex justify-between items-start">
                     <div>
@@ -505,7 +625,7 @@ const PublicStorefront = () => {
                   
                   <button
                     onClick={() => setSelectedProduct(product)}
-                    className={`w-full py-3.5 sm:py-4 rounded-xl font-bold flex items-center justify-center gap-2 transition-all active:scale-95 bg-gradient-to-r ${getCarrierGradient(product.name)} text-white shadow-lg hover:shadow-xl hover:scale-[1.02] active:scale-[0.98]`}
+                    className={`w-full py-3.5 sm:py-4 rounded-xl font-bold flex items-center justify-center gap-2 transition-all active:scale-95 bg-gradient-to-r ${getCarrierGradient(product.name, product.id)} text-white shadow-lg hover:shadow-xl hover:scale-[1.02] active:scale-[0.98]`}
                   >
                     <span>Purchase Now</span>
                     <ArrowRight className="w-5 h-5" />
@@ -521,7 +641,7 @@ const PublicStorefront = () => {
       {selectedProduct && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-dark-800 border border-dark-700 rounded-2xl shadow-2xl w-full max-w-md max-h-[85vh] overflow-hidden">
-            <div className={`relative bg-gradient-to-r ${getCarrierGradient(selectedProduct.name)} p-4`}>
+            <div className={`relative bg-gradient-to-r ${getCarrierGradient(selectedProduct.name, selectedProduct.id)} p-4`}>
               <button onClick={handleCloseModal} className="absolute top-3 right-3 p-1.5 bg-white/20 hover:bg-white/30 rounded-lg active:scale-95 transition-all">
                 <X className="w-5 h-5 text-white" />
               </button>
@@ -561,7 +681,7 @@ const PublicStorefront = () => {
                 <button
                   onClick={handlePurchase}
                   disabled={processing}
-                  className={`w-full bg-gradient-to-r ${getCarrierGradient(selectedProduct.name)} text-white py-3.5 rounded-xl font-bold transition-all disabled:opacity-50 flex items-center justify-center gap-2 hover:shadow-lg active:scale-95`}
+                  className={`w-full bg-gradient-to-r ${getCarrierGradient(selectedProduct.name, selectedProduct.id)} text-white py-3.5 rounded-xl font-bold transition-all disabled:opacity-50 flex items-center justify-center gap-2 hover:shadow-lg active:scale-95`}
                 >
                   {processing ? (
                     <><Loader2 className="w-5 h-5 animate-spin" /> Processing...</>

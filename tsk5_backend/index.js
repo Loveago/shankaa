@@ -4,6 +4,7 @@ const http = require('http');
 const { Server } = require('socket.io');
 const cors = require('cors');
 const helmet = require('helmet');
+const compression = require('compression');
 const createUserRouter = require('./routes/userRoutes');
 const authRoutes = require('./routes/authRoutes');
 const cartRoutes = require('./routes/cartRoutes');
@@ -153,6 +154,14 @@ io.on('connection', (socket) => {
 module.exports = { app, io, userSockets, socketUsers };
 
 app.set('io', io);
+app.use(compression({
+  level: 6,
+  threshold: 256,
+  filter: (req, res) => {
+    if (req.headers['x-no-compression']) return false;
+    return compression.filter(req, res);
+  }
+}));
 app.use(express.json());
 // Restrict CORS to the known frontend origin(s) to prevent cross-origin abuse
 const allowedOrigins = (process.env.FRONTEND_URL || 'http://localhost:3000').split(',').map(s => s.trim());

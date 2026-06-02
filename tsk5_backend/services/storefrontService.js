@@ -3,6 +3,7 @@ const prisma = require('../config/db');
 const { resolvePrice } = require('../utils/priceRouter');
 const { generateOrderNumber } = require('../utils/orderNumberGenerator');
 const settingsService = require('./settingsService');
+const cache = require('../utils/cache');
 
 // Paystack API URLs
 const PAYSTACK_INITIALIZE_URL = 'https://api.paystack.co/transaction/initialize';
@@ -133,6 +134,17 @@ const getAgentStorefrontProducts = async (agentId) => {
   }));
 };
 
+// Invalidate storefront cache for an agent
+const invalidateStorefrontCache = async (agentId) => {
+  const agent = await prisma.user.findUnique({
+    where: { id: parseInt(agentId) },
+    select: { storefrontSlug: true }
+  });
+  if (agent?.storefrontSlug) {
+    cache.delete(`storefront:public:${agent.storefrontSlug}`);
+  }
+};
+
 // Add product to agent's storefront
 const addProductToStorefront = async (agentId, productId, customPrice) => {
   const product = await prisma.product.findUnique({
@@ -158,15 +170,17 @@ const addProductToStorefront = async (agentId, productId, customPrice) => {
 
   if (existing) {
     // Update existing
-    return await prisma.storefrontProduct.update({
+    const result = await prisma.storefrontProduct.update({
       where: { id: existing.id },
       data: { customPrice: parseFloat(customPrice), isActive: true },
       include: { product: true }
     });
+    await invalidateStorefrontCache(agentId);
+    return result;
   }
 
   // Create new
-  return await prisma.storefrontProduct.create({
+  const result = await prisma.storefrontProduct.create({
     data: {
       agentId: parseInt(agentId),
       productId: parseInt(productId),
@@ -174,6 +188,8 @@ const addProductToStorefront = async (agentId, productId, customPrice) => {
     },
     include: { product: true }
   });
+  await invalidateStorefrontCache(agentId);
+  return result;
 };
 
 // Update product price in storefront
@@ -193,11 +209,13 @@ const updateStorefrontProductPrice = async (agentId, storefrontProductId, custom
     throw new Error(`Custom price cannot be less than base price (GHS ${basePrice})`);
   }
 
-  return await prisma.storefrontProduct.update({
+  const result = await prisma.storefrontProduct.update({
     where: { id: parseInt(storefrontProductId) },
     data: { customPrice: parseFloat(customPrice) },
     include: { product: true }
   });
+  await invalidateStorefrontCache(agentId);
+  return result;
 };
 
 // Remove product from storefront
@@ -215,6 +233,7 @@ const removeProductFromStorefront = async (agentId, storefrontProductId) => {
     where: { id: parseInt(storefrontProductId) }
   });
 
+  await invalidateStorefrontCache(agentId);
   return { success: true, message: 'Product removed from storefront' };
 };
 
@@ -229,17 +248,23 @@ const toggleStorefrontProduct = async (agentId, storefrontProductId) => {
 
   if (!storefrontProduct) throw new Error('Storefront product not found');
 
-  return await prisma.storefrontProduct.update({
+  const result = await prisma.storefrontProduct.update({
     where: { id: parseInt(storefrontProductId) },
     data: { isActive: !storefrontProduct.isActive },
     include: { product: true }
   });
+  await invalidateStorefrontCache(agentId);
+  return result;
 };
 
 // ==================== PUBLIC STOREFRONT ====================
 
-// Get public storefront by slug
+// Get public storefront by slug (cached for fast repeat loads)
 const getPublicStorefront = async (slug) => {
+  const cacheKey = `storefront:public:${slug}`;
+  const cached = cache.get(cacheKey);
+  if (cached) return cached;
+
   const agent = await prisma.user.findFirst({
     where: { storefrontSlug: slug },
     select: { id: true, name: true, storefrontSlug: true, storefrontWhatsapp: true }
@@ -265,7 +290,7 @@ const getPublicStorefront = async (slug) => {
     orderBy: { customPrice: 'asc' }
   });
 
-  return {
+  const result = {
     agent: { name: agent.name, slug: agent.storefrontSlug, whatsapp: agent.storefrontWhatsapp },
     products: products.map(sp => ({
       id: sp.id,
@@ -277,6 +302,10 @@ const getPublicStorefront = async (slug) => {
       inStock: sp.product.stock > 0
     }))
   };
+
+  // Cache for 60 seconds (short TTL so price/slug updates propagate quickly)
+  cache.set(cacheKey, result, 60000);
+  return result;
 };
 
 // ==================== REFERRAL ORDER PROCESSING ====================
@@ -1053,6 +1082,9 @@ module.exports = {
   getAgentWithdrawalRequests,
   getAllWithdrawalRequests,
   processWithdrawalRequest,
+
+  // Cache management
+  invalidateStorefrontCache,
 
   // Maintenance
   cleanupStalePendingReferrals
