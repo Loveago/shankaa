@@ -77,12 +77,13 @@ const trackOrders = async (req, res) => {
       createdAt: order.createdAt,
       items: order.items.map(item => ({
         id: item.id,
-        productName: item.product.name,
-        productDescription: item.product.description,
-        price: item.product.price,
+        productName: item.productName || item.product?.name,
+        productDescription: item.productDescription || item.product?.description,
+        price: item.productPrice != null ? item.productPrice : item.product?.price,
         status: item.status,
         mobileNumber: item.mobileNumber
-      }))
+      })),
+      complaints: order.complaints || []
     }));
 
     res.json({
