@@ -32,19 +32,22 @@ class AnnouncementService {
   // Get announcements for a specific audience (agents)
   async getAnnouncementsForAudience(audience, userId = null) {
     try {
-      // Normalize audience parameter
-      const normalizedAudience = audience ? String(audience).toLowerCase().trim() : '';
+      // Normalize audience parameter - handle undefined/null/empty
+      const normalizedAudience = audience && typeof audience === 'string'
+        ? audience.toLowerCase().trim()
+        : '';
+      
+      // Build OR conditions - only include non-empty values
+      const orConditions = [{ targetAudience: 'all' }];
+      if (normalizedAudience) {
+        orConditions.push({ targetAudience: normalizedAudience });
+      }
       
       const announcements = await prisma.announcement.findMany({
         where: {
           isActive: true,
           target: { notIn: ['shop', 'shop-alert'] },
-          OR: [
-            { targetAudience: normalizedAudience },
-            { targetAudience: 'all' },
-            { targetAudience: null },
-            { targetAudience: '' }
-          ]
+          OR: orConditions
         },
         include: {
           readBy: userId ? {
@@ -95,19 +98,22 @@ class AnnouncementService {
   // Get unread count for a user
   async getUnreadCount(audience, userId) {
     try {
-      // Normalize audience parameter
-      const normalizedAudience = audience ? String(audience).toLowerCase().trim() : '';
+      // Normalize audience parameter - handle undefined/null/empty
+      const normalizedAudience = audience && typeof audience === 'string'
+        ? audience.toLowerCase().trim()
+        : '';
+      
+      // Build OR conditions - only include non-empty values
+      const orConditions = [{ targetAudience: 'all' }];
+      if (normalizedAudience) {
+        orConditions.push({ targetAudience: normalizedAudience });
+      }
       
       const announcements = await prisma.announcement.findMany({
         where: {
           isActive: true,
           target: { notIn: ['shop', 'shop-alert'] },
-          OR: [
-            { targetAudience: normalizedAudience },
-            { targetAudience: 'all' },
-            { targetAudience: null },
-            { targetAudience: '' }
-          ]
+          OR: orConditions
         },
         select: { id: true }
       });
