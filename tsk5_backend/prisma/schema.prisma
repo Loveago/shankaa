@@ -115,10 +115,11 @@ model Order {
   mobileNumber String?
   batchId      Int?
   userApiKeyId Int?
-  user         User         @relation("UserToOrder", fields: [userId], references: [id], onDelete: Cascade)
-  batch        OrderBatch?  @relation("OrderBatchToOrder", fields: [batchId], references: [id], onDelete: SetNull)
-  apiKey       UserApiKey?  @relation("ApiKeyOrders", fields: [userApiKeyId], references: [id], onDelete: SetNull)
-  items        OrderItem[]  @relation("OrderToOrderItem")
+  user              User           @relation("UserToOrder", fields: [userId], references: [id], onDelete: Cascade)
+  batch             OrderBatch?    @relation("OrderBatchToOrder", fields: [batchId], references: [id], onDelete: SetNull)
+  apiKey            UserApiKey?    @relation("ApiKeyOrders", fields: [userApiKeyId], references: [id], onDelete: SetNull)
+  items              OrderItem[]   @relation("OrderToOrderItem")
+  referralOrders     ReferralOrder? @relation("ReferralOrderToOrder")
 
   @@index([userId])
   @@index([userId, createdAt])
@@ -321,7 +322,8 @@ model ReferralOrder {
   paymentRef      String    @unique @db.VarChar(255)
   paymentStatus   String    @default("Pending") @db.VarChar(50)
   orderStatus     String    @default("Pending") @db.VarChar(50)
-  orderId         Int?      // Link to actual Order created for processing
+  orderId         Int?      @unique // Link to actual Order created for processing
+  order           Order?    @relation("ReferralOrderToOrder", fields: [orderId], references: [id], onDelete: SetNull)
   commissionPaid  Boolean   @default(false)
   commissionPaymentMethod String? @db.VarChar(20) // 'wallet' or 'momo'
   paidAt          DateTime?

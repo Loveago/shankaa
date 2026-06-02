@@ -887,6 +887,8 @@ const getAgentStorefrontOrders = async (agentId) => {
     },
     include: {
       product: { select: { id: true, name: true, description: true } },
+      // Note: ReferralOrder has orderId (String), not a direct order relation
+      // So we join with Order table using orderId
       order: {
         include: {
           items: {
