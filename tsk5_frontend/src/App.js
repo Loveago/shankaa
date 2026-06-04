@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useCallback } from 'react';
+import React, { useEffect, useRef, useCallback, Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, Outlet, useNavigate } from 'react-router-dom';
 import { io } from 'socket.io-client';
 import Swal from 'sweetalert2';
@@ -17,8 +17,10 @@ import OtherDashboard from './pages/OtherDashboard';
 import Landing from './pages/Landing';
 import Profile from './pages/Profile';
 import Shop from './pages/Shop';
-import PublicStorefront from './pages/PublicStorefront';
 import BASE_URL from './endpoints/endpoints';
+
+// Lazy-load PublicStorefront — only downloaded when user visits /store/:slug
+const PublicStorefront = lazy(() => import('./pages/PublicStorefront'));
 
 const INACTIVITY_TIMEOUT = 10 * 60 * 1000; // 10 minutes
 const WARNING_BEFORE = 60 * 1000; // 1 minute warning before logout
@@ -155,7 +157,7 @@ function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
         <Route path="/shop" element={<Shop />} />
-        <Route path="/store/:slug" element={<PublicStorefront />} />
+        <Route path="/store/:slug" element={<Suspense fallback={<div className="min-h-screen bg-dark-950 flex items-center justify-center"><div className="w-10 h-10 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin"></div></div>}><PublicStorefront /></Suspense>} />
 
         {/* Protected Routes */}
         <Route element={<PrivateRoute allowedRoles={['ADMIN']} />}>

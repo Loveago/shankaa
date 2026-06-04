@@ -118,10 +118,7 @@ const Storefront = ({ isOpen, onClose, userId }) => {
   }, [isOpen, fetchStorefrontData, fetchReferralSummary, fetchWalletData, fetchStorefrontOrders]);
 
   const copyStoreLink = () => {
-    // Use the lightweight HTML version (~15KB, no React) for faster loading
-    // on weak internet connections. The /api/storefront/lite/ route is proxied
-    // through Vercel rewrites to the backend, which serves the inline HTML page.
-    const storeUrl = `${window.location.origin}/api/storefront/lite/${storefrontSlug}`;
+    const storeUrl = `${window.location.origin}/store/${storefrontSlug}`;
     navigator.clipboard.writeText(storeUrl);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
