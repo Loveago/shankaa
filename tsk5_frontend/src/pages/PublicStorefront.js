@@ -28,20 +28,20 @@ const Icons = {
 
 // ==================== TOAST SYSTEM (~1KB, replaces 15KB SweetAlert2 for notifications) ====================
 function Toast({ toast, onClose }) {
-  if (!toast) return null;
   const colors = {
     success: { bg: '#059669', icon: 'check' },
     error: { bg: '#dc2626', icon: 'x' },
     warning: { bg: '#d97706', icon: '!' },
     info: { bg: '#2563eb', icon: 'i' }
   };
-  const c = colors[toast.type] || colors.info;
+  const c = colors[toast?.type] || colors.info;
   React.useEffect(() => {
-    if (toast.autoClose !== false) {
+    if (toast && toast.autoClose !== false) {
       const t = setTimeout(onClose, toast.duration || 3000);
       return () => clearTimeout(t);
     }
   }, [toast, onClose]);
+  if (!toast) return null;
   return (
     <div style={{ position:'fixed', top:20, right:20, zIndex:9999, background:c.bg, color:'#fff', padding:'12px 20px', borderRadius:12, fontSize:14, fontWeight:500, maxWidth:360, boxShadow:'0 8px 24px rgba(0,0,0,.3)', display:'flex', alignItems:'center', gap:10, animation:'slideIn .25s ease' }}>
       <span style={{ width:20, height:20, borderRadius:'50%', background:'rgba(255,255,255,.2)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:12, fontWeight:700, flexShrink:0 }}>{c.icon === 'check' ? '\u2713' : c.icon === 'x' ? '\u2717' : c.icon}</span>
