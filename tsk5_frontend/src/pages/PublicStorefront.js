@@ -3,28 +3,35 @@ import { useParams, useSearchParams } from 'react-router-dom';
 import BASE_URL from '../endpoints/endpoints';
 
 // ==================== LIGHTWEIGHT API FETCH (~15 lines, replaces ~14KB axios) ====================
-const apiFetch = async (method, url, body = null, opts = {}) => {
+const fetchJson = async (url, options = {}) => {
   const controller = new AbortController();
-  let timeoutId;
-  if (opts.timeout) timeoutId = setTimeout(() => controller.abort(), opts.timeout);
+  const t = options.timeout;
+  if (t) setTimeout(() => controller.abort(), t);
+  const res = await fetch(url, {
+    ...options,
+    signal: controller.signal,
+    headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
+  });
+  if (!res.ok) {
+    const e = new Error(`HTTP ${res.status}`);
+    e.response = { data: await res.json().catch(() => ({ message: `HTTP ${res.status}` })) };
+    e.status = res.status;
+    throw e;
+  }
+  return res.json();
+};
+
+const apiFetch = async (method, url, body = null, opts = {}) => {
   try {
-    const res = await fetch(url, {
+    return await fetchJson(url, {
       method,
-      headers: { 'Content-Type': 'application/json', 'Accept-Encoding': 'gzip, deflate', ...(opts.headers || {}) },
       body: body ? JSON.stringify(body) : undefined,
-      signal: controller.signal,
+      timeout: opts.timeout,
+      headers: { 'Accept-Encoding': 'gzip, deflate', ...(opts.headers || {}) },
     });
-    if (!res.ok) {
-      const errBody = await res.json().catch(() => ({ message: `HTTP ${res.status}` }));
-      throw { response: { data: errBody }, status: res.status };
-    }
-    return res.json();
   } catch (err) {
     if (err?.response) throw err;
-    if (err?.name === 'AbortError') throw { response: { data: { message: 'Request timed out' } } };
-    throw { response: { data: { message: 'Network error' } } };
-  } finally {
-    if (timeoutId) clearTimeout(timeoutId);
+    throw Object.assign(new Error('Network error'), { response: { data: { message: err.name === 'AbortError' ? 'Request timed out' : 'Network error' } } });
   }
 };
 
@@ -719,6 +726,17 @@ const PublicStorefront = () => {
               )}
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Proof Image Preview Modal */}
+      {selectedProofImage && (
+        <div className="fixed inset-0 bg-black/90 backdrop-blur-sm flex items-center justify-center z-[60] p-4" onClick={() => setSelectedProofImage(null)}>
+          <button onClick={() => setSelectedProofImage(null)} className="absolute top-4 right-4 p-2 bg-white/10 hover:bg-white/20 rounded-lg z-10">
+            <Icons.X className="w-6 h-6 text-white" />
+          </button>
+          <img src={selectedProofImage} alt="Proof" className="max-w-full max-h-[90vh] rounded-xl shadow-2xl object-contain" onClick={(e) => e.stopPropagation()}
+            onError={(e) => { e.target.style.display = 'none'; }} />
         </div>
       )}
 
