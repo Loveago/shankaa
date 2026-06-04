@@ -265,7 +265,7 @@ exports.reportBulkOrderIssue = async (req, res) => {
       data: {
         orderId: String(orderId),
         orderItemId: itemId,
-        mobileNumber: item.mobileNumber || order.mobileNumber || '',
+        mobileNumber: item.mobileNumber || '',
         message,
         status: 'pending',
         refundStatus: 'none',

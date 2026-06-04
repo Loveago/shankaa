@@ -3,6 +3,16 @@ const complaintService = require('../services/complaintService');
 const path = require('path');
 const fs = require('fs');
 
+// Normalize 233XXXXXXXXX to 0XXXXXXXXX for storage
+const normalizePhone = (phone) => {
+  if (!phone) return '';
+  const digits = phone.replace(/\D/g, '');
+  if (digits.startsWith('233') && digits.length === 12) {
+    return '0' + digits.substring(3);
+  }
+  return digits || phone;
+};
+
 class ComplaintController {
   // Create a new complaint (public - from shop)
   async createComplaint(req, res) {
@@ -13,7 +23,10 @@ class ComplaintController {
         return res.status(400).json({ success: false, message: 'Mobile number and message are required' });
       }
       
-      const complaint = await complaintService.createComplaint({ orderId, orderItemId, mobileNumber, whatsappNumber, message, complaintDate, complaintTime });
+      const normalizedMobile = normalizePhone(mobileNumber);
+      const normalizedWhatsapp = whatsappNumber ? normalizePhone(whatsappNumber) : null;
+
+      const complaint = await complaintService.createComplaint({ orderId, orderItemId, mobileNumber: normalizedMobile, whatsappNumber: normalizedWhatsapp, message, complaintDate, complaintTime });
       
       try {
         const { io } = require('../index');

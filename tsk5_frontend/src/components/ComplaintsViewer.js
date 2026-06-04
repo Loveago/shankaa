@@ -5,6 +5,16 @@ import Swal from 'sweetalert2';
 import BASE_URL from '../endpoints/endpoints';
 import socketIO from 'socket.io-client';
 
+// Normalize phone: convert 233XXXXXXXXX to 0XXXXXXXXX for display
+const formatPhone = (phone) => {
+  if (!phone) return '';
+  const digits = phone.replace(/\D/g, '');
+  if (digits.startsWith('233') && digits.length === 12) {
+    return '0' + digits.substring(3);
+  }
+  return phone;
+};
+
 // Isolated update-status dialog.
 const UpdateStatusDialog = memo(({ complaint, initialNotes, onClose, onUpdate }) => {
   const [notes, setNotes] = useState(initialNotes || '');
@@ -393,9 +403,9 @@ const ComplaintsViewer = ({ isOpen, onClose }) => {
                         <div className="flex flex-wrap items-center gap-3 mb-2 text-sm">
                           <span className="text-cyan-400 font-medium">ID: #{complaint.id}</span>
                           <span className="flex items-center gap-1 text-dark-400">
-                            <Phone className="w-4 h-4" /> {complaint.mobileNumber}
+                            <Phone className="w-4 h-4" /> {formatPhone(complaint.mobileNumber)}
                             <button
-                              onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(complaint.mobileNumber); }}
+                              onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(formatPhone(complaint.mobileNumber)); }}
                               title="Copy number" className="p-1 hover:bg-dark-700 rounded transition-colors"
                             ><Copy className="w-3.5 h-3.5" /></button>
                           </span>

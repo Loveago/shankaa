@@ -112,7 +112,7 @@ const OrderHistory = ({ isOpen, onClose, orderHistory = [] }) => {
       await axios.post(`${BASE_URL}/api/complaints`, {
         orderId: order.id ? String(order.id) : undefined,
         orderItemId: item.id,
-        mobileNumber: item.mobileNumber || order.userId?.toString() || '',
+        mobileNumber: item.mobileNumber || '',
         whatsappNumber: complaintWhatsapp || null,
         message: complaintMessage.trim()
       });

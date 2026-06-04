@@ -346,13 +346,23 @@ const PublicStorefront = () => {
     } finally { setIsTracking(false); }
   };
 
+  const formatPhone = (phone) => {
+    if (!phone) return '';
+    const digits = phone.replace(/\D/g, '');
+    if (digits.startsWith('233') && digits.length === 12) {
+      return '0' + digits.substring(3);
+    }
+    return phone;
+  };
+
   const handleNotReceived = async (order, item) => {
+    const defaultPhone = formatPhone(item.mobileNumber || order.mobileNumber || '');
     const result = await showConfirm({
       title: 'Not Received?',
       message: `Report that item "${item.productName}" was not delivered. Enter your mobile number to track the complaint status.`,
       icon: 'warning',
       input: true,
-      inputValue: order.mobileNumber || item.mobileNumber || '',
+      inputValue: defaultPhone,
       inputPlaceholder: '0XX XXX XXXX',
       confirmText: 'Submit Complaint',
       confirmColor: '#ef4444'
@@ -362,8 +372,11 @@ const PublicStorefront = () => {
     setIsTracking(true);
     try {
       const cleanedPhone = phone.replace(/\D/g, '');
+      const normalizedPhone = cleanedPhone.startsWith('233') && cleanedPhone.length === 12
+        ? '0' + cleanedPhone.substring(3)
+        : cleanedPhone;
       await axios.post(`${BASE_URL}/api/complaints`, {
-        mobileNumber: cleanedPhone, orderId: order.id, orderItemId: item.id,
+        mobileNumber: normalizedPhone, orderId: order.id, orderItemId: item.id,
         message: `Item not received: ${item.productName} (${item.productDescription || ''}) - Order #${order.orderNumber || order.id}`,
         complaintDate: new Date().toISOString().split('T')[0],
         complaintTime: new Date().toTimeString().split(' ')[0].slice(0, 5)
