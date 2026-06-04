@@ -204,8 +204,27 @@ const ComplaintsViewer = ({ isOpen, onClose }) => {
     }
   }, [fetchComplaints]);
 
-  // Paste image from clipboard using a hidden textarea + paste event.
-  // This works on all browsers (PC + mobile) without requiring clipboard-read permission.
+  // Paste image from clipboard using the modern Clipboard API (works on PC + mobile).
+  // Falls back to hidden textarea paste for older browsers.
+  const readClipboardImage = useCallback(async () => {
+    try {
+      // Modern Clipboard API — works on mobile Chrome/Firefox/Safari (reads image directly)
+      if (navigator.clipboard?.read) {
+        const items = await navigator.clipboard.read();
+        for (const item of items) {
+          const imageType = item.types.find(t => t.startsWith('image/'));
+          if (imageType) {
+            const blob = await item.getType(imageType);
+            const file = new File([blob], `clipboard-${Date.now()}.png`, { type: imageType });
+            return file;
+          }
+        }
+      }
+    } catch (e) { /* clipboard read failed, try textarea fallback */ }
+    return null;
+  }, []);
+
+  // Fallback: hidden textarea paste event (works on desktop where clipboard.read() may not)
   const handlePasteEvent = useCallback(async (e) => {
     const files = e.clipboardData?.files;
     if (files && files.length > 0) {
@@ -224,28 +243,52 @@ const ComplaintsViewer = ({ isOpen, onClose }) => {
         });
       }
     }
-    // Reset pasting state
     setPastingId(null);
     pasteComplaintIdRef.current = null;
   }, [handleUploadProof]);
 
-  const handlePasteClipboard = (complaintId) => {
+  const handlePasteClipboard = useCallback(async (complaintId) => {
     pasteComplaintIdRef.current = complaintId;
     setPastingId(complaintId);
+
+    const file = await readClipboardImage();
+    if (file) {
+      // Clipboard API succeeded immediately — no need for textarea paste flow
+      setPastingId(null);
+      pasteComplaintIdRef.current = null;
+      await handleUploadProof(complaintId, file);
+      return;
+    }
+
+    // Fallback: focus hidden textarea for paste event
     if (hiddenPasteRef.current) {
+      hiddenPasteRef.current.value = '';
       hiddenPasteRef.current.focus();
-      Swal.fire({
+      // Brief toast instead of modal — modals steal focus on mobile
+      const toast = Swal.fire({
         icon: 'info',
         title: 'Ready to Paste',
         text: 'Press Ctrl+V (or Cmd+V) now to paste the image from your clipboard.',
-        timer: 3000,
+        timer: 5000,
         timerProgressBar: true,
         background: '#1e293b',
         color: '#f1f5f9',
-        showConfirmButton: false
+        showConfirmButton: false,
+        didOpen: () => {
+          // Re-focus textarea after modal opens (modal steals focus on mobile)
+          setTimeout(() => { if (hiddenPasteRef.current) hiddenPasteRef.current.focus(); }, 100);
+        }
       });
+      // Auto-clear pasting state if timer runs out
+      toast.then(() => {
+        setPastingId(null);
+        pasteComplaintIdRef.current = null;
+      });
+    } else {
+      setPastingId(null);
+      pasteComplaintIdRef.current = null;
     }
-  };
+  }, [readClipboardImage, handleUploadProof]);
 
   const handleDelete = async (id) => {
     const result = await Swal.fire({
