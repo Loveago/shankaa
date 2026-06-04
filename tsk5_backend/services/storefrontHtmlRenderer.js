@@ -110,247 +110,101 @@ main{max-width:1280px;margin:0 auto;padding:0 16px 48px}
 `;
 
 const INLINE_JS = `
-// Lightweight storefront JS — no framework, zero dependencies
-(function() {
-  var storefront, slug, apiBase;
-
-  // Called immediately (DOM already parsed since script is at bottom of body)
-  function init() {
-    storefront = window.__STOREFRONT_DATA__;
-    if (!storefront) return;
-    slug = storefront.slug;
-    apiBase = window.location.origin === 'http://localhost:3000' ? 'http://localhost:5000' : '';
-  }
-
-  // Toast notification
-  function showToast(msg, type) {
-    var t = document.getElementById('toast');
-    if (!t) return;
-    t.textContent = msg;
-    t.className = 'toast toast-' + type + ' show';
-    clearTimeout(t._hide);
-    t._hide = setTimeout(function(){ t.className = 'toast toast-' + type; }, 3000);
-  }
-
-  // Filter products by network
-  function filterProducts(filter) {
-    var btns = document.querySelectorAll('.filter-btn');
-    var cards = document.querySelectorAll('.product-card');
-    var i;
-    for (i = 0; i < btns.length; i++) {
-      btns[i].classList.toggle('active', btns[i].getAttribute('data-filter') === filter);
-    }
-    for (i = 0; i < cards.length; i++) {
-      if (filter === 'all') {
-        cards[i].classList.remove('hidden');
-      } else {
-        var network = (cards[i].getAttribute('data-network') || '').toUpperCase();
-        if (filter === 'mtn') cards[i].classList.toggle('hidden', network.indexOf('MTN') === -1);
-        else if (filter === 'airtel') cards[i].classList.toggle('hidden', network.indexOf('AIRTEL') === -1 && network.indexOf('TIGO') === -1);
-        else if (filter === 'telecel') cards[i].classList.toggle('hidden', network.indexOf('TELECEL') === -1 && network.indexOf('VODAFONE') === -1);
-        else cards[i].classList.remove('hidden');
-      }
-    }
-  }
-
-  function getGradient(name) {
-    var u = (name || '').toUpperCase();
-    if (u.indexOf('MTN') !== -1) return '#eab308, #d97706';
-    if (u.indexOf('TELECEL') !== -1 || u.indexOf('VODAFONE') !== -1) return '#ef4444, #e11d48';
-    if (u.indexOf('AIRTEL') !== -1 || u.indexOf('TIGO') !== -1) return '#3b82f6, #4f46e5';
-    return '#1e1e24, #27272a';
-  }
-
-  // Open purchase modal
-  function openPurchase(productId) {
-    if (!storefront || !storefront.products) return showToast('Store data not loaded yet', 'error');
-    var i, p = null;
-    for (i = 0; i < storefront.products.length; i++) {
-      if (storefront.products[i].id === productId) { p = storefront.products[i]; break; }
-    }
-    if (!p) { showToast('Product not found', 'error'); return; }
-    document.getElementById('modal-product-name').textContent = p.name || '';
-    document.getElementById('modal-product-desc').textContent = p.description || '';
-    document.getElementById('modal-price').textContent = 'GHS ' + (p.price || 0).toFixed(2);
-    document.getElementById('buy-btn').setAttribute('data-product-id', productId);
-    document.getElementById('phone-input').value = '';
-    document.getElementById('modal').style.display = 'flex';
-    document.getElementById('buy-btn').disabled = false;
-    document.getElementById('buy-btn').innerHTML = 'Pay with Mobile Money \\u2192';
-
-    var g = getGradient(p.name);
-    document.getElementById('modal-header').style.background = 'linear-gradient(135deg, ' + g + ')';
-    document.getElementById('buy-btn').style.background = 'linear-gradient(135deg, ' + g + ')';
-  }
-
-  function closeModal() {
-    var el = document.getElementById('modal');
-    if (el) el.style.display = 'none';
-  }
-
-  // Handle purchase
-  function handleBuy() {
-    var btn = document.getElementById('buy-btn');
-    if (!btn) return;
-    var productId = parseInt(btn.getAttribute('data-product-id'));
-    var phone = document.getElementById('phone-input').value.replace(/\\D/g, '');
-    
-    if (phone.length !== 10) {
-      showToast('Please enter a valid 10-digit mobile number', 'error');
-      return;
-    }
-
-    btn.disabled = true;
-    btn.innerHTML = '<span class="spinner-btn"></span>Processing...';
-
-    var xhr = new XMLHttpRequest();
-    xhr.open('POST', (apiBase || '') + '/api/storefront/public/' + slug + '/pay', true);
-    xhr.setRequestHeader('Content-Type', 'application/json');
-    xhr.timeout = 30000;
-    xhr.onload = function() {
-      if (xhr.status >= 200 && xhr.status < 300) {
-        try {
-          var res = JSON.parse(xhr.responseText);
-          if (res.success && res.paymentUrl) {
-            window.location.href = res.paymentUrl;
-            return;
-          }
-          showToast(res.message || 'Could not initialize payment', 'error');
-        } catch(e) {
-          showToast('Invalid response from server', 'error');
-        }
-      } else {
-        try {
-          var err = JSON.parse(xhr.responseText);
-          showToast(err.message || 'Failed to process order', 'error');
-        } catch(e) {
-          showToast('Network error. Please try again.', 'error');
-        }
-      }
-      btn.disabled = false;
-      btn.innerHTML = 'Pay with Mobile Money \\u2192';
-    };
-    xhr.onerror = function() {
-      showToast('Network error. Check your connection.', 'error');
-      btn.disabled = false;
-      btn.innerHTML = 'Pay with Mobile Money \\u2192';
-    };
-    xhr.ontimeout = function() {
-      showToast('Request timed out. Please try again.', 'error');
-      btn.disabled = false;
-      btn.innerHTML = 'Pay with Mobile Money \\u2192';
-    };
-    xhr.send(JSON.stringify({
-      storefrontProductId: productId,
-      customerName: (storefront && storefront.agent && storefront.agent.name) || 'Customer',
-      customerPhone: phone
-    }));
-  }
-
-  // Track order
-  function openTracking() {
-    var el = document.getElementById('track-modal');
-    if (el) {
-      el.style.display = 'flex';
-      document.getElementById('track-input').value = '';
-      document.getElementById('track-results').innerHTML = '';
-    }
-  }
-
-  function closeTracking() {
-    var el = document.getElementById('track-modal');
-    if (el) el.style.display = 'none';
-  }
-
-  function doTrack() {
-    var mode = document.getElementById('track-mode').value;
-    var val = document.getElementById('track-input').value.trim();
-    var results = document.getElementById('track-results');
-    if (!results) return;
-
-    val = val.replace(/\\s+/g, '');
-
-    if (mode === 'phone') {
-      var digits = val.replace(/\\D/g, '');
-      if (digits.length < 9) {
-        showToast('Please enter a valid mobile number', 'error');
-        return;
-      }
-      val = digits;
-    } else {
-      if (val.length < 5) {
-        showToast('Please enter a valid order number', 'error');
-        return;
-      }
-    }
-
-    document.getElementById('track-btn').disabled = true;
-    document.getElementById('track-btn').innerHTML = '<span class="spinner-btn"></span>';
-
-    var params = mode === 'phone' ? 'mobileNumber=' + encodeURIComponent(val) : 'orderNumber=' + encodeURIComponent(val);
-    var xhr = new XMLHttpRequest();
-    xhr.open('GET', (apiBase || '') + '/api/shop/track?' + params, true);
-    xhr.timeout = 15000;
-    xhr.onload = function() {
-      document.getElementById('track-btn').disabled = false;
-      document.getElementById('track-btn').innerHTML = '\\uD83D\\uDD0D';
-      if (xhr.status >= 200 && xhr.status < 300) {
-        try {
-          var res = JSON.parse(xhr.responseText);
-          var orders = res.orders || [];
-          if (orders.length === 0) {
-            results.innerHTML = '<div style="text-align:center;padding:24px;color:#52525b">No orders found</div>';
-            return;
-          }
-          var html = '';
-          for (var i = 0; i < orders.length; i++) {
-            var order = orders[i];
-            html += '<div class="track-result">';
-            html += '<div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:8px">';
-            html += '<div><h4>Order ' + (order.orderNumber ? '#' + order.orderNumber : '#' + order.orderId) + '</h4>';
-            html += '<div class="date">' + new Date(order.createdAt).toLocaleDateString() + '</div></div>';
-            var status = (order.items && order.items[0]) ? order.items[0].status || 'Pending' : 'Pending';
-            var sc = status.toLowerCase() === 'completed' ? 'background:rgba(16,185,129,.1);color:#6ee7b7;border-color:rgba(16,185,129,.25)' :
-                     status.toLowerCase() === 'processing' ? 'background:rgba(6,182,212,.1);color:#67e8f9;border-color:rgba(6,182,212,.25)' :
-                     status.toLowerCase() === 'pending' ? 'background:rgba(245,158,11,.1);color:#fcd34d;border-color:rgba(245,158,11,.25)' :
-                     'background:rgba(239,68,68,.1);color:#fca5a5;border-color:rgba(239,68,68,.25)';
-            html += '<span class="track-status" style="' + sc + '">' + (status || 'Pending') + '</span>';
-            html += '</div>';
-            if (order.items) {
-              for (var j = 0; j < order.items.length; j++) {
-                var item = order.items[j];
-                html += '<div style="font-size:13px;color:#a1a1aa;padding:4px 0">';
-                html += '<span style="color:#fff;font-weight:500">' + (item.productName || '') + '</span>';
-                if (item.productDescription) html += ' - ' + item.productDescription;
-                html += '</div>';
-              }
-            }
-            html += '</div>';
-          }
-          results.innerHTML = html;
-        } catch(e) {
-          showToast('Invalid response from server', 'error');
-        }
-      } else {
-        showToast('Failed to track order', 'error');
-      }
-    };
-    xhr.onerror = function() {
-      document.getElementById('track-btn').disabled = false;
-      document.getElementById('track-btn').innerHTML = '\\uD83D\\uDD0D';
-      showToast('Network error. Check your connection.', 'error');
-    };
-    xhr.send();
-  }
-
-  init();
-  window.filterProducts = filterProducts;
-  window.openPurchase = openPurchase;
-  window.closeModal = closeModal;
-  window.handleBuy = handleBuy;
-  window.openTracking = openTracking;
-  window.closeTracking = closeTracking;
-  window.doTrack = doTrack;
+(function(){var sf,slug,api;
+function init(){sf=window.__STOREFRONT_DATA__;if(!sf)return;slug=sf.slug;api=(window.location.origin==='http://localhost:3000'?'http://localhost:5000':'');}
+function toast(m,t){var e=document.getElementById('toast');if(!e)return;e.textContent=m;e.className='toast toast-'+t+' show';clearTimeout(e._h);e._h=setTimeout(function(){e.className='toast toast-'+t},3000);}
+init();
+// Filter - event delegation on .filter-bar
+document.querySelector('.filter-bar')&&document.querySelector('.filter-bar').addEventListener('click',function(e){
+  var b=e.target.closest('.filter-btn');if(!b)return;
+  var f=b.getAttribute('data-filter');
+  document.querySelectorAll('.filter-btn').forEach(function(x){x.classList.toggle('active',x.getAttribute('data-filter')===f);});
+  document.querySelectorAll('.product-card').forEach(function(c){
+    if(f==='all'){c.classList.remove('hidden');return;}
+    var n=(c.getAttribute('data-network')||'').toUpperCase();
+    if(f==='mtn')c.classList.toggle('hidden',n.indexOf('MTN')===-1);
+    else if(f==='airtel')c.classList.toggle('hidden',n.indexOf('AIRTEL')===-1&&n.indexOf('TIGO')===-1);
+    else if(f==='telecel')c.classList.toggle('hidden',n.indexOf('TELECEL')===-1&&n.indexOf('VODAFONE')===-1);
+    else c.classList.remove('hidden');
+  });
+});
+// Buy button clicks - event delegation on main
+document.querySelector('main').addEventListener('click',function(e){
+  var b=e.target.closest('.btn-buy');if(!b)return;
+  var pid=parseInt(b.getAttribute('data-pid'));if(!pid)return;
+  if(!sf||!sf.products){toast('Store not ready','error');return;}
+  var p=null;for(var i=0;i<sf.products.length;i++){if(sf.products[i].id===pid){p=sf.products[i];break;}}
+  if(!p){toast('Product not found','error');return;}
+  document.getElementById('modal-product-name').textContent=p.name||'';
+  document.getElementById('modal-product-desc').textContent=p.description||'';
+  document.getElementById('modal-price').textContent='GHS '+(p.price||0).toFixed(2);
+  document.getElementById('buy-btn').setAttribute('data-pid',pid);
+  document.getElementById('phone-input').value='';
+  document.getElementById('modal').style.display='flex';
+  document.getElementById('buy-btn').disabled=false;
+  document.getElementById('buy-btn').innerHTML='Pay with Mobile Money \\u2192';
+  var u=(p.name||'').toUpperCase();
+  var g=(u.indexOf('MTN')!==-1)?'#eab308, #d97706':(u.indexOf('TELECEL')!==-1||u.indexOf('VODAFONE')!==-1)?'#ef4444, #e11d48':(u.indexOf('AIRTEL')!==-1||u.indexOf('TIGO')!==-1)?'#3b82f6, #4f46e5':'#1e1e24, #27272a';
+  document.getElementById('modal-header').style.background='linear-gradient(135deg, '+g+')';
+  document.getElementById('buy-btn').style.background='linear-gradient(135deg, '+g+')';
+});
+// Buy payment
+document.getElementById('buy-btn').addEventListener('click',function(){
+  var btn=this;var pid=parseInt(btn.getAttribute('data-pid'));
+  if(!pid){toast('Select a product first','error');return;}
+  var phone=document.getElementById('phone-input').value.replace(/\\D/g,'');
+  if(phone.length!==10){toast('Enter a valid 10-digit number','error');return;}
+  btn.disabled=true;btn.innerHTML='<span class="spinner-btn"></span>Processing...';
+  var x=new XMLHttpRequest();
+  x.open('POST',(api||'')+'/api/storefront/public/'+slug+'/pay',true);
+  x.setRequestHeader('Content-Type','application/json');x.timeout=30000;
+  x.onload=function(){
+    if(x.status>=200&&x.status<300){try{var r=JSON.parse(x.responseText);if(r.success&&r.paymentUrl){window.location.href=r.paymentUrl;return;}toast(r.message||'Payment failed','error');}catch(e){toast('Invalid response','error');}
+    }else{try{toast(JSON.parse(x.responseText).message||'Order failed','error');}catch(e){toast('Network error','error');}}
+    btn.disabled=false;btn.innerHTML='Pay with Mobile Money \\u2192';
+  };
+  x.onerror=function(){toast('Network error. Check connection.','error');btn.disabled=false;btn.innerHTML='Pay with Mobile Money \\u2192';};
+  x.ontimeout=function(){toast('Request timed out','error');btn.disabled=false;btn.innerHTML='Pay with Mobile Money \\u2192';};
+  x.send(JSON.stringify({storefrontProductId:pid,customerName:(sf&&sf.agent&&sf.agent.name)||'Customer',customerPhone:phone}));
+});
+// Open tracking modal
+document.getElementById('open-track')&&document.getElementById('open-track').addEventListener('click',function(){document.getElementById('track-modal').style.display='flex';});
+// Track search
+document.getElementById('track-btn').addEventListener('click',function(){
+  var mode=document.getElementById('track-mode').value;
+  var val=document.getElementById('track-input').value.trim().replace(/\\s+/g,'');
+  var res=document.getElementById('track-results');
+  if(!val){toast('Please enter a value to search','error');return;}
+  if(mode==='phone'){var d=val.replace(/\\D/g,'');if(d.length<9){toast('Enter valid mobile number','error');return;}val=d;}
+  else{if(val.length<5){toast('Enter valid order number','error');return;}val=val.toUpperCase();}
+  this.disabled=true;this.innerHTML='<span class="spinner-btn"></span>';
+  var p=(mode==='phone'?'mobileNumber=':'orderNumber=')+encodeURIComponent(val);
+  var x=new XMLHttpRequest();
+  x.open('GET',(api||'')+'/api/shop/track?'+p,true);x.timeout=15000;
+  x.onload=function(){
+    var btn=document.getElementById('track-btn');btn.disabled=false;btn.innerHTML='\\uD83D\\uDD0D';
+    if(x.status>=200&&x.status<300){try{var r=JSON.parse(x.responseText);var o=r.orders||[];if(!o.length){res.innerHTML='<div style="text-align:center;padding:24px;color:#52525b">No orders found</div>';return;}
+    var h='';for(var i=0;i<o.length;i++){var od=o[i];
+      h+='<div class="track-result"><div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:8px"><div><h4>Order '+(od.orderNumber?'#'+od.orderNumber:'#'+od.orderId)+'</h4><div class="date">'+new Date(od.createdAt).toLocaleDateString()+'</div></div>';
+      var s=(od.items&&od.items[0])?od.items[0].status||'Pending':'Pending';
+      var sc=s.toLowerCase()==='completed'?'background:rgba(16,185,129,.1);color:#6ee7b7;border-color:rgba(16,185,129,.25)':s.toLowerCase()==='processing'?'background:rgba(6,182,212,.1);color:#67e8f9;border-color:rgba(6,182,212,.25)':s.toLowerCase()==='pending'?'background:rgba(245,158,11,.1);color:#fcd34d;border-color:rgba(245,158,11,.25)':'background:rgba(239,68,68,.1);color:#fca5a5;border-color:rgba(239,68,68,.25)';
+      h+='<span class="track-status" style="'+sc+'">'+s+'</span></div>';
+      if(od.items){for(var j=0;j<od.items.length;j++){var im=od.items[j];h+='<div style="font-size:13px;color:#a1a1aa;padding:4px 0"><span style="color:#fff;font-weight:500">'+(im.productName||'')+'</span>'+(im.productDescription?' - '+im.productDescription:'')+'</div>';}}
+      h+='</div>';}
+      res.innerHTML=h;}catch(e){toast('Invalid response','error');}
+    }else{toast('Failed to track order','error');}
+  };
+  x.onerror=function(){document.getElementById('track-btn').disabled=false;document.getElementById('track-btn').innerHTML='\\uD83D\\uDD0D';toast('Network error','error');};
+  x.send();
+});
+// Track mode switch - clear input/results
+document.getElementById('track-mode')&&document.getElementById('track-mode').addEventListener('change',function(){document.getElementById('track-input').value='';document.getElementById('track-results').innerHTML='';});
+// Modal: close on overlay click
+document.getElementById('modal')&&document.getElementById('modal').addEventListener('click',function(e){if(e.target===this)this.style.display='none';});
+document.querySelectorAll('#modal .modal-close').forEach(function(el){el.addEventListener('click',function(){document.getElementById('modal').style.display='none';});});
+document.querySelector('#modal .btn-cancel')&&document.querySelector('#modal .btn-cancel').addEventListener('click',function(){document.getElementById('modal').style.display='none';});
+document.getElementById('track-modal')&&document.getElementById('track-modal').addEventListener('click',function(e){if(e.target===this)this.style.display='none';});
+document.querySelectorAll('#track-modal .modal-close').forEach(function(el){el.addEventListener('click',function(){document.getElementById('track-modal').style.display='none';});});
 })();
 `;
 
@@ -441,7 +295,7 @@ function renderStorefrontHtml(storefrontData, slug) {
             <span class="tag tag-2"><svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="vertical-align:middle;margin-right:3px"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg> Secure</span>
             <span class="tag tag-3"><svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="vertical-align:middle;margin-right:3px"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"/></svg> Trusted</span>
           </div>
-          <button class="btn-buy" style="background:${grad}" onclick="openPurchase(${p.id})">
+          <button class="btn-buy" style="background:${grad}" data-pid="${p.id}">
             Purchase Now <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="vertical-align:middle"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
           </button>
         </div>
@@ -473,7 +327,7 @@ function renderStorefrontHtml(storefrontData, slug) {
         <span class="nav-badge"></span>
       </div>
     </div>
-    <button class="btn-sm" onclick="openTracking()">
+    <button id="open-track" class="btn-sm">
       <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
       Track Order
     </button>
@@ -487,10 +341,10 @@ function renderStorefrontHtml(storefrontData, slug) {
       Filter by Network
     </div>
     <div class="filter-group">
-      <button class="filter-btn active" data-filter="all" onclick="filterProducts('all')">All Networks</button>
-      <button class="filter-btn" data-filter="mtn" onclick="filterProducts('mtn')">MTN</button>
-      <button class="filter-btn" data-filter="airtel" onclick="filterProducts('airtel')">AirtelTigo</button>
-      <button class="filter-btn" data-filter="telecel" onclick="filterProducts('telecel')">Telecel</button>
+      <button class="filter-btn active" data-filter="all">All Networks</button>
+      <button class="filter-btn" data-filter="mtn">MTN</button>
+      <button class="filter-btn" data-filter="airtel">AirtelTigo</button>
+      <button class="filter-btn" data-filter="telecel">Telecel</button>
     </div>
   </div>
 
@@ -515,10 +369,10 @@ function renderStorefrontHtml(storefrontData, slug) {
 </main>
 
 <!-- Purchase Modal -->
-<div id="modal" class="modal-overlay" style="display:none" onclick="if(event.target===this)closeModal()">
+<div id="modal" class="modal-overlay" style="display:none">
   <div class="modal">
     <div id="modal-header" class="modal-header">
-      <button class="modal-close" onclick="closeModal()"><svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>
+      <button class="modal-close"><svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:rgba(255,255,255,.8)">Data Bundle</div>
       <h2 style="font-size:18px;font-weight:700;padding-right:32px">Complete Your Order</h2>
       <p id="modal-product-name" style="font-size:14px;color:rgba(255,255,255,.9);margin-top:4px"></p>
@@ -534,11 +388,11 @@ function renderStorefrontHtml(storefrontData, slug) {
           <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/></svg>
           Data Bundle Number
         </label>
-        <input id="phone-input" class="field-input" type="tel" placeholder="0XXXXXXXXX" maxlength="10" oninput="this.value=this.value.replace(/\\D/g,'')"/>
+        <input id="phone-input" class="field-input" type="tel" placeholder="0XXXXXXXXX" maxlength="10"/>
       </div>
       <div class="modal-actions">
-        <button id="buy-btn" class="btn-submit" onclick="handleBuy()">Pay with Mobile Money &#8594;</button>
-        <button class="btn-cancel" onclick="closeModal()">Cancel</button>
+        <button id="buy-btn" class="btn-submit">Pay with Mobile Money &#8594;</button>
+        <button class="btn-cancel">Cancel</button>
       </div>
       <div class="modal-footer">
         <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
@@ -549,22 +403,22 @@ function renderStorefrontHtml(storefrontData, slug) {
 </div>
 
 <!-- Tracking Modal -->
-<div id="track-modal" class="modal-overlay" style="display:none" onclick="if(event.target===this)closeTracking()">
+<div id="track-modal" class="modal-overlay" style="display:none">
   <div class="modal" style="max-width:512px">
     <div class="modal-header">
-      <button class="modal-close" onclick="closeTracking()"><svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>
+      <button class="modal-close"><svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>
       <h2 style="font-size:18px;font-weight:700;padding-right:32px">Track Your Order</h2>
     </div>
     <div class="modal-body modal-scroll" style="max-height:70vh">
       <div style="display:flex;flex-direction:column;gap:12px;margin-bottom:16px">
         <div style="display:flex;gap:8px">
-          <select id="track-mode" class="track-select" onchange="document.getElementById('track-input').value='';document.getElementById('track-results').innerHTML=''">
+          <select id="track-mode" class="track-select">
             <option value="phone">By Mobile</option>
             <option value="order">By Order #</option>
           </select>
           <input id="track-input" class="track-input" type="text" placeholder="Enter mobile number" maxlength="10"/>
         </div>
-        <button id="track-btn" class="btn-sm" style="justify-content:center;width:100%" onclick="doTrack()">&#128269; Search</button>
+        <button id="track-btn" class="btn-sm" style="justify-content:center;width:100%">&#128269; Search</button>
       </div>
       <div id="track-results"></div>
     </div>
