@@ -29,6 +29,8 @@ router.get('/agent/:userId/withdrawals', authMiddleware, storefrontController.ge
 // ==================== PUBLIC STOREFRONT (no auth - customers access these) ====================
 
 router.get('/public/:slug', storefrontController.getPublicStorefront);
+// Lightweight HTML storefront — ~15KB inline page, NO React bundle needed
+router.get('/lite/:slug', storefrontController.getLightweightStorefront);
 router.post('/public/:slug/pay', storefrontController.initializeReferralPayment);
 router.post('/verify', storefrontController.verifyReferralPayment);
 

@@ -1,4 +1,5 @@
 const storefrontService = require('../services/storefrontService');
+const { renderStorefrontHtml } = require('../services/storefrontHtmlRenderer');
 
 // ==================== AGENT STOREFRONT MANAGEMENT ====================
 
@@ -112,7 +113,7 @@ const getAgentReferralSummary = async (req, res) => {
 
 // ==================== PUBLIC STOREFRONT ====================
 
-// Get public storefront by slug
+// Get public storefront by slug (JSON for React SPA)
 const getPublicStorefront = async (req, res) => {
   try {
     const { slug } = req.params;
@@ -121,6 +122,44 @@ const getPublicStorefront = async (req, res) => {
   } catch (error) {
     console.error('Error getting public storefront:', error);
     res.status(404).json({ success: false, message: error.message });
+  }
+};
+
+// Lightweight storefront — NO React bundle needed.
+// Serves a ~15KB self-contained HTML page with inline CSS/JS/data.
+// Designed for customers on slow internet connections (2G/3G).
+const getLightweightStorefront = async (req, res) => {
+  try {
+    const { slug } = req.params;
+    const storefront = await storefrontService.getPublicStorefront(slug);
+    
+    // Generate the compact HTML page
+    const html = renderStorefrontHtml(storefront, slug);
+    
+    // Generate ETag from content length for caching
+    const etag = `"storefront-${slug}-${Buffer.byteLength(html)}"`;
+    
+    // Check if client has a fresh copy
+    if (req.headers['if-none-match'] === etag) {
+      return res.status(304).end();
+    }
+    
+    // Cache for 5 minutes at CDN/browser level; stale for 1 hour while revalidating
+    res.set({
+      'ETag': etag,
+      'Cache-Control': 'public, max-age=300, stale-while-revalidate=3600',
+      'Content-Type': 'text/html; charset=utf-8',
+      'Vary': 'Accept-Encoding'
+    });
+    
+    res.status(200).send(html);
+  } catch (error) {
+    console.error('Error rendering lightweight storefront:', error);
+    res.status(404).send(`<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><title>Store Not Found</title><style>body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#0a0a0f;color:#f1f5f9;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;padding:20px;text-align:center}h1{font-size:2rem;margin-bottom:8px}p{color:#52525b;margin-bottom:24px}a{color:#06b6d4}</style></head>
+<body><div><h1>Storefront Not Found</h1><p>This store link may be invalid or the seller has closed their store.</p><a href="/">Go to Home</a></div></body>
+</html>`);
   }
 };
 
@@ -358,6 +397,7 @@ module.exports = {
   
   // Public storefront
   getPublicStorefront,
+  getLightweightStorefront,
   initializeReferralPayment,
   verifyReferralPayment,
   
