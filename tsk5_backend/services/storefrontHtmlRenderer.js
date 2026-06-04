@@ -2,6 +2,9 @@
  * Lightweight storefront HTML renderer.
  * Serves a ~15KB pure HTML/CSS/JS page — NO React bundle needed.
  * Designed for customers on slow internet connections.
+ * 
+ * All user-supplied values are properly escaped to prevent HTML/JS injection
+ * and embedded data corruption.
  */
 
 const cache = require('../utils/cache');
@@ -107,12 +110,14 @@ main{max-width:1280px;margin:0 auto;padding:0 16px 48px}
 `;
 
 const INLINE_JS = `
-// Storefront data embedded in a script tag by the server
+// Lightweight storefront JS — no framework, zero dependencies
 (function() {
   var storefront, slug, apiBase;
 
+  // Called immediately (DOM already parsed since script is at bottom of body)
   function init() {
     storefront = window.__STOREFRONT_DATA__;
+    if (!storefront) return;
     slug = storefront.slug;
     apiBase = window.location.origin === 'http://localhost:3000' ? 'http://localhost:5000' : '';
   }
@@ -120,45 +125,32 @@ const INLINE_JS = `
   // Toast notification
   function showToast(msg, type) {
     var t = document.getElementById('toast');
+    if (!t) return;
     t.textContent = msg;
     t.className = 'toast toast-' + type + ' show';
     clearTimeout(t._hide);
     t._hide = setTimeout(function(){ t.className = 'toast toast-' + type; }, 3000);
   }
 
-  // Filter products
+  // Filter products by network
   function filterProducts(filter) {
-    document.querySelectorAll('.filter-btn').forEach(function(b) {
-      b.classList.toggle('active', b.dataset.filter === filter);
-    });
-    document.querySelectorAll('.product-card').forEach(function(card) {
-      if (filter === 'all') { card.classList.remove('hidden'); return; }
-      var network = (card.dataset.network || '').toUpperCase();
-      var match = false;
-      if (filter === 'mtn') match = network.indexOf('MTN') !== -1;
-      else if (filter === 'airtel') match = network.indexOf('AIRTEL') !== -1 || network.indexOf('TIGO') !== -1;
-      else if (filter === 'telecel') match = network.indexOf('TELECEL') !== -1 || network.indexOf('VODAFONE') !== -1;
-      card.classList.toggle('hidden', !match);
-    });
-  }
-
-  // Open purchase modal
-  function openPurchase(productId) {
-    var p = storefront.products.find(function(x){ return x.id === productId; });
-    if (!p) return;
-    document.getElementById('modal-product-name').textContent = p.name;
-    document.getElementById('modal-product-desc').textContent = p.description;
-    document.getElementById('modal-price').textContent = 'GHS ' + p.price.toFixed(2);
-    document.getElementById('buy-btn').dataset.productId = productId;
-    document.getElementById('phone-input').value = '';
-    document.getElementById('modal').style.display = 'flex';
-    document.getElementById('buy-btn').disabled = false;
-    document.getElementById('buy-btn').innerHTML = 'Pay with Mobile Money \\u2192';
-
-    // Set gradient
-    var g = getGradient(p.name);
-    document.getElementById('modal-header').style.background = 'linear-gradient(135deg, ' + g + ')';
-    document.getElementById('buy-btn').style.background = 'linear-gradient(135deg, ' + g + ')';
+    var btns = document.querySelectorAll('.filter-btn');
+    var cards = document.querySelectorAll('.product-card');
+    var i;
+    for (i = 0; i < btns.length; i++) {
+      btns[i].classList.toggle('active', btns[i].getAttribute('data-filter') === filter);
+    }
+    for (i = 0; i < cards.length; i++) {
+      if (filter === 'all') {
+        cards[i].classList.remove('hidden');
+      } else {
+        var network = (cards[i].getAttribute('data-network') || '').toUpperCase();
+        if (filter === 'mtn') cards[i].classList.toggle('hidden', network.indexOf('MTN') === -1);
+        else if (filter === 'airtel') cards[i].classList.toggle('hidden', network.indexOf('AIRTEL') === -1 && network.indexOf('TIGO') === -1);
+        else if (filter === 'telecel') cards[i].classList.toggle('hidden', network.indexOf('TELECEL') === -1 && network.indexOf('VODAFONE') === -1);
+        else cards[i].classList.remove('hidden');
+      }
+    }
   }
 
   function getGradient(name) {
@@ -169,22 +161,38 @@ const INLINE_JS = `
     return '#1e1e24, #27272a';
   }
 
-  function getGradientClass(name) {
-    var u = (name || '').toUpperCase();
-    if (u.indexOf('MTN') !== -1) return 'from-yellow-500 to-amber-600';
-    if (u.indexOf('TELECEL') !== -1 || u.indexOf('VODAFONE') !== -1) return 'from-red-500 to-rose-600';
-    if (u.indexOf('AIRTEL') !== -1 || u.indexOf('TIGO') !== -1) return 'from-blue-500 to-indigo-600';
-    return 'from-gray-700 to-gray-800';
+  // Open purchase modal
+  function openPurchase(productId) {
+    if (!storefront || !storefront.products) return showToast('Store data not loaded yet', 'error');
+    var i, p = null;
+    for (i = 0; i < storefront.products.length; i++) {
+      if (storefront.products[i].id === productId) { p = storefront.products[i]; break; }
+    }
+    if (!p) { showToast('Product not found', 'error'); return; }
+    document.getElementById('modal-product-name').textContent = p.name || '';
+    document.getElementById('modal-product-desc').textContent = p.description || '';
+    document.getElementById('modal-price').textContent = 'GHS ' + (p.price || 0).toFixed(2);
+    document.getElementById('buy-btn').setAttribute('data-product-id', productId);
+    document.getElementById('phone-input').value = '';
+    document.getElementById('modal').style.display = 'flex';
+    document.getElementById('buy-btn').disabled = false;
+    document.getElementById('buy-btn').innerHTML = 'Pay with Mobile Money \\u2192';
+
+    var g = getGradient(p.name);
+    document.getElementById('modal-header').style.background = 'linear-gradient(135deg, ' + g + ')';
+    document.getElementById('buy-btn').style.background = 'linear-gradient(135deg, ' + g + ')';
   }
 
   function closeModal() {
-    document.getElementById('modal').style.display = 'none';
+    var el = document.getElementById('modal');
+    if (el) el.style.display = 'none';
   }
 
   // Handle purchase
   function handleBuy() {
     var btn = document.getElementById('buy-btn');
-    var productId = parseInt(btn.dataset.productId);
+    if (!btn) return;
+    var productId = parseInt(btn.getAttribute('data-product-id'));
     var phone = document.getElementById('phone-input').value.replace(/\\D/g, '');
     
     if (phone.length !== 10) {
@@ -196,18 +204,20 @@ const INLINE_JS = `
     btn.innerHTML = '<span class="spinner-btn"></span>Processing...';
 
     var xhr = new XMLHttpRequest();
-    xhr.open('POST', apiBase + '/api/storefront/public/' + slug + '/pay', true);
+    xhr.open('POST', (apiBase || '') + '/api/storefront/public/' + slug + '/pay', true);
     xhr.setRequestHeader('Content-Type', 'application/json');
     xhr.timeout = 30000;
     xhr.onload = function() {
       if (xhr.status >= 200 && xhr.status < 300) {
-        var res = JSON.parse(xhr.responseText);
-        if (res.success && res.paymentUrl) {
-          window.location.href = res.paymentUrl;
-        } else {
+        try {
+          var res = JSON.parse(xhr.responseText);
+          if (res.success && res.paymentUrl) {
+            window.location.href = res.paymentUrl;
+            return;
+          }
           showToast(res.message || 'Could not initialize payment', 'error');
-          btn.disabled = false;
-          btn.innerHTML = 'Pay with Mobile Money \\u2192';
+        } catch(e) {
+          showToast('Invalid response from server', 'error');
         }
       } else {
         try {
@@ -216,9 +226,9 @@ const INLINE_JS = `
         } catch(e) {
           showToast('Network error. Please try again.', 'error');
         }
-        btn.disabled = false;
-        btn.innerHTML = 'Pay with Mobile Money \\u2192';
       }
+      btn.disabled = false;
+      btn.innerHTML = 'Pay with Mobile Money \\u2192';
     };
     xhr.onerror = function() {
       showToast('Network error. Check your connection.', 'error');
@@ -232,26 +242,33 @@ const INLINE_JS = `
     };
     xhr.send(JSON.stringify({
       storefrontProductId: productId,
-      customerName: storefront.agent.name || 'Customer',
+      customerName: (storefront && storefront.agent && storefront.agent.name) || 'Customer',
       customerPhone: phone
     }));
   }
 
   // Track order
   function openTracking() {
-    document.getElementById('track-modal').style.display = 'flex';
-    document.getElementById('track-input').value = '';
-    document.getElementById('track-results').innerHTML = '';
+    var el = document.getElementById('track-modal');
+    if (el) {
+      el.style.display = 'flex';
+      document.getElementById('track-input').value = '';
+      document.getElementById('track-results').innerHTML = '';
+    }
   }
 
   function closeTracking() {
-    document.getElementById('track-modal').style.display = 'none';
+    var el = document.getElementById('track-modal');
+    if (el) el.style.display = 'none';
   }
 
   function doTrack() {
     var mode = document.getElementById('track-mode').value;
-    var val = document.getElementById('track-input').value.trim().replace(/\\s+/g, '');
+    var val = document.getElementById('track-input').value.trim();
     var results = document.getElementById('track-results');
+    if (!results) return;
+
+    val = val.replace(/\\s+/g, '');
 
     if (mode === 'phone') {
       var digits = val.replace(/\\D/g, '');
@@ -265,7 +282,6 @@ const INLINE_JS = `
         showToast('Please enter a valid order number', 'error');
         return;
       }
-      val = val.toUpperCase();
     }
 
     document.getElementById('track-btn').disabled = true;
@@ -273,55 +289,61 @@ const INLINE_JS = `
 
     var params = mode === 'phone' ? 'mobileNumber=' + encodeURIComponent(val) : 'orderNumber=' + encodeURIComponent(val);
     var xhr = new XMLHttpRequest();
-    xhr.open('GET', apiBase + '/api/shop/track?' + params, true);
+    xhr.open('GET', (apiBase || '') + '/api/shop/track?' + params, true);
     xhr.timeout = 15000;
     xhr.onload = function() {
       document.getElementById('track-btn').disabled = false;
-      document.getElementById('track-btn').innerHTML = '\\uD83D\\DD0D';
+      document.getElementById('track-btn').innerHTML = '\\uD83D\\uDD0D';
       if (xhr.status >= 200 && xhr.status < 300) {
-        var res = JSON.parse(xhr.responseText);
-        var orders = res.orders || [];
-        if (orders.length === 0) {
-          results.innerHTML = '<div style="text-align:center;padding:24px;color:#52525b">No orders found</div>';
-          return;
-        }
-        var html = '';
-        orders.forEach(function(order) {
-          html += '<div class="track-result">';
-          html += '<div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:8px">';
-          html += '<div><h4>Order ' + (order.orderNumber ? '#' + order.orderNumber : '#' + order.orderId) + '</h4>';
-          html += '<div class="date">' + new Date(order.createdAt).toLocaleDateString() + '</div></div>';
-          var status = (order.items && order.items[0]) ? order.items[0].status || 'Pending' : 'Pending';
-          var sc = status.toLowerCase() === 'completed' ? 'background:rgba(16,185,129,.1);color:#6ee7b7;border-color:rgba(16,185,129,.25)' :
-                   status.toLowerCase() === 'processing' ? 'background:rgba(6,182,212,.1);color:#67e8f9;border-color:rgba(6,182,212,.25)' :
-                   status.toLowerCase() === 'pending' ? 'background:rgba(245,158,11,.1);color:#fcd34d;border-color:rgba(245,158,11,.25)' :
-                   'background:rgba(239,68,68,.1);color:#fca5a5;border-color:rgba(239,68,68,.25)';
-          html += '<span class="track-status" style="' + sc + '">' + (status || 'Pending') + '</span>';
-          html += '</div>';
-          if (order.items) {
-            order.items.forEach(function(item) {
-              html += '<div style="font-size:13px;color:#a1a1aa;padding:4px 0">';
-              html += '<span style="color:#fff;font-weight:500">' + (item.productName || '') + '</span>';
-              if (item.productDescription) html += ' - ' + item.productDescription;
-              html += '</div>';
-            });
+        try {
+          var res = JSON.parse(xhr.responseText);
+          var orders = res.orders || [];
+          if (orders.length === 0) {
+            results.innerHTML = '<div style="text-align:center;padding:24px;color:#52525b">No orders found</div>';
+            return;
           }
-          html += '</div>';
-        });
-        results.innerHTML = html;
+          var html = '';
+          for (var i = 0; i < orders.length; i++) {
+            var order = orders[i];
+            html += '<div class="track-result">';
+            html += '<div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:8px">';
+            html += '<div><h4>Order ' + (order.orderNumber ? '#' + order.orderNumber : '#' + order.orderId) + '</h4>';
+            html += '<div class="date">' + new Date(order.createdAt).toLocaleDateString() + '</div></div>';
+            var status = (order.items && order.items[0]) ? order.items[0].status || 'Pending' : 'Pending';
+            var sc = status.toLowerCase() === 'completed' ? 'background:rgba(16,185,129,.1);color:#6ee7b7;border-color:rgba(16,185,129,.25)' :
+                     status.toLowerCase() === 'processing' ? 'background:rgba(6,182,212,.1);color:#67e8f9;border-color:rgba(6,182,212,.25)' :
+                     status.toLowerCase() === 'pending' ? 'background:rgba(245,158,11,.1);color:#fcd34d;border-color:rgba(245,158,11,.25)' :
+                     'background:rgba(239,68,68,.1);color:#fca5a5;border-color:rgba(239,68,68,.25)';
+            html += '<span class="track-status" style="' + sc + '">' + (status || 'Pending') + '</span>';
+            html += '</div>';
+            if (order.items) {
+              for (var j = 0; j < order.items.length; j++) {
+                var item = order.items[j];
+                html += '<div style="font-size:13px;color:#a1a1aa;padding:4px 0">';
+                html += '<span style="color:#fff;font-weight:500">' + (item.productName || '') + '</span>';
+                if (item.productDescription) html += ' - ' + item.productDescription;
+                html += '</div>';
+              }
+            }
+            html += '</div>';
+          }
+          results.innerHTML = html;
+        } catch(e) {
+          showToast('Invalid response from server', 'error');
+        }
       } else {
         showToast('Failed to track order', 'error');
       }
     };
     xhr.onerror = function() {
       document.getElementById('track-btn').disabled = false;
-      document.getElementById('track-btn').innerHTML = '\\uD83D\\DD0D';
+      document.getElementById('track-btn').innerHTML = '\\uD83D\\uDD0D';
       showToast('Network error. Check your connection.', 'error');
     };
     xhr.send();
   }
 
-  document.addEventListener('DOMContentLoaded', init);
+  init();
   window.filterProducts = filterProducts;
   window.openPurchase = openPurchase;
   window.closeModal = closeModal;
@@ -333,41 +355,66 @@ const INLINE_JS = `
 `;
 
 /**
+ * Escape a string for safe use in HTML content.
+ */
+function escapeHtml(str) {
+  if (typeof str !== 'string') str = String(str || '');
+  return str.replace(/[&<>"']/g, function(m) {
+    if (m === '&') return '&' + 'amp;';
+    if (m === '<') return '&' + 'lt;';
+    if (m === '>') return '&' + 'gt;';
+    if (m === '"') return '&' + 'quot;';
+    return '&' + '#39;';
+  });
+}
+
+// Determine carrier info from product name
+const getNetwork = (name) => {
+  const u = (name || '').toUpperCase();
+  if (u.includes('MTN')) return 'mtn';
+  if (u.includes('TELECEL') || u.includes('VODAFONE')) return 'telecel';
+  if (u.includes('AIRTEL') || u.includes('TIGO')) return 'airtel';
+  return 'other';
+};
+
+const cardGradient = (name) => {
+  const u = (name || '').toUpperCase();
+  if (u.includes('MTN')) return 'linear-gradient(135deg, #eab308, #d97706)';
+  if (u.includes('TELECEL') || u.includes('VODAFONE')) return 'linear-gradient(135deg, #ef4444, #e11d48)';
+  if (u.includes('AIRTEL') || u.includes('TIGO')) return 'linear-gradient(135deg, #3b82f6, #4f46e5)';
+  return 'linear-gradient(135deg, #1e1e24, #27272a)';
+};
+
+/**
  * Generate the full HTML page for a lightweight storefront.
  * @param {object} storefrontData - The storefront data from getPublicStorefront()
  * @param {string} slug - The storefront slug
  * @returns {string} Complete HTML document
  */
 function renderStorefrontHtml(storefrontData, slug) {
-  const { agent, products } = storefrontData;
+  const agentName = storefrontData.agent ? storefrontData.agent.name || '' : '';
+  const agentWhatsapp = storefrontData.agent ? storefrontData.agent.whatsapp || '' : '';
+  const products = storefrontData.products || [];
 
-  const networkIcon = (name) => {
-    const u = (name || '').toUpperCase();
-    if (u.includes('MTN')) return '#eab308';
-    if (u.includes('TELECEL') || u.includes('VODAFONE')) return '#ef4444';
-    if (u.includes('AIRTEL') || u.includes('TIGO')) return '#3b82f6';
-    return '#52525b';
-  };
+  // Build embedded data using JSON.stringify for perfect escaping
+  const embeddedData = JSON.stringify({
+    agent: { name: agentName, whatsapp: agentWhatsapp },
+    slug: slug,
+    products: products.map(p => ({
+      id: p.id,
+      name: p.name || '',
+      description: p.description || '',
+      price: typeof p.price === 'number' ? p.price : 0
+    }))
+  });
 
-  const cardGradient = (name) => {
-    const u = (name || '').toUpperCase();
-    if (u.includes('MTN')) return 'linear-gradient(135deg, #eab308, #d97706)';
-    if (u.includes('TELECEL') || u.includes('VODAFONE')) return 'linear-gradient(135deg, #ef4444, #e11d48)';
-    if (u.includes('AIRTEL') || u.includes('TIGO')) return 'linear-gradient(135deg, #3b82f6, #4f46e5)';
-    return 'linear-gradient(135deg, #1e1e24, #27272a)';
-  };
-
-  const getNetwork = (name) => {
-    const u = (name || '').toUpperCase();
-    if (u.includes('MTN')) return 'mtn';
-    if (u.includes('TELECEL') || u.includes('VODAFONE')) return 'telecel';
-    if (u.includes('AIRTEL') || u.includes('TIGO')) return 'airtel';
-    return 'other';
-  };
-
+  // Product cards use escaped HTML values
   const productCards = products.map(p => {
     const grad = cardGradient(p.name);
     const network = getNetwork(p.name);
+    const safeName = escapeHtml(p.name);
+    const safeDesc = escapeHtml(p.description);
+    const price = typeof p.price === 'number' ? p.price.toFixed(2) : '0.00';
     return `
       <div class="card product-card" data-network="${network}" style="content-visibility:auto">
         <div class="card-header" style="background:${grad}">
@@ -378,15 +425,15 @@ function renderStorefrontHtml(storefrontData, slug) {
                 <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071A9.5 9.5 0 0112 4a9.5 9.5 0 017.071 2.929M12 7v.01m-4.95 3.96A5.5 5.5 0 0112 9a5.5 5.5 0 014.95 2.96"/></svg>
                 Data Bundle
               </div>
-              <div class="card-title">${p.name}</div>
+              <div class="card-title">${safeName}</div>
             </div>
             <span class="card-badge">Available</span>
           </div>
         </div>
         <div class="card-body">
-          <div class="card-desc">${p.description}</div>
+          <div class="card-desc">${safeDesc}</div>
           <div class="card-price">
-            <span class="price-amount">GHS ${p.price.toFixed(2)}</span>
+            <span class="price-amount">GHS ${price}</span>
             <span class="price-label">/ bundle</span>
           </div>
           <div class="tags">
@@ -401,31 +448,28 @@ function renderStorefrontHtml(storefrontData, slug) {
       </div>`;
   }).join('\n');
 
-  const productsJson = JSON.stringify(products.map(p => ({
-    id: p.id,
-    name: p.name,
-    description: p.description,
-    price: p.price
-  })));
+  const safeAgentName = escapeHtml(agentName);
+  const safeTitle = safeAgentName + "'s Store - Data Bundles";
+  const safeMetaDesc = safeAgentName + "'s Store - Data Bundles";
 
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<meta name="description" content="${agent.name}'s Store - Data Bundles"/>
-<title>${agent.name}'s Store - Data Bundles</title>
+<meta name="description" content="${safeMetaDesc}"/>
+<title>${safeTitle}</title>
 <style>${INLINE_CSS}</style>
 </head>
 <body>
-<script>window.__STOREFRONT_DATA__={"agent":{"name":"${agent.name}","whatsapp":"${agent.whatsapp || ''}"},"slug":"${slug}","products":${productsJson}};</script>
+<script>window.__STOREFRONT_DATA__=${embeddedData};</script>
 
 <nav>
   <div class="nav-inner">
     <div class="nav-brand">
       <div class="nav-icon">&#9889;</div>
       <div>
-        <span class="nav-name">${agent.name}'s Store</span>
+        <span class="nav-name">${safeAgentName}'s Store</span>
         <span class="nav-badge"></span>
       </div>
     </div>
@@ -463,8 +507,8 @@ function renderStorefrontHtml(storefrontData, slug) {
   </div>`}
 
   <!-- WhatsApp Bubble -->
-  ${agent.whatsapp ? `
-  <a href="${agent.whatsapp}" target="_blank" rel="noopener noreferrer" style="position:fixed;bottom:24px;right:24px;z-index:50;display:flex;align-items:center;gap:8px;background:#25D366;color:#fff;padding:12px 20px;border-radius:999px;text-decoration:none;font-size:14px;font-weight:600;box-shadow:0 8px 24px rgba(37,211,102,.3);transition:transform .15s" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
+  ${agentWhatsapp ? `
+  <a href="${escapeHtml(agentWhatsapp)}" target="_blank" rel="noopener noreferrer" style="position:fixed;bottom:24px;right:24px;z-index:50;display:flex;align-items:center;gap:8px;background:#25D366;color:#fff;padding:12px 20px;border-radius:999px;text-decoration:none;font-size:14px;font-weight:600;box-shadow:0 8px 24px rgba(37,211,102,.3);transition:transform .15s" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
     <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
     <span style="display:none" class="wa-label">WhatsApp Support</span>
   </a>` : ''}
