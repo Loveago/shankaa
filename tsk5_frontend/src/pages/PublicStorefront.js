@@ -1,8 +1,32 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
-import axios from 'axios';
 import BASE_URL from '../endpoints/endpoints';
-import ShopFloatingChatButton from '../components/ShopFloatingChatButton';
+
+// ==================== LIGHTWEIGHT API FETCH (~15 lines, replaces ~14KB axios) ====================
+const apiFetch = async (method, url, body = null, opts = {}) => {
+  const controller = new AbortController();
+  let timeoutId;
+  if (opts.timeout) timeoutId = setTimeout(() => controller.abort(), opts.timeout);
+  try {
+    const res = await fetch(url, {
+      method,
+      headers: { 'Content-Type': 'application/json', 'Accept-Encoding': 'gzip, deflate', ...(opts.headers || {}) },
+      body: body ? JSON.stringify(body) : undefined,
+      signal: controller.signal,
+    });
+    if (!res.ok) {
+      const errBody = await res.json().catch(() => ({ message: `HTTP ${res.status}` }));
+      throw { response: { data: errBody }, status: res.status };
+    }
+    return res.json();
+  } catch (err) {
+    if (err?.response) throw err;
+    if (err?.name === 'AbortError') throw { response: { data: { message: 'Request timed out' } } };
+    throw { response: { data: { message: 'Network error' } } };
+  } finally {
+    if (timeoutId) clearTimeout(timeoutId);
+  }
+};
 
 // ==================== LIGHTWEIGHT ICONS (~1KB total, replaces 40KB lucide-react) ====================
 const Icons = {
@@ -170,10 +194,10 @@ const PublicStorefront = () => {
     }
     setLoading(true); setError(null);
     try {
-      const res = await axios.get(`${BASE_URL}/api/storefront/public/${slug}`, { timeout: 15000, headers: { 'Accept-Encoding': 'gzip, deflate' } });
-      if (res.data.success) {
-        setStorefront(res.data);
-        try { localStorage.setItem(cacheKey, JSON.stringify({ data: res.data, timestamp: Date.now() })); } catch (e) { /* ignore */ }
+      const data = await apiFetch('GET', `${BASE_URL}/api/storefront/public/${slug}`, null, { timeout: 15000, headers: { 'Accept-Encoding': 'gzip, deflate' } });
+      if (data.success) {
+        setStorefront(data);
+        try { localStorage.setItem(cacheKey, JSON.stringify({ data, timestamp: Date.now() })); } catch (e) { /* ignore */ }
       } else {
         setError('Storefront not found');
       }
@@ -189,14 +213,14 @@ const PublicStorefront = () => {
   const verifyPayment = useCallback(async (reference) => {
     showToast('Verifying payment...', 'info', 60000);
     try {
-      const res = await axios.post(`${BASE_URL}/api/storefront/verify`, { reference }, { timeout: 30000 });
+      const data = await apiFetch('POST', `${BASE_URL}/api/storefront/verify`, { reference }, { timeout: 30000 });
       setToast(null);
-      if (res.data.success) {
-        const orderNum = res.data?.order?.orderNumber || `#${res.data?.order?.id || 'N/A'}`;
+      if (data.success) {
+        const orderNum = data?.order?.orderNumber || `#${data?.order?.id || 'N/A'}`;
         await showConfirm({ title: 'Payment Successful', message: `Your order has been created.\nReceipt: Order ${orderNum}\nSave this number to track your order.`, icon: 'success', confirmText: 'OK', cancelText: false, confirmColor: '#10b981' });
         window.location.href = `/store/${slug}`;
       } else {
-        showToast(res.data.message || 'Payment failed', 'error');
+        showToast(data.message || 'Payment failed', 'error');
       }
     } catch (err) {
       setToast(null);
@@ -305,13 +329,13 @@ const PublicStorefront = () => {
     }
     setProcessing(true);
     try {
-      const res = await axios.post(`${BASE_URL}/api/storefront/public/${slug}/pay`, {
+      const data = await apiFetch('POST', `${BASE_URL}/api/storefront/public/${slug}/pay`, {
         storefrontProductId: selectedProduct.id, customerName: storefront?.agent?.name || 'Customer', customerPhone: mobileNumber.trim()
       }, { timeout: 30000 });
-      if (res.data.success && res.data.paymentUrl) {
-        window.location.href = res.data.paymentUrl;
+      if (data.success && data.paymentUrl) {
+        window.location.href = data.paymentUrl;
       } else {
-        showToast(res.data.message || 'Could not initialize payment', 'error');
+        showToast(data.message || 'Could not initialize payment', 'error');
       }
     } catch (err) {
       showToast(err.response?.data?.message || 'Failed to process order', 'error');
@@ -336,9 +360,9 @@ const PublicStorefront = () => {
     setIsTracking(true);
     try {
       const params = trackingMode === 'phone' ? { mobileNumber: cleaned.replace(/\D/g, '') } : { orderNumber: cleaned.toUpperCase() };
-      const response = await axios.get(`${BASE_URL}/api/shop/track`, { params, timeout: 15000 });
-      setTrackedOrders(response.data.orders || []);
-      if (response.data.orders?.length === 0) {
+      const data = await apiFetch('GET', `${BASE_URL}/api/shop/track?${new URLSearchParams(params)}`, null, { timeout: 15000 });
+      setTrackedOrders(data.orders || []);
+      if (data.orders?.length === 0) {
         showConfirm({ title: 'No Orders Found', message: trackingMode === 'phone' ? 'No orders found for this mobile number.' : 'No orders found for this order number.', icon: 'info', confirmText: 'OK', cancelText: false, confirmColor: '#06b6d4' });
       }
     } catch (error) {
@@ -375,7 +399,7 @@ const PublicStorefront = () => {
       const normalizedPhone = cleanedPhone.startsWith('233') && cleanedPhone.length === 12
         ? '0' + cleanedPhone.substring(3)
         : cleanedPhone;
-      await axios.post(`${BASE_URL}/api/complaints`, {
+      await apiFetch('POST', `${BASE_URL}/api/complaints`, {
         mobileNumber: normalizedPhone, orderId: order.id, orderItemId: item.id,
         message: `Item not received: ${item.productName} (${item.productDescription || ''}) - Order #${order.orderNumber || order.id}`,
         complaintDate: new Date().toISOString().split('T')[0],
@@ -695,19 +719,6 @@ const PublicStorefront = () => {
               )}
             </div>
           </div>
-        </div>
-      )}
-
-      <ShopFloatingChatButton />
-
-      {/* Proof Image Preview Modal */}
-      {selectedProofImage && (
-        <div className="fixed inset-0 bg-black/90 backdrop-blur-sm flex items-center justify-center z-[60] p-4" onClick={() => setSelectedProofImage(null)}>
-          <button onClick={() => setSelectedProofImage(null)} className="absolute top-4 right-4 p-2 bg-white/10 hover:bg-white/20 rounded-lg z-10">
-            <Icons.X className="w-6 h-6 text-white" />
-          </button>
-          <img src={selectedProofImage} alt="Proof" className="max-w-full max-h-[90vh] rounded-xl shadow-2xl object-contain" onClick={(e) => e.stopPropagation()}
-            onError={(e) => { e.target.style.display = 'none'; }} />
         </div>
       )}
 
