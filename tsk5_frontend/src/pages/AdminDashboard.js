@@ -116,7 +116,7 @@ const AdminDashboard = () => {
       const usersData = Array.isArray(usersRes.data) ? usersRes.data : [];
       const productsData = Array.isArray(productsRes.data) ? productsRes.data : [];
       const ordersData = Array.isArray(ordersRes.data?.data) ? ordersRes.data.data : (Array.isArray(ordersRes.data?.orders) ? ordersRes.data.orders : (Array.isArray(ordersRes.data) ? ordersRes.data : []));
-      const totalOrdersCount = ordersRes.data?.pagination?.totalItems || ordersData.length;
+      const totalOrdersCount = ordersRes.data?.pagination?.total || ordersData.length;
       const topupsData = Array.isArray(topupsRes.data) ? topupsRes.data : [];
 
       setUsers(usersData);
