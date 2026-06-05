@@ -85,7 +85,8 @@ const createShopOrder = async (productId, mobileNumber, customerName) => {
 };
 
 // Track orders by order number or mobile number (public)
-const trackOrders = async ({ mobileNumber, orderNumber }) => {
+// Supports optional trackingDate to narrow results to a specific order date
+const trackOrders = async ({ mobileNumber, orderNumber, trackingDate }) => {
   const orConditions = [];
 
   // Order-number (or raw ID) lookup — no date limit
@@ -101,7 +102,7 @@ const trackOrders = async ({ mobileNumber, orderNumber }) => {
     }
   }
 
-  // Mobile-based lookup (last 7 days)
+  // Mobile-based lookup
   if (mobileNumber) {
     const cleanedNumber = mobileNumber.replace(/\D/g, '');
     const phoneVariants = [cleanedNumber];
@@ -133,8 +134,19 @@ const trackOrders = async ({ mobileNumber, orderNumber }) => {
     return [];
   }
 
-  // Only apply 7-day window when we're searching by mobile (order-number searches should see all time)
-  const dateFilter = mobileNumber && !orderNumber ? { createdAt: { gte: (() => { const d = new Date(); d.setDate(d.getDate() - 7); return d; })() } } : {};
+  // Build date filter
+  // - If trackingDate is provided, restrict to that specific date (start to end of day)
+  // - Otherwise, apply 7-day window only for mobile searches (order-number searches see all time)
+  let dateFilter = {};
+  if (trackingDate) {
+    const dayStart = new Date(trackingDate);
+    dayStart.setHours(0, 0, 0, 0);
+    const dayEnd = new Date(dayStart);
+    dayEnd.setHours(23, 59, 59, 999);
+    dateFilter = { createdAt: { gte: dayStart, lte: dayEnd } };
+  } else if (mobileNumber && !orderNumber) {
+    dateFilter = { createdAt: { gte: (() => { const d = new Date(); d.setDate(d.getDate() - 7); return d; })() } };
+  }
 
   const orders = await prisma.order.findMany({
     where: {

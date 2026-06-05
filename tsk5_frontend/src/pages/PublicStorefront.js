@@ -55,6 +55,8 @@ const Icons = {
   AlertTriangle: (p) => <svg {...p} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"/></svg>,
   ImageIcon: (p) => <svg {...p} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>,
   ExternalLink: (p) => <svg {...p} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4m-6-6l6-6m0 0v6m0-6h-6"/></svg>,
+  Calendar: (p) => <svg {...p} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>,
+  ChevronLeft: (p) => <svg {...p} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7"/></svg>,
 };
 
 // ==================== TOAST SYSTEM (~1KB, replaces 15KB SweetAlert2 for notifications) ====================
@@ -161,6 +163,12 @@ const PublicStorefront = () => {
   const [trackingMode, setTrackingMode] = useState('phone');
   const [trackedOrders, setTrackedOrders] = useState([]);
   const [isTracking, setIsTracking] = useState(false);
+  const [trackingDate, setTrackingDate] = useState(() => {
+    // Default to today's date in local timezone (YYYY-MM-DD for input[type=date])
+    const d = new Date();
+    return d.toISOString().split('T')[0];
+  });
+  const [trackingStep, setTrackingStep] = useState('date'); // 'date' -> 'search'
   const [selectedProofImage, setSelectedProofImage] = useState(null);
   const [toast, setToast] = useState(null);
   const [confirm, setConfirm] = useState(null);
@@ -366,11 +374,16 @@ const PublicStorefront = () => {
     }
     setIsTracking(true);
     try {
-      const params = trackingMode === 'phone' ? { mobileNumber: cleaned.replace(/\D/g, '') } : { orderNumber: cleaned.toUpperCase() };
+      const params = {
+        ...(trackingMode === 'phone'
+          ? { mobileNumber: cleaned.replace(/\D/g, '') }
+          : { orderNumber: cleaned.toUpperCase() }),
+        ...(trackingDate && { trackingDate })
+      };
       const data = await apiFetch('GET', `${BASE_URL}/api/shop/track?${new URLSearchParams(params)}`, null, { timeout: 15000 });
       setTrackedOrders(data.orders || []);
       if (data.orders?.length === 0) {
-        showConfirm({ title: 'No Orders Found', message: trackingMode === 'phone' ? 'No orders found for this mobile number.' : 'No orders found for this order number.', icon: 'info', confirmText: 'OK', cancelText: false, confirmColor: '#06b6d4' });
+        showConfirm({ title: 'No Orders Found', message: trackingMode === 'phone' ? 'No orders found for this mobile number on the selected date.' : 'No orders found for this order number on the selected date.', icon: 'info', confirmText: 'OK', cancelText: false, confirmColor: '#06b6d4' });
       }
     } catch (error) {
       showConfirm({ title: 'Error', message: 'Failed to track order.', icon: 'error', confirmText: 'OK', cancelText: false, confirmColor: '#06b6d4' });
@@ -631,30 +644,67 @@ const PublicStorefront = () => {
           <div className="bg-dark-800 border border-dark-700 rounded-2xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-hidden flex flex-col">
             <div className="p-4 sm:p-6 border-b border-dark-700 flex justify-between items-center flex-shrink-0">
               <h2 className="text-lg sm:text-xl font-bold text-white">Track Your Order</h2>
-              <button onClick={() => { setShowTrackingModal(false); setTrackedOrders([]); setTrackingNumber(''); }} className="text-dark-500 hover:text-dark-300">
+              <button onClick={() => { setShowTrackingModal(false); setTrackedOrders([]); setTrackingNumber(''); setTrackingStep('date'); }} className="text-dark-500 hover:text-dark-300">
                 <Icons.X className="w-5 h-5 sm:w-6 sm:h-6" />
               </button>
             </div>
             <div className="p-4 sm:p-6 overflow-y-auto flex-1">
-              <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 mb-4 sm:mb-6">
-                <div className="flex-1 flex gap-2 sm:gap-3">
-                  <select value={trackingMode}
-                    onChange={(e) => { setTrackingMode(e.target.value); setTrackingNumber(''); setTrackedOrders([]); }}
-                    className="bg-dark-900/70 border-2 border-dark-600 rounded-xl px-3 sm:px-4 text-white text-sm sm:text-base focus:border-cyan-500 focus:outline-none">
-                    <option value="phone">By Mobile</option>
-                    <option value="order">By Order #</option>
-                  </select>
-                  <input type="text" value={trackingNumber}
-                    onChange={(e) => setTrackingNumber(trackingMode === 'phone' ? e.target.value.replace(/\D/g, '') : e.target.value)}
-                    placeholder={trackingMode === 'phone' ? 'Enter mobile number' : 'Enter order number (e.g. GHJUL24123456)'}
-                    className="flex-1 bg-dark-900/50 border-2 border-dark-600 rounded-xl px-3 sm:px-4 py-2.5 sm:py-3 text-white text-sm sm:text-base placeholder-dark-500 focus:border-cyan-500 focus:outline-none"
-                    maxLength={trackingMode === 'phone' ? 10 : 20} />
+              {trackingStep === 'date' ? (
+                /* Step 1: Date Selection */
+                <div className="space-y-6">
+                  <div className="text-center">
+                    <div className="inline-flex p-4 bg-cyan-500/10 rounded-2xl mb-4">
+                      <Icons.Calendar className="w-10 h-10 text-cyan-400" />
+                    </div>
+                    <h3 className="text-lg font-semibold text-white mb-2">Select Order Date</h3>
+                    <p className="text-dark-400 text-sm">Choose the date your order was placed</p>
+                  </div>
+                  <input type="date" value={trackingDate}
+                    onChange={(e) => setTrackingDate(e.target.value)}
+                    max={new Date().toISOString().split('T')[0]}
+                    className="w-full bg-dark-900/50 border-2 border-dark-600 rounded-xl px-4 py-3 text-white text-lg focus:border-cyan-500 focus:outline-none" />
+                  <button onClick={() => setTrackingStep('search')} disabled={!trackingDate}
+                    className="w-full py-3.5 bg-gradient-to-r from-cyan-500 to-emerald-500 text-white rounded-xl font-bold transition-all disabled:opacity-50 flex items-center justify-center gap-2 hover:shadow-lg active:scale-95">
+                    Continue <Icons.ArrowRight className="w-5 h-5" />
+                  </button>
                 </div>
-                <button onClick={trackOrder} disabled={isTracking}
-                  className="px-4 sm:px-6 py-2.5 sm:py-3 bg-gradient-to-r from-cyan-500 to-cyan-600 text-white rounded-xl font-semibold disabled:opacity-50 flex items-center gap-2 flex-shrink-0">
-                  {isTracking ? <Icons.Spinner className="w-4 h-4 sm:w-5 sm:h-5" /> : <Icons.Search className="w-4 h-4 sm:w-5 sm:h-5" />}
-                </button>
-              </div>
+              ) : (
+                /* Step 2: Search with Date Context */
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between bg-dark-900/50 rounded-xl p-3 border border-dark-700">
+                    <div className="flex items-center gap-3">
+                      <Icons.Calendar className="w-5 h-5 text-cyan-400" />
+                      <div>
+                        <p className="text-white text-sm font-medium">{(() => { try { return new Date(trackingDate + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }); } catch { return trackingDate; } })()}</p>
+                        <p className="text-dark-500 text-xs">Order date</p>
+                      </div>
+                    </div>
+                    <button onClick={() => { setTrackingStep('date'); setTrackedOrders([]); setTrackingNumber(''); }}
+                      className="px-3 py-1.5 bg-dark-700 hover:bg-dark-600 text-dark-200 text-sm rounded-lg transition-all">
+                      Change
+                    </button>
+                  </div>
+                  <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
+                    <div className="flex-1 flex gap-2 sm:gap-3">
+                      <select value={trackingMode}
+                        onChange={(e) => { setTrackingMode(e.target.value); setTrackingNumber(''); setTrackedOrders([]); }}
+                        className="bg-dark-900/70 border-2 border-dark-600 rounded-xl px-3 sm:px-4 text-white text-sm sm:text-base focus:border-cyan-500 focus:outline-none">
+                        <option value="phone">By Mobile</option>
+                        <option value="order">By Order #</option>
+                      </select>
+                      <input type="text" value={trackingNumber}
+                        onChange={(e) => setTrackingNumber(trackingMode === 'phone' ? e.target.value.replace(/\D/g, '') : e.target.value)}
+                        placeholder={trackingMode === 'phone' ? 'Enter mobile number' : 'Enter order number'}
+                        className="flex-1 bg-dark-900/50 border-2 border-dark-600 rounded-xl px-3 sm:px-4 py-2.5 sm:py-3 text-white text-sm sm:text-base placeholder-dark-500 focus:border-cyan-500 focus:outline-none"
+                        maxLength={trackingMode === 'phone' ? 10 : 20} />
+                    </div>
+                    <button onClick={trackOrder} disabled={isTracking}
+                      className="px-4 sm:px-6 py-2.5 sm:py-3 bg-gradient-to-r from-cyan-500 to-cyan-600 text-white rounded-xl font-semibold disabled:opacity-50 flex items-center gap-2 flex-shrink-0">
+                      {isTracking ? <Icons.Spinner className="w-4 h-4 sm:w-5 sm:h-5" /> : <Icons.Search className="w-4 h-4 sm:w-5 sm:h-5" />}
+                    </button>
+                  </div>
+                </div>
+              )}
               {trackedOrders.length > 0 && (
                 <div className="space-y-3 sm:space-y-4">
                   {trackedOrders.map((order) => {

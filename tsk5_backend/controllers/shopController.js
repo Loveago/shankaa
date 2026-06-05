@@ -59,7 +59,7 @@ const createShopOrder = async (req, res) => {
 // Track orders by mobile number or order number (public)
 const trackOrders = async (req, res) => {
   try {
-    const { mobileNumber, orderNumber } = req.query;
+    const { mobileNumber, orderNumber, trackingDate } = req.query;
 
     if (!mobileNumber && !orderNumber) {
       return res.status(400).json({
@@ -68,7 +68,7 @@ const trackOrders = async (req, res) => {
       });
     }
 
-    const orders = await shopService.trackOrders({ mobileNumber, orderNumber });
+    const orders = await shopService.trackOrders({ mobileNumber, orderNumber, trackingDate });
 
     const transformedOrders = orders.map(order => ({
       orderId: order.id,
