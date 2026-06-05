@@ -395,12 +395,12 @@ const OrderFiles = () => {
                 <tr className="border-b border-dark-700 bg-dark-900/50">
                   <th className="px-4 py-3 text-center text-dark-400 font-medium">Actions</th>
                   <th className="px-4 py-3 text-center text-dark-400 font-medium">Status</th>
-                  <th className="px-4 py-3 text-left text-dark-400 font-medium">Export Time</th>
-                  <th className="px-4 py-3 text-left text-dark-400 font-medium">Batch #</th>
-                  <th className="px-4 py-3 text-left text-dark-400 font-medium">Network</th>
                   <th className="px-4 py-3 text-center text-dark-400 font-medium">Orders</th>
                   <th className="px-4 py-3 text-center text-dark-400 font-medium">Total GB</th>
+                  <th className="px-4 py-3 text-left text-dark-400 font-medium">Network</th>
                   <th className="px-4 py-3 text-right text-dark-400 font-medium">Total Price</th>
+                  <th className="px-4 py-3 text-left text-dark-400 font-medium">Export Time</th>
+                  <th className="px-4 py-3 text-left text-dark-400 font-medium">Batch #</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-dark-700">
@@ -423,16 +423,16 @@ const OrderFiles = () => {
                           <StatusIcon className="w-3 h-3" /> {batch.status}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-dark-300 whitespace-nowrap">{formatDate(batch.createdAt)}</td>
-                      <td className="px-4 py-3 text-white font-mono">#{batch.id}</td>
+                      <td className="px-4 py-3 text-center text-white">{batch.totalItems}</td>
+                      <td className="px-4 py-3 text-center text-cyan-400 font-semibold">{batch.totalGb ? `${batch.totalGb} GB` : '0 GB'}</td>
                       <td className="px-4 py-3">
                         <span className={`px-2 py-0.5 rounded text-xs font-medium ${networkColors[batch.network]?.text || 'text-dark-300'} ${networkColors[batch.network]?.border || ''} border bg-black/20`}>
                           {batch.network || '-'}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-center text-white">{batch.totalItems}</td>
-                      <td className="px-4 py-3 text-center text-cyan-400 font-semibold">{batch.totalGb ? `${batch.totalGb} GB` : '0 GB'}</td>
                       <td className="px-4 py-3 text-right text-white font-medium">GHS {batch.totalPrice.toFixed(2)}</td>
+                      <td className="px-4 py-3 text-dark-300 whitespace-nowrap">{formatDate(batch.createdAt)}</td>
+                      <td className="px-4 py-3 text-white font-mono">#{batch.id}</td>
                     </tr>
                   );
                 })}
