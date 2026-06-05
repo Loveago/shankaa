@@ -164,10 +164,11 @@ const PublicStorefront = () => {
   const [trackedOrders, setTrackedOrders] = useState([]);
   const [isTracking, setIsTracking] = useState(false);
   const [trackingDate, setTrackingDate] = useState(() => {
-    // Default to today's date in local timezone (YYYY-MM-DD for input[type=date])
     const d = new Date();
     return d.toISOString().split('T')[0];
   });
+  const [calendarMonth, setCalendarMonth] = useState(() => new Date().getMonth());
+  const [calendarYear, setCalendarYear] = useState(() => new Date().getFullYear());
   const [trackingStep, setTrackingStep] = useState('date'); // 'date' -> 'search'
   const [selectedProofImage, setSelectedProofImage] = useState(null);
   const [toast, setToast] = useState(null);
@@ -650,19 +651,71 @@ const PublicStorefront = () => {
             </div>
             <div className="p-4 sm:p-6 overflow-y-auto flex-1">
               {trackingStep === 'date' ? (
-                /* Step 1: Date Selection */
-                <div className="space-y-6">
+                /* Step 1: Calendar Popup - Visual Date Picker */
+                <div className="space-y-4">
                   <div className="text-center">
-                    <div className="inline-flex p-4 bg-cyan-500/10 rounded-2xl mb-4">
-                      <Icons.Calendar className="w-10 h-10 text-cyan-400" />
+                    <div className="inline-flex p-3 bg-cyan-500/10 rounded-2xl mb-3">
+                      <Icons.Calendar className="w-8 h-8 text-cyan-400" />
                     </div>
-                    <h3 className="text-lg font-semibold text-white mb-2">Select Order Date</h3>
+                    <h3 className="text-lg font-semibold text-white mb-1">Select Order Date</h3>
                     <p className="text-dark-400 text-sm">Choose the date your order was placed</p>
                   </div>
-                  <input type="date" value={trackingDate}
-                    onChange={(e) => setTrackingDate(e.target.value)}
-                    max={new Date().toISOString().split('T')[0]}
-                    className="w-full bg-dark-900/50 border-2 border-dark-600 rounded-xl px-4 py-3 text-white text-lg focus:border-cyan-500 focus:outline-none" />
+                  {/* Calendar Header - Month/Year Navigation */}
+                  <div className="flex items-center justify-between bg-dark-900/50 rounded-xl px-4 py-2.5 border border-dark-700">
+                    <button onClick={() => { if (calendarMonth === 0) { setCalendarMonth(11); setCalendarYear(y => y - 1); } else { setCalendarMonth(m => m - 1); } }}
+                      className="p-1.5 hover:bg-dark-700 rounded-lg text-dark-300 hover:text-white transition-all">
+                      <Icons.ChevronLeft className="w-5 h-5" />
+                    </button>
+                    <span className="text-white font-semibold text-base">
+                      {new Date(calendarYear, calendarMonth).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })}
+                    </span>
+                    <button onClick={() => { const now = new Date(); const nextDate = new Date(calendarYear, calendarMonth + 1); if (nextDate <= now) { if (calendarMonth === 11) { setCalendarMonth(0); setCalendarYear(y => y + 1); } else { setCalendarMonth(m => m + 1); } } }}
+                      className="p-1.5 hover:bg-dark-700 rounded-lg text-dark-300 hover:text-white transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+                      disabled={(() => { const now = new Date(); return new Date(calendarYear, calendarMonth + 1) > now; })()}>
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7"/></svg>
+                    </button>
+                  </div>
+                  {/* Day-of-Week Headers */}
+                  <div className="grid grid-cols-7 gap-1 text-center text-xs font-semibold text-dark-400 uppercase tracking-wider">
+                    {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map(d => <div key={d} className="py-1.5">{d}</div>)}
+                  </div>
+                  {/* Calendar Day Grid */}
+                  <div className="grid grid-cols-7 gap-1">
+                    {(() => {
+                      const today = new Date();
+                      const todayStr = today.toISOString().split('T')[0];
+                      const firstDay = new Date(calendarYear, calendarMonth, 1).getDay();
+                      const daysInMonth = new Date(calendarYear, calendarMonth + 1, 0).getDate();
+                      const cells = [];
+                      for (let i = 0; i < firstDay; i++) {
+                        cells.push(<div key={`empty-${i}`} />);
+                      }
+                      for (let d = 1; d <= daysInMonth; d++) {
+                        const yyyymmdd = `${calendarYear}-${String(calendarMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+                        const isSelected = yyyymmdd === trackingDate;
+                        const isToday = yyyymmdd === todayStr;
+                        const isFuture = yyyymmdd > todayStr;
+                        cells.push(
+                          <button key={d} disabled={isFuture}
+                            onClick={() => setTrackingDate(yyyymmdd)}
+                            className={`relative w-full aspect-square rounded-xl text-sm font-medium transition-all active:scale-90 disabled:opacity-20 disabled:cursor-not-allowed
+                              ${isSelected ? 'bg-gradient-to-br from-cyan-500 to-emerald-500 text-white shadow-lg shadow-emerald-500/30 scale-105 font-bold' : ''}
+                              ${!isSelected && isToday ? 'border border-cyan-500/50 text-cyan-300' : ''}
+                              ${!isSelected && !isToday ? 'text-white hover:bg-dark-700' : ''}
+                            `}>
+                            {d}
+                          </button>
+                        );
+                      }
+                      return cells;
+                    })()}
+                  </div>
+                  {/* Selected Date Display */}
+                  <div className="text-center py-1">
+                    <p className="text-dark-400 text-xs">
+                      {trackingDate ? `Selected: ${new Date(trackingDate + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}` : 'Pick a date above'}
+                    </p>
+                  </div>
                   <button onClick={() => setTrackingStep('search')} disabled={!trackingDate}
                     className="w-full py-3.5 bg-gradient-to-r from-cyan-500 to-emerald-500 text-white rounded-xl font-bold transition-all disabled:opacity-50 flex items-center justify-center gap-2 hover:shadow-lg active:scale-95">
                     Continue <Icons.ArrowRight className="w-5 h-5" />
