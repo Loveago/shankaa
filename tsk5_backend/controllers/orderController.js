@@ -374,7 +374,8 @@ exports.getOrderStatus = async (req, res) => {
       startTime,
       endTime,
       sortOrder = 'newest',
-      showNewRequestsOnly = false
+      showNewRequestsOnly = false,
+      sourceFilter
     } = req.query;
 
     const options = {
@@ -388,7 +389,8 @@ exports.getOrderStatus = async (req, res) => {
       startTime,
       endTime,
       sortOrder,
-      showNewRequestsOnly: showNewRequestsOnly === 'true'
+      showNewRequestsOnly: showNewRequestsOnly === 'true',
+      sourceFilter
     };
 
     const result = await getOrderStatus(options);

@@ -108,7 +108,7 @@ const AdminDashboard = () => {
       const [usersRes, productsRes, ordersRes, topupsRes, complaintsRes] = await Promise.all([
         axios.get(`${BASE_URL}/api/users`, { headers }),
         axios.get(`${BASE_URL}/products`, { headers }),
-        axios.get(`${BASE_URL}/order/admin/allorder`, { headers, params: { limit: 100 } }).catch(() => ({ data: { orders: [], pagination: { totalItems: 0 } } })),
+        axios.get(`${BASE_URL}/order/admin/allorder`, { headers, params: { limit: 10000, page: 1 } }).catch(() => ({ data: { orders: [], pagination: { totalItems: 0 } } })),
         axios.get(`${BASE_URL}/api/topups?startDate=2024-03-01&endDate=2030-03-14`, { headers }).catch(() => ({ data: [] })),
         axios.get(`${BASE_URL}/api/complaints/pending/count`, { headers }).catch(() => ({ data: { count: 0 } }))
       ]);

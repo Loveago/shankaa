@@ -14,7 +14,7 @@ const OrderTable = ({ isOpen, onClose }) => {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
-  const [itemsPerPage] = useState(100);
+  const [itemsPerPage] = useState(20);
   
   // Status counts from database
   const [statusCounts, setStatusCounts] = useState({ pending: 0, processing: 0, completed: 0, cancelled: 0 });
@@ -46,7 +46,10 @@ const OrderTable = ({ isOpen, onClose }) => {
         selectedProduct: selectedProduct || undefined,
         selectedStatusMain: selectedStatus || undefined,
         selectedDate: selectedDate || undefined,
-        sortOrder: sortOrder
+        sortOrder: sortOrder,
+        sourceFilter: sourceFilter || undefined,
+        startTime: startTime || undefined,
+        endTime: endTime || undefined
       };
       
       Object.keys(params).forEach(key => {
@@ -79,7 +82,7 @@ const OrderTable = ({ isOpen, onClose }) => {
     } finally {
       setLoading(false);
     }
-  }, [currentPage, itemsPerPage, orderIdFilter, phoneNumberFilter, selectedProduct, selectedStatus, selectedDate, sortOrder]);
+  }, [currentPage, itemsPerPage, orderIdFilter, phoneNumberFilter, selectedProduct, selectedStatus, selectedDate, sortOrder, sourceFilter, startTime, endTime]);
 
   useEffect(() => {
     if (isOpen) {
@@ -148,28 +151,8 @@ const OrderTable = ({ isOpen, onClose }) => {
     setCurrentPage(1);
   };
 
-  // Filter items by source (shop/dashboard) and time
-  const filteredItems = allItems.filter(item => {
-    // Source filter
-    if (sourceFilter) {
-      const userName = item.user?.name?.toLowerCase() || '';
-      const userEmail = item.user?.email?.toLowerCase() || '';
-      if (sourceFilter === 'shop') {
-        if (userName !== 'shop' && !userEmail.includes('shop@')) return false;
-      } else if (sourceFilter === 'dashboard') {
-        if (userName === 'shop' || userEmail.includes('shop@')) return false;
-      }
-    }
-    // Time filter
-    if (selectedDate && (startTime || endTime)) {
-      const orderDate = new Date(item.order?.createdAt);
-      const orderTime = orderDate.toTimeString().slice(0, 5);
-      if (startTime && orderTime < startTime) return false;
-      if (endTime && orderTime > endTime) return false;
-    }
-    return true;
-  });
-
+  // Since filtering is now done server-side, filteredItems = allItems
+  const filteredItems = allItems;
   const handleProcessOrder = async (orderItemId, status) => {
     // Always update only the single clicked item
     try {

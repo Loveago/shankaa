@@ -263,7 +263,8 @@ const getOrderStatus = async (options = {}) => {
     startTime,
     endTime,
     sortOrder = 'newest',
-    showNewRequestsOnly = false
+    showNewRequestsOnly = false,
+    sourceFilter
   } = options;
 
   // Build where clause for filtering
@@ -360,6 +361,15 @@ const getOrderStatus = async (options = {}) => {
     where.items = {
       some: itemsWhere
     };
+  }
+
+  // Source filter (shop vs dashboard)
+  if (sourceFilter) {
+    if (sourceFilter === 'shop') {
+      where.user = { name: 'shop' };
+    } else if (sourceFilter === 'dashboard') {
+      where.user = { name: { not: 'shop' } };
+    }
   }
 
   // Calculate pagination
