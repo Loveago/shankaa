@@ -391,15 +391,6 @@ const PublicStorefront = () => {
     } finally { setIsTracking(false); }
   };
 
-  const formatPhone = (phone) => {
-    if (!phone) return '';
-    const digits = phone.replace(/\D/g, '');
-    if (digits.startsWith('233') && digits.length === 12) {
-      return '0' + digits.substring(3);
-    }
-    return phone;
-  };
-
   const handleNotReceived = async (order, item) => {
     const phone = item.mobileNumber || order.mobileNumber || '';
     if (!phone) {
