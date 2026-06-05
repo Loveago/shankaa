@@ -401,19 +401,19 @@ const PublicStorefront = () => {
   };
 
   const handleNotReceived = async (order, item) => {
-    const defaultPhone = formatPhone(item.mobileNumber || order.mobileNumber || '');
-    const result = await showConfirm({
+    const phone = item.mobileNumber || order.mobileNumber || '';
+    if (!phone) {
+      showConfirm({ title: 'No Phone Number', message: 'Cannot submit complaint — no phone number on this order.', icon: 'error', confirmText: 'OK', cancelText: false, confirmColor: '#06b6d4' });
+      return;
+    }
+    const confirmed = await showConfirm({
       title: 'Not Received?',
-      message: `Report that item "${item.productName}" was not delivered. Enter your mobile number to track the complaint status.`,
+      message: `Report that item "${item.productName}" was not delivered?`,
       icon: 'warning',
-      input: true,
-      inputValue: defaultPhone,
-      inputPlaceholder: '0XX XXX XXXX',
       confirmText: 'Submit Complaint',
       confirmColor: '#ef4444'
     });
-    if (!result) return;
-    const phone = result;
+    if (!confirmed) return;
     setIsTracking(true);
     try {
       const cleanedPhone = phone.replace(/\D/g, '');
