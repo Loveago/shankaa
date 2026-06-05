@@ -252,6 +252,18 @@ exports.reportBulkOrderIssue = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Only completed orders can be reported' });
     }
 
+    // Check 48-hour lock: if item was completed more than 48 hours ago, reject
+    const FORTY_EIGHT_HOURS_MS = 48 * 60 * 60 * 1000;
+    if (item.updatedAt) {
+      const elapsed = Date.now() - new Date(item.updatedAt).getTime();
+      if (elapsed > FORTY_EIGHT_HOURS_MS) {
+        return res.status(400).json({
+          success: false,
+          message: 'This order was completed more than 48 hours ago. You can no longer report it as not received.'
+        });
+      }
+    }
+
     // Check if complaint already exists for this order item
     const existingComplaint = await prisma.complaint.findFirst({
       where: { orderItemId: itemId, status: { in: ['pending', 'reviewed'] } }

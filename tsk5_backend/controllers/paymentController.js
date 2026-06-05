@@ -44,12 +44,13 @@ const createOrderIfNotExists = async (externalRef, productId, mobileNumber) => {
       return { created: false, error: 'Product is not available in shop' };
     }
     
-    // Create the order within the same transaction
+    // Create the order with Paystack reference as orderNumber
     const order = await tx.order.create({
       data: {
         userId: shopUser.id,
         mobileNumber: mobileNumber,
         status: "Pending",
+        orderNumber: externalRef,
         items: {
           create: [{
             productId: productId,

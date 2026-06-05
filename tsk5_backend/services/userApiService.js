@@ -1,6 +1,6 @@
 const prisma = require('../config/db');
 const { resolvePrice } = require('../utils/priceRouter');
-const { generateOrderNumber } = require('../utils/orderNumberGenerator');
+const { generateWalletRef } = require('../utils/orderNumberGenerator');
 const crypto = require('crypto');
 const axios = require('axios');
 const { createTransaction } = require('./transactionService');
@@ -385,7 +385,7 @@ const createApiOrder = async (userId, items, apiKeyId) => {
     }
 
     // Create the order with items — linked to the API key for webhook support
-    const orderNumber = generateOrderNumber();
+    const orderNumber = generateWalletRef();
     const order = await tx.order.create({
       data: {
         orderNumber,

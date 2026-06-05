@@ -442,6 +442,11 @@ const ComplaintsViewer = ({ isOpen, onClose }) => {
                           <span className="text-xs text-dark-500">
                             Submitted: {new Date(complaint.createdAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}, {new Date(complaint.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'numeric', year: 'numeric' })}
                           </span>
+                          {complaint.order && complaint.order.createdAt && (
+                            <span className="text-xs text-amber-400/70">
+                              Order: {new Date(complaint.order.createdAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}, {new Date(complaint.order.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'numeric', year: 'numeric' })}
+                            </span>
+                          )}
                         </div>
                         <div className="flex flex-wrap items-center gap-3 mb-2 text-sm">
                           <span className="text-cyan-400 font-medium">ID: #{complaint.id}</span>

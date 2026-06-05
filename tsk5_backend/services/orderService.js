@@ -1,6 +1,6 @@
 const prisma = require("../config/db");
 const { resolvePrice } = require("../utils/priceRouter");
-const { generateOrderNumber } = require("../utils/orderNumberGenerator");
+const { generateWalletRef } = require("../utils/orderNumberGenerator");
 const cache = require("../utils/cache");
 
 const { createTransaction } = require("./transactionService");
@@ -87,7 +87,7 @@ const submitCartInner = async (userId, mobileNumber = null, userRole = null) => 
     }
 
     // Create order with product snapshots to prevent data mismatch
-    const orderNumber = generateOrderNumber();
+    const orderNumber = generateWalletRef();
     const order = await tx.order.create({
       data: {
         orderNumber,
@@ -1060,7 +1060,7 @@ const orderService = {
         }
       }
 
-      const orderNumber = generateOrderNumber();
+      const orderNumber = generateWalletRef();
       const order = await tx.order.create({
         data: {
           orderNumber,

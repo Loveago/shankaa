@@ -3,12 +3,53 @@ const path = require("path");
 const fs = require("fs");
 const { createTransaction } = require("./transactionService");
 
+/**
+ * Check if 48 hours have passed since the order item was last updated
+ * (i.e. when it was marked as "Completed"). If so, reject the complaint.
+ */
+const FORTY_EIGHT_HOURS_MS = 48 * 60 * 60 * 1000;
+
+const check48HourLock = async (orderItemId) => {
+  if (!orderItemId) return { locked: false };
+
+  const item = await prisma.orderItem.findUnique({
+    where: { id: parseInt(orderItemId) },
+    select: { status: true, updatedAt: true }
+  });
+
+  if (!item) return { locked: false };
+
+  // Only apply the 48-hour lock to completed/completing items
+  if (item.status === 'Completed' || item.status === 'completed') {
+    const completedTime = item.updatedAt || new Date();
+    const now = new Date();
+    const elapsed = now.getTime() - completedTime.getTime();
+
+    if (elapsed > FORTY_EIGHT_HOURS_MS) {
+      return {
+        locked: true,
+        message: 'This order was completed more than 48 hours ago. You can no longer report it as not received.'
+      };
+    }
+  }
+
+  return { locked: false };
+};
+
 class ComplaintService {
   // Create a new complaint
   async createComplaint(data) {
     try {
       const { orderId, orderItemId, mobileNumber, whatsappNumber, message, complaintDate, complaintTime } = data;
-      
+
+      // Check 48-hour lock if an orderItemId is provided
+      if (orderItemId) {
+        const lockCheck = await check48HourLock(orderItemId);
+        if (lockCheck.locked) {
+          throw new Error(lockCheck.message);
+        }
+      }
+
       let complaintDateTime = null;
       if (complaintDate) {
         if (complaintTime) {
@@ -17,7 +58,7 @@ class ComplaintService {
           complaintDateTime = new Date(`${complaintDate}T00:00:00`);
         }
       }
-      
+
       const complaint = await prisma.complaint.create({
         data: {
           orderId: orderId || null,
@@ -31,26 +72,61 @@ class ComplaintService {
           refundStatus: 'none'
         }
       });
-      
+
       return complaint;
     } catch (error) {
       throw new Error(`Failed to create complaint: ${error.message}`);
     }
   }
 
-  // Get all complaints (for admin)
+  // Get all complaints (for admin) — enriched with order date/time
   async getAllComplaints(status = null) {
     try {
       const whereClause = (status && status !== 'all' && status.trim() !== '') 
         ? { status: status.trim() } 
         : {};
-      
+
       const complaints = await prisma.complaint.findMany({
         where: whereClause,
         orderBy: { createdAt: 'desc' }
       });
-      
-      return complaints;
+
+      // Enrich each complaint with order data (date/time, orderNumber)
+      const enriched = [];
+      for (const c of complaints) {
+        let orderData = null;
+        if (c.orderItemId) {
+          const item = await prisma.orderItem.findUnique({
+            where: { id: c.orderItemId },
+            select: {
+              order: {
+                select: {
+                  id: true,
+                  orderNumber: true,
+                  createdAt: true,
+                  status: true,
+                  mobileNumber: true
+                }
+              }
+            }
+          });
+          if (item && item.order) {
+            orderData = item.order;
+          }
+        } else if (c.orderId) {
+          // Fallback: look up by orderId (stored as string)
+          const order = await prisma.order.findUnique({
+            where: { id: parseInt(c.orderId) },
+            select: { id: true, orderNumber: true, createdAt: true, status: true, mobileNumber: true }
+          });
+          if (order) {
+            orderData = order;
+          }
+        }
+        enriched.push({ ...c, order: orderData });
+      }
+
+      return enriched;
     } catch (error) {
       throw new Error(`Failed to fetch complaints: ${error.message}`);
     }
@@ -75,7 +151,21 @@ class ComplaintService {
         where: { id: parseInt(id) }
       });
       if (!complaint) throw new Error('Complaint not found');
-      return complaint;
+
+      // Enrich with order data
+      let orderData = null;
+      if (complaint.orderItemId) {
+        const item = await prisma.orderItem.findUnique({
+          where: { id: complaint.orderItemId },
+          select: {
+            order: {
+              select: { id: true, orderNumber: true, createdAt: true, status: true, mobileNumber: true }
+            }
+          }
+        });
+        if (item && item.order) orderData = item.order;
+      }
+      return { ...complaint, order: orderData };
     } catch (error) {
       throw new Error(`Failed to fetch complaint: ${error.message}`);
     }
@@ -86,7 +176,7 @@ class ComplaintService {
     try {
       const updateData = { status };
       if (adminNotes) updateData.adminNotes = adminNotes;
-      
+
       const complaint = await prisma.complaint.update({
         where: { id: parseInt(id) },
         data: updateData
@@ -288,7 +378,7 @@ class ComplaintService {
             where: { id: c.orderItemId },
             select: {
               id: true, status: true, productName: true, productDescription: true,
-              productPrice: true, mobileNumber: true, order: { select: { id: true, orderNumber: true } }
+              productPrice: true, mobileNumber: true, order: { select: { id: true, orderNumber: true, createdAt: true } }
             }
           });
         }

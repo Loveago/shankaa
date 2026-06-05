@@ -1,7 +1,7 @@
 const axios = require('axios');
 const prisma = require('../config/db');
 const { resolvePrice } = require('../utils/priceRouter');
-const { generateOrderNumber } = require('../utils/orderNumberGenerator');
+const { generateWalletRef } = require('../utils/orderNumberGenerator');
 const settingsService = require('./settingsService');
 const cache = require('../utils/cache');
 
@@ -486,13 +486,13 @@ const verifyReferralPayment = async (reference) => {
           return { alreadyProcessed: true, order: existingOrder };
         }
 
-        // Payment successful - create order in agent's name
+        // Payment successful - create order in agent's name with Paystack reference
         const order = await tx.order.create({
           data: {
             userId: referralOrder.agentId, // Order goes to agent
             mobileNumber: referralOrder.customerPhone,
             status: 'Pending',
-            orderNumber: generateOrderNumber(),
+            orderNumber: referralOrder.paymentRef,
             items: {
               create: [{
                 productId: referralOrder.productId,
