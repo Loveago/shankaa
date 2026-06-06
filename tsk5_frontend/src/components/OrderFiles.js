@@ -225,7 +225,7 @@ const OrderFiles = () => {
     const allItems = [];
     for (const order of batchDetail.orders) {
       for (const item of order.items) {
-        allItems.push({ ...item, orderId: order.id, agentName: order.user?.name || 'N/A' });
+        allItems.push({ ...item, orderId: order.id, orderNumber: order.orderNumber, agentName: order.user?.name || 'N/A' });
       }
     }
 
@@ -280,7 +280,7 @@ const OrderFiles = () => {
                   return (
                     <tr key={item.id} className="hover:bg-dark-700/30 transition-colors">
                       <td className="px-4 py-3 text-white font-mono text-xs">#{item.id}</td>
-                      <td className="px-4 py-3 text-dark-300 font-mono text-xs">#{item.orderId}</td>
+                      <td className="px-4 py-3 text-dark-300 font-mono text-xs">{item.orderNumber || `#${item.orderId}`}</td>
                       <td className="px-4 py-3 text-dark-300">{item.agentName}</td>
                       <td className="px-4 py-3 text-white">{item.mobileNumber || '-'}</td>
                       <td className="px-4 py-3 text-dark-300">{item.productName || item.product?.name || '-'}</td>

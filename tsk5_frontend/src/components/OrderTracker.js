@@ -421,7 +421,7 @@ const OrderTracker = ({ isOpen, onClose, onFraudDetected }) => {
                     <tr className="text-left text-dark-400 text-xs border-b border-dark-700 bg-dark-900/50">
                       {[
                         { key: 'agentName', label: 'Agent Name' },
-                        { key: 'orderId', label: 'Order ID' },
+                        { key: 'orderNumber', label: 'Order #' },
                         { key: 'product', label: 'Product' },
                         { key: 'data', label: 'Data' },
                         { key: 'balanceBefore', label: 'Balance Before' },
@@ -456,7 +456,7 @@ const OrderTracker = ({ isOpen, onClose, onFraudDetected }) => {
                             {isFraud && <AlertTriangle className="w-3.5 h-3.5 text-red-400 inline mr-1.5" />}
                             {row.agentName}
                           </td>
-                          <td className="px-4 py-3 text-cyan-400 font-mono">#{row.orderId}</td>
+                          <td className="px-4 py-3 text-cyan-400 font-mono">{row.orderNumber || `#${row.orderId}`}</td>
                           <td className="px-4 py-3 text-dark-300">{row.product}</td>
                           <td className="px-4 py-3 text-dark-300">{row.data?.replace(/\D+$/, '') || 'N/A'}</td>
                           <td className="px-4 py-3 text-emerald-400 font-medium">

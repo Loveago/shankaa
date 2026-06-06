@@ -177,8 +177,8 @@ const SuspiciousActivity = ({ isOpen, onClose, onAlertsUpdate }) => {
                             <div className="flex items-center gap-2">
                               <Hash className="w-3.5 h-3.5 text-dark-500 shrink-0" />
                               <div>
-                                <p className="text-dark-500 text-[10px] uppercase">Order ID</p>
-                                <p className="text-cyan-400 text-sm font-mono font-medium">#{alert.orderId}</p>
+                                <p className="text-dark-500 text-[10px] uppercase">Order #</p>
+                                <p className="text-cyan-400 text-sm font-mono font-medium">{alert.orderNumber || `#${alert.orderId}`}</p>
                               </div>
                             </div>
                             <div className="flex items-center gap-2">
@@ -250,7 +250,7 @@ const SuspiciousActivity = ({ isOpen, onClose, onAlertsUpdate }) => {
                     <div key={`resolved-${alert.orderId}-${alert.itemId}-${i}`} className="bg-dark-800/30 border border-dark-700/50 rounded-xl px-4 py-3 opacity-60">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-4 text-sm">
-                          <span className="text-dark-500 font-mono">#{alert.orderId}</span>
+                          <span className="text-dark-500 font-mono">{alert.orderNumber || `#${alert.orderId}`}</span>
                           <span className="text-dark-400">{alert.agentName}</span>
                           <span className="text-dark-500">{alert.product}</span>
                           <span className="text-dark-500">{formatGHS(alert.orderPrice)}</span>

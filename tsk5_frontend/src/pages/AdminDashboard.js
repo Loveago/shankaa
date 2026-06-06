@@ -486,6 +486,7 @@ const AdminDashboard = () => {
       o.mobileNumber?.toLowerCase().includes(search) ||
       o.id?.toString().includes(search) ||
       o.orderId?.toString().includes(search) ||
+      o.orderNumber?.toLowerCase().includes(search) ||
       o.user?.name?.toLowerCase().includes(search) ||
       o.product?.name?.toLowerCase().includes(search) ||
       o.product?.description?.toLowerCase().includes(search)
@@ -780,7 +781,7 @@ const AdminDashboard = () => {
                             const status = item.order?.items?.[0]?.status || item.status || 'N/A';
                             return (
                               <tr key={`${item.id}-${item.orderId}-${index}`} className="border-b border-dark-700/50">
-                                <td className="py-3 text-white">#{item.orderId || item.id}</td>
+                                <td className="py-3 text-white">{item.orderNumber || `#${item.orderId || item.id}`}</td>
                                 <td className="py-3 text-dark-300">{item.user?.name || 'N/A'}</td>
                                 <td className="py-3 text-dark-300">{item.mobileNumber?.startsWith('233') ? '0' + item.mobileNumber.substring(3) : (item.mobileNumber || 'N/A')}</td>
                                 <td className="py-3 text-cyan-400">{item.product?.name || 'N/A'}</td>
@@ -851,7 +852,7 @@ const AdminDashboard = () => {
                           const isCancelled = status === 'Cancelled' || status === 'Canceled';
                           return (
                             <tr key={`${item.id}-${item.orderId}-${index}`} className={`border-b border-dark-700/50 ${isCancelled ? 'bg-red-900/10' : ''}`}>
-                              <td className="py-3 text-white font-medium">#{item.orderId || item.id}</td>
+                              <td className="py-3 text-white font-medium">{item.orderNumber || `#${item.orderId || item.id}`}</td>
                               <td className="py-3 text-dark-300">{item.user?.name || 'N/A'}</td>
                               <td className="py-3 text-dark-300">{item.mobileNumber?.startsWith('233') ? '0' + item.mobileNumber.substring(3) : (item.mobileNumber || 'N/A')}</td>
                               <td className="py-3 text-dark-400">{item.product?.name || 'N/A'}</td>

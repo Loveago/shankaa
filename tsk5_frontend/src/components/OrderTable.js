@@ -448,7 +448,7 @@ const OrderTable = ({ isOpen, onClose }) => {
                     <div key={`mobile-${item.id}-${item.orderId}`} className={`bg-dark-900/50 border border-dark-700 rounded-xl p-3 ${cardBgColor}`}>
                       <div className="flex justify-between items-start mb-2">
                         <div>
-                          <p className="text-white font-semibold text-sm">#{item.orderId || 'N/A'}</p>
+                          <p className="text-white font-semibold text-sm">{item.orderNumber || `#${item.orderId}`}</p>
                           <p className="text-dark-400 text-xs">{item.user?.name || 'N/A'}</p>
                         </div>
                         <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border ${getStatusColor(status)}`}>
@@ -518,7 +518,7 @@ const OrderTable = ({ isOpen, onClose }) => {
                             : '';
                     return (
                       <tr key={`${item.id}-${item.orderId}`} className={`border-b border-dark-700/50 hover:bg-dark-700/30 transition-colors ${rowBgColor}`}>
-                        <td className="py-3 text-white font-medium">#{item.orderId || 'N/A'}</td>
+                        <td className="py-3 text-white font-medium">{item.orderNumber || `#${item.orderId}`}</td>
                         <td className="py-3 text-dark-300">{item.user?.name || 'N/A'}</td>
                         <td className="py-3 text-dark-300">{item.mobileNumber?.startsWith('233') ? '0' + item.mobileNumber.substring(3) : (item.mobileNumber || 'N/A')}</td>
                         <td className="py-3 text-dark-400">{item.product?.name || 'N/A'}</td>

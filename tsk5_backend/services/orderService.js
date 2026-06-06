@@ -482,6 +482,7 @@ const getOrderStatus = async (options = {}) => {
       transformedData.push({
         id: item.id,
         orderId: order.id,
+        orderNumber: order.orderNumber,
         productId: item.productId,
         quantity: item.quantity,
         mobileNumber: item.mobileNumber || order.mobileNumber,
@@ -499,6 +500,7 @@ const getOrderStatus = async (options = {}) => {
         },
         order: {
           id: order.id,
+          orderNumber: order.orderNumber,
           createdAt: order.createdAt,
           items: [{
             status: item.status
@@ -863,6 +865,7 @@ const orderService = {
         transformedItems.push({
           id: item.id,
           orderId: order.id,
+          orderNumber: order.orderNumber,
           mobileNumber: order.mobileNumber,
           user: order.user,
           createdAt: order.createdAt,
@@ -870,6 +873,7 @@ const orderService = {
           status: item.status,
           order: {
             id: order.id,
+            orderNumber: order.orderNumber,
             createdAt: order.createdAt,
             items: [{ status: item.status }]
           }
@@ -1230,6 +1234,7 @@ const downloadOrdersForExcel = async ({ statusFilter, selectedProduct, selectedD
       items.push({
         id: item.id,
         orderId: order.id,
+        orderNumber: order.orderNumber,
         mobileNumber: item.mobileNumber || order.mobileNumber,
         product: {
           name: item.productName || item.product?.name,
@@ -1388,6 +1393,7 @@ const getOrderTrackerData = async (filters = {}) => {
         agentName: order.user?.name || 'N/A',
         agentId: order.user?.id,
         orderId: order.id,
+        orderNumber: order.orderNumber,
         itemId: item.id,
         product: item.productName || item.product?.name || 'N/A',
         data: description,
