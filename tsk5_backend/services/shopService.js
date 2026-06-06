@@ -135,16 +135,20 @@ const trackOrders = async ({ mobileNumber, orderNumber, trackingDate }) => {
   }
 
   // Build date filter
-  // - If trackingDate is provided, restrict to that specific date (start to end of day)
-  // - Otherwise, apply 7-day window only for mobile searches (order-number searches see all time)
+  // - If trackingDate is provided AND we're searching by phone, restrict to that specific date
+  // - Order-number searches are unique identifiers, so no date limit is needed
+  // - Phone-only searches without a specific date get a 7-day window
   let dateFilter = {};
-  if (trackingDate) {
+  if (orderNumber) {
+    // Order number is unique — no date filter needed
+    dateFilter = {};
+  } else if (trackingDate) {
     const dayStart = new Date(trackingDate);
     dayStart.setHours(0, 0, 0, 0);
     const dayEnd = new Date(dayStart);
     dayEnd.setHours(23, 59, 59, 999);
     dateFilter = { createdAt: { gte: dayStart, lte: dayEnd } };
-  } else if (mobileNumber && !orderNumber) {
+  } else if (mobileNumber) {
     dateFilter = { createdAt: { gte: (() => { const d = new Date(); d.setDate(d.getDate() - 7); return d; })() } };
   }
 
