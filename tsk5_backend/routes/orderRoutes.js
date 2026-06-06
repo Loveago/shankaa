@@ -43,6 +43,7 @@ router.get('/admin/batches/pending-counts', authMiddleware, adminMiddleware, ord
 router.post('/admin/batches/export', authMiddleware, adminMiddleware, orderController.exportPendingOrders);
 router.get('/admin/batches', authMiddleware, adminMiddleware, orderController.getAllBatches);
 router.get('/admin/batches/:batchId', authMiddleware, adminMiddleware, orderController.getBatchById);
+router.put('/admin/batches/status', authMiddleware, adminMiddleware, orderController.updateBatchesStatus);
 router.put('/admin/batches/:batchId/status', authMiddleware, adminMiddleware, orderController.updateBatchStatus);
 router.put('/admin/batches/:batchId/items/:itemId/status', authMiddleware, adminMiddleware, orderController.updateBatchOrderItemStatus);
 router.get('/admin/batches/:batchId/download', authMiddleware, adminMiddleware, orderController.downloadBatch);

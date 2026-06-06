@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import BASE_URL from '../endpoints/endpoints';
-import { FileText, Download, ChevronLeft, RefreshCw, Loader2, Search, X, CheckCircle, Clock, XCircle } from 'lucide-react';
+import { FileText, Download, ChevronLeft, RefreshCw, Loader2, Search, X, CheckCircle, Clock, XCircle, CheckSquare } from 'lucide-react';
 import Swal from 'sweetalert2';
 
 const getAuthHeaders = () => ({ Authorization: `Bearer ${localStorage.getItem('token')}` });
@@ -45,7 +45,68 @@ const OrderFiles = () => {
   const [detailLoading, setDetailLoading] = useState(false);
   const [statusUpdateLoading, setStatusUpdateLoading] = useState(false);
   const [page, setPage] = useState(1);
+  const [selectedBatchIds, setSelectedBatchIds] = useState([]);
+  const [bulkUpdateLoading, setBulkUpdateLoading] = useState(false);
   const perPage = 15;
+
+  const handleBulkUpdateStatus = async () => {
+    if (selectedBatchIds.length === 0) return;
+    const { value: status } = await Swal.fire({
+      title: `Update ${selectedBatchIds.length} Batches`,
+      input: 'select',
+      inputOptions: { Pending: 'Pending', Processing: 'Processing', Completed: 'Completed', Cancelled: 'Cancelled (Auto-Refund)' },
+      inputPlaceholder: 'Select new status',
+      showCancelButton: true, confirmButtonText: 'Update All', confirmButtonColor: '#06b6d4',
+      background: '#1a1a2e', color: '#fff', ...swalDarkSelect,
+      inputValidator: (v) => { if (!v) return 'Please select a status'; },
+    });
+    if (!status) return;
+
+    if (status === 'Cancelled') {
+      const c = await Swal.fire({
+        title: 'Confirm Cancellation',
+        text: `This will cancel ALL items in ${selectedBatchIds.length} batches and auto-refund the agents. Are you sure?`,
+        icon: 'warning', showCancelButton: true, confirmButtonText: 'Yes, Cancel & Refund', confirmButtonColor: '#ef4444',
+        background: '#1a1a2e', color: '#fff'
+      });
+      if (!c.isConfirmed) return;
+    }
+
+    try {
+      setBulkUpdateLoading(true);
+      const res = await axios.put(`${BASE_URL}/order/admin/batches/status`,
+        { batchIds: selectedBatchIds, status },
+        { headers: getAuthHeaders() }
+      );
+      Swal.fire({ title: 'Updated', text: res.data.message, icon: 'success', background: '#1a1a2e', color: '#fff', confirmButtonColor: '#06b6d4' });
+      setSelectedBatchIds([]);
+      fetchBatches();
+    } catch (err) {
+      Swal.fire({ title: 'Error', text: err.response?.data?.message || 'Failed to update batches', icon: 'error', background: '#1a1a2e', color: '#fff' });
+    } finally {
+      setBulkUpdateLoading(false);
+    }
+  };
+
+  const toggleSelectBatch = (id) => {
+    setSelectedBatchIds(prev =>
+      prev.includes(id) ? prev.filter(bid => bid !== id) : [...prev, id]
+    );
+  };
+
+  const toggleSelectAll = () => {
+    const currentPageIds = paginatedBatches.map(b => b.id);
+    const allSelected = currentPageIds.every(id => selectedBatchIds.includes(id));
+    if (allSelected) {
+      setSelectedBatchIds(prev => prev.filter(id => !currentPageIds.includes(id)));
+    } else {
+      const newIds = [...selectedBatchIds];
+      for (const id of currentPageIds) {
+        if (!newIds.includes(id)) newIds.push(id);
+      }
+      setSelectedBatchIds(newIds);
+    }
+  };
 
   const fetchBatches = useCallback(async () => {
     try {
@@ -214,6 +275,11 @@ const OrderFiles = () => {
   const totalPages = Math.ceil(filteredBatches.length / perPage);
   const paginatedBatches = filteredBatches.slice((page - 1) * perPage, page * perPage);
 
+  // Clear selection when page changes
+  useEffect(() => {
+    setSelectedBatchIds([]);
+  }, [page]);
+
   const formatDate = (dateStr) => {
     const d = new Date(dateStr);
     return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) +
@@ -378,7 +444,16 @@ const OrderFiles = () => {
       </div>
 
       {/* Exported batches table */}
-      <h3 className="text-white font-semibold mb-3">Exported Batches</h3>
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="text-white font-semibold">Exported Batches</h3>
+        {selectedBatchIds.length > 0 && (
+          <button onClick={handleBulkUpdateStatus} disabled={bulkUpdateLoading}
+            className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-cyan-500 to-cyan-600 text-white rounded-xl text-sm font-medium hover:from-cyan-600 hover:to-cyan-700 disabled:opacity-50">
+            {bulkUpdateLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckSquare className="w-4 h-4" />}
+            Update {selectedBatchIds.length} Batch{selectedBatchIds.length > 1 ? 'es' : ''}
+          </button>
+        )}
+      </div>
       {loading ? (
         <div className="flex items-center justify-center py-20"><Loader2 className="w-8 h-8 text-cyan-400 animate-spin" /></div>
       ) : filteredBatches.length === 0 ? (
@@ -393,6 +468,11 @@ const OrderFiles = () => {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-dark-700 bg-dark-900/50">
+                  <th className="px-4 py-3 text-center text-dark-400 font-medium w-10">
+                    <input type="checkbox" onChange={toggleSelectAll}
+                      checked={paginatedBatches.length > 0 && paginatedBatches.every(b => selectedBatchIds.includes(b.id))}
+                      className="w-4 h-4 rounded border-dark-600 bg-dark-700 text-cyan-500 focus:ring-cyan-500 cursor-pointer" />
+                  </th>
                   <th className="px-4 py-3 text-center text-dark-400 font-medium">Actions</th>
                   <th className="px-4 py-3 text-center text-dark-400 font-medium">Status</th>
                   <th className="px-4 py-3 text-center text-dark-400 font-medium">Orders</th>
@@ -409,6 +489,11 @@ const OrderFiles = () => {
                   const statusClass = statusColors[batch.status] || statusColors.Pending;
                   return (
                     <tr key={batch.id} className="hover:bg-dark-700/30 transition-colors">
+                      <td className="px-4 py-3 text-center">
+                        <input type="checkbox" checked={selectedBatchIds.includes(batch.id)}
+                          onChange={() => toggleSelectBatch(batch.id)}
+                          className="w-4 h-4 rounded border-dark-600 bg-dark-700 text-cyan-500 focus:ring-cyan-500 cursor-pointer" />
+                      </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center justify-center gap-1.5">
                           <button onClick={() => fetchBatchDetail(batch.id)} className="px-2.5 py-1.5 bg-dark-700 text-dark-300 rounded-lg hover:bg-dark-600 hover:text-white text-xs transition-colors">View</button>

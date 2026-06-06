@@ -1108,6 +1108,23 @@ exports.updateBatchStatus = async (req, res) => {
   }
 };
 
+exports.updateBatchesStatus = async (req, res) => {
+  try {
+    const { batchIds, status } = req.body;
+    if (!batchIds || !Array.isArray(batchIds) || batchIds.length === 0) {
+      return res.status(400).json({ success: false, message: 'batchIds array is required' });
+    }
+    if (!status) {
+      return res.status(400).json({ success: false, message: 'status is required' });
+    }
+    const result = await orderBatchService.updateBatchesStatus(batchIds, status);
+    res.json(result);
+  } catch (error) {
+    console.error('Error updating batches status:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 exports.updateBatchOrderItemStatus = async (req, res) => {
   try {
     const { status } = req.body;

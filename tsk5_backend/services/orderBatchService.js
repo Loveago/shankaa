@@ -414,12 +414,105 @@ const getBatchForDownload = async (batchId) => {
   return { batch, rows };
 };
 
+/**
+ * Update status of multiple batches at once
+ */
+const updateBatchesStatus = async (batchIds, newStatus) => {
+  const validStatuses = ["Pending", "Processing", "Completed", "Cancelled"];
+  if (!validStatuses.includes(newStatus)) {
+    throw new Error("Invalid status. Must be: Pending, Processing, Completed, or Cancelled");
+  }
+
+  let totalUpdated = 0;
+  let totalRefund = 0;
+  const errors = [];
+
+  for (const batchId of batchIds) {
+    try {
+      await prisma.$transaction(async (tx) => {
+        const batch = await tx.orderBatch.findUnique({
+          where: { id: batchId },
+          include: {
+            items: {
+              include: { order: true, product: true }
+            }
+          }
+        });
+
+        if (!batch) {
+          errors.push(`Batch #${batchId} not found`);
+          return;
+        }
+
+        let batchRefund = 0;
+
+        if (newStatus === "Cancelled") {
+          const orderItemsMap = new Map();
+          for (const item of batch.items) {
+            if (!orderItemsMap.has(item.orderId)) {
+              orderItemsMap.set(item.orderId, { order: item.order, items: [] });
+            }
+            orderItemsMap.get(item.orderId).items.push(item);
+          }
+
+          for (const [orderId, { order, items }] of orderItemsMap) {
+            const refundReference = `batch_refund:${batchId}:order:${orderId}`;
+            const existingRefund = await tx.transaction.findFirst({
+              where: { userId: order.userId, type: "ORDER_ITEMS_REFUND", reference: refundReference }
+            });
+
+            if (!existingRefund) {
+              let orderRefund = 0;
+              for (const item of items) {
+                if (item.status !== "Cancelled" && item.status !== "Canceled") {
+                  orderRefund += (item.productPrice || item.product.price) * item.quantity;
+                }
+              }
+              if (orderRefund > 0) {
+                await createTransaction(order.userId, orderRefund, "ORDER_ITEMS_REFUND",
+                  `Batch #${batchId} - Order #${orderId} cancelled & refunded (Amount: ${orderRefund})`,
+                  refundReference, tx);
+                batchRefund += orderRefund;
+              }
+            }
+          }
+        }
+
+        const result = await tx.orderItem.updateMany({
+          where: { batchId: batchId },
+          data: { status: newStatus }
+        });
+
+        await tx.orderBatch.update({
+          where: { id: batchId },
+          data: { status: newStatus }
+        });
+
+        totalUpdated += result.count;
+        totalRefund += batchRefund;
+      });
+    } catch (err) {
+      errors.push(`Batch #${batchId}: ${err.message}`);
+    }
+  }
+
+  return {
+    success: true,
+    updatedBatches: batchIds.length,
+    updatedItems: totalUpdated,
+    totalRefund,
+    errors: errors.length > 0 ? errors : undefined,
+    message: `${totalUpdated} items across ${batchIds.length} batches updated to ${newStatus}${totalRefund > 0 ? `, refunded GHS ${totalRefund.toFixed(2)}` : ''}${errors.length > 0 ? `. Errors: ${errors.join('; ')}` : ''}`
+  };
+};
+
 module.exports = {
   getPendingCountsByNetwork,
   exportPendingByNetwork,
   getAllBatches,
   getBatchById,
   updateBatchStatus,
+  updateBatchesStatus,
   updateBatchOrderItemStatus,
   getBatchForDownload
 };
