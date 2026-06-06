@@ -1,10 +1,9 @@
-import React, { useEffect, useRef, useCallback, Suspense, lazy } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate, Outlet, useNavigate } from 'react-router-dom';
+import React, { useEffect, Suspense, lazy } from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { io } from 'socket.io-client';
 import Swal from 'sweetalert2';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
-import axios from 'axios';
 
 import Login from './pages/Login';
 import Signup from './pages/Signup';
@@ -22,79 +21,9 @@ import BASE_URL from './endpoints/endpoints';
 // Lazy-load PublicStorefront — only downloaded when user visits /store/:slug
 const PublicStorefront = lazy(() => import('./pages/PublicStorefront'));
 
-const INACTIVITY_TIMEOUT = 10 * 60 * 1000; // 10 minutes
-const WARNING_BEFORE = 60 * 1000; // 1 minute warning before logout
-
 const PrivateRoute = ({ allowedRoles }) => {
   const token = localStorage.getItem('token');
   const userRole = localStorage.getItem('role');
-  const navigate = useNavigate();
-  const inactivityTimer = useRef(null);
-  const warningTimer = useRef(null);
-  const warningShown = useRef(false);
-
-  const logoutUser = useCallback(async () => {
-    const userId = localStorage.getItem('userId');
-    if (userId) {
-      try { await axios.post(`${BASE_URL}/api/auth/logout`, { userId }); } catch (e) {}
-    }
-    localStorage.clear();
-    navigate('/login');
-  }, [navigate]);
-
-  const resetTimer = useCallback(() => {
-    if (!localStorage.getItem('token')) return;
-    if (warningShown.current) return; // Don't reset if warning is showing
-    clearTimeout(inactivityTimer.current);
-    clearTimeout(warningTimer.current);
-
-    warningTimer.current = setTimeout(() => {
-      warningShown.current = true;
-      Swal.fire({
-        title: 'Are you still there?',
-        text: 'You will be logged out due to inactivity in 1 minute.',
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonText: 'Stay Logged In',
-        cancelButtonText: 'Log Out Now',
-        timer: WARNING_BEFORE,
-        timerProgressBar: true,
-        reverseButtons: true,
-        background: '#1e293b',
-        color: '#f1f5f9',
-        confirmButtonColor: '#06b6d4',
-        cancelButtonColor: '#ef4444',
-        allowOutsideClick: false
-      }).then((result) => {
-        warningShown.current = false;
-        if (result.isConfirmed) {
-          resetTimer();
-        } else {
-          logoutUser();
-        }
-      });
-    }, INACTIVITY_TIMEOUT - WARNING_BEFORE);
-
-    inactivityTimer.current = setTimeout(() => {
-      Swal.close();
-      warningShown.current = false;
-      logoutUser();
-    }, INACTIVITY_TIMEOUT);
-  }, [logoutUser]);
-
-  useEffect(() => {
-    if (!token) return;
-    resetTimer();
-    const events = ['mousemove', 'keydown', 'click', 'scroll', 'touchstart'];
-    const handler = () => { if (!warningShown.current) resetTimer(); };
-    events.forEach(e => window.addEventListener(e, handler));
-    return () => {
-      events.forEach(e => window.removeEventListener(e, handler));
-      clearTimeout(inactivityTimer.current);
-      clearTimeout(warningTimer.current);
-    };
-  }, [token, resetTimer]);
-
   if (!token) {
     return <Navigate to="/login" replace />;
   }

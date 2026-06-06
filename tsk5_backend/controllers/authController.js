@@ -162,8 +162,7 @@ const loginUser = async (req, res) => {
     /////////////////////////////// 4️⃣ Generate JWT token /////////////////////////////////////
     const token = jwt.sign(
       { id: user.id, email: user.email, role: user.role },
-      process.env.JWT_SECRET,
-      { expiresIn: "7d" }
+      process.env.JWT_SECRET
     );
     
     /////////////////////////////// 5️⃣ Update user login status in database ///////////////////////////////
@@ -338,8 +337,7 @@ const signupUser = async (req, res) => {
     
     const token = jwt.sign(
       { id: newUser.id, email: newUser.email, role: newUser.role },
-      process.env.JWT_SECRET,
-      { expiresIn: '7d' }
+      process.env.JWT_SECRET
     );
     
     res.status(201).json({
