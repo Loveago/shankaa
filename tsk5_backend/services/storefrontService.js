@@ -635,7 +635,8 @@ const getAllReferralOrders = async (filters = {}) => {
       where,
       include: {
         agent: { select: { id: true, name: true, phone: true, role: true } },
-        product: { select: { id: true, name: true, description: true, price: true } }
+        product: { select: { id: true, name: true, description: true, price: true } },
+        order: { select: { id: true, orderNumber: true, status: true, createdAt: true } }
       },
       orderBy: { createdAt: 'desc' },
       skip,

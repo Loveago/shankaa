@@ -115,9 +115,9 @@ const AgentCommissionModal = ({ isOpen, onClose }) => {
 
     if (statusFilter !== 'all') {
       if (statusFilter === 'paid') {
-        filtered = filtered.filter(o => o.paymentStatus === 'Paid' && o.commissionPaid);
+        filtered = filtered.filter(o => o.paymentStatus === 'Paid' && (o.commissionPaid === true || o.commissionPaid === 'true'));
       } else if (statusFilter === 'unpaid') {
-        filtered = filtered.filter(o => o.paymentStatus === 'Paid' && !o.commissionPaid);
+        filtered = filtered.filter(o => isCommissionUnpaid(o));
       } else if (statusFilter === 'pending') {
         filtered = filtered.filter(o => o.paymentStatus === 'Pending');
       }
@@ -144,11 +144,12 @@ const AgentCommissionModal = ({ isOpen, onClose }) => {
       }
       grouped[order.agentId].orders.push(order);
       if (order.paymentStatus === 'Paid') {
-        grouped[order.agentId].totalCommission += order.commission;
-        if (order.commissionPaid) {
-          grouped[order.agentId].paidCommission += order.commission;
+        const commission = order.commission || 0;
+        grouped[order.agentId].totalCommission += commission;
+        if (isCommissionUnpaid(order)) {
+          grouped[order.agentId].unpaidCommission += commission;
         } else {
-          grouped[order.agentId].unpaidCommission += order.commission;
+          grouped[order.agentId].paidCommission += commission;
         }
       }
     });
@@ -163,13 +164,21 @@ const AgentCommissionModal = ({ isOpen, onClose }) => {
     );
   };
 
+  // Safely check if commission is unpaid - handles boolean, string, null, undefined
+  const isCommissionUnpaid = (order) => {
+    if (!order) return false;
+    // Convert to boolean: commissionPaid can be true/false (boolean), "true"/"false" (string), null, or undefined
+    const paid = order.commissionPaid === true || order.commissionPaid === 'true';
+    return order.paymentStatus === 'Paid' && !paid;
+  };
+
   const handleSelectAllUnpaid = (agentId) => {
     const unpaidOrders = data.orders.filter(
-      o => o.agentId === agentId && o.paymentStatus === 'Paid' && !o.commissionPaid
+      o => o.agentId === agentId && isCommissionUnpaid(o)
     );
     const unpaidIds = unpaidOrders.map(o => o.id);
     
-    const allSelected = unpaidIds.every(id => selectedOrders.includes(id));
+    const allSelected = unpaidIds.length > 0 && unpaidIds.every(id => selectedOrders.includes(id));
     if (allSelected) {
       setSelectedOrders(prev => prev.filter(id => !unpaidIds.includes(id)));
     } else {
@@ -180,7 +189,7 @@ const AgentCommissionModal = ({ isOpen, onClose }) => {
   const handlePayCommission = async (agentId) => {
     const ordersToPay = selectedOrders.filter(orderId => {
       const order = data.orders.find(o => o.id === orderId);
-      return order && order.agentId === agentId && order.paymentStatus === 'Paid' && !order.commissionPaid;
+      return order && order.agentId === agentId && isCommissionUnpaid(order);
     });
 
     if (ordersToPay.length === 0) {
@@ -513,7 +522,7 @@ const AgentCommissionModal = ({ isOpen, onClose }) => {
                             <div className="flex items-center gap-2">
                               <input
                                 type="checkbox"
-                                checked={item.orders.filter(o => o.paymentStatus === 'Paid' && !o.commissionPaid).every(o => selectedOrders.includes(o.id))}
+                                checked={item.orders.filter(o => isCommissionUnpaid(o)).every(o => selectedOrders.includes(o.id))}
                                 onChange={() => handleSelectAllUnpaid(item.agent?.id)}
                                 className="w-4 h-4 rounded text-emerald-500"
                               />
@@ -521,7 +530,7 @@ const AgentCommissionModal = ({ isOpen, onClose }) => {
                             </div>
                             <button
                               onClick={() => handlePayCommission(item.agent?.id)}
-                              disabled={payingCommission || !selectedOrders.some(id => item.orders.find(o => o.id === id && !o.commissionPaid))}
+                              disabled={payingCommission || !selectedOrders.some(id => item.orders.find(o => o.id === id && isCommissionUnpaid(o)))}
                               className="flex items-center gap-2 px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
                             >
                               {payingCommission ? <Loader2 className="w-4 h-4 animate-spin" /> : <Wallet className="w-4 h-4" />}
@@ -536,6 +545,7 @@ const AgentCommissionModal = ({ isOpen, onClose }) => {
                             <thead className="bg-dark-800">
                               <tr className="text-left text-dark-400 text-xs">
                                 <th className="px-3 py-2">Select</th>
+                                <th className="px-3 py-2">Order #</th>
                                 <th className="px-3 py-2">Date</th>
                                 <th className="px-3 py-2">Product</th>
                                 <th className="px-3 py-2">Customer</th>
@@ -548,13 +558,18 @@ const AgentCommissionModal = ({ isOpen, onClose }) => {
                               {item.orders.map((order) => (
                                 <tr key={order.id} className="border-t border-dark-700/50 hover:bg-dark-800/50">
                                   <td className="px-3 py-2">
-                                    {order.paymentStatus === 'Paid' && !order.commissionPaid && (
+                                    {isCommissionUnpaid(order) && (
                                       <input
                                         type="checkbox"
                                         checked={selectedOrders.includes(order.id)}
                                         onChange={() => handleSelectOrder(order.id)}
                                         className="w-4 h-4 rounded text-emerald-500"
                                       />
+                                    )}
+                                  </td>
+                                  <td className="px-3 py-2 text-dark-300 text-sm font-mono">
+                                    {order.order?.orderNumber || (
+                                      <span className="text-dark-500 italic">N/A</span>
                                     )}
                                   </td>
                                   <td className="px-3 py-2 text-dark-300 text-sm">{new Date(order.createdAt).toLocaleDateString()}</td>
@@ -629,6 +644,7 @@ const AgentCommissionModal = ({ isOpen, onClose }) => {
                   <table className="w-full">
                     <thead className="bg-dark-900">
                       <tr className="text-left text-dark-400 text-sm">
+                        <th className="px-4 py-3">Order #</th>
                         <th className="px-4 py-3">Date</th>
                         <th className="px-4 py-3">Agent</th>
                         <th className="px-4 py-3">Product</th>
@@ -641,6 +657,11 @@ const AgentCommissionModal = ({ isOpen, onClose }) => {
                     <tbody>
                       {filteredOrders.map((order) => (
                         <tr key={order.id} className="border-t border-dark-700 hover:bg-dark-800/50">
+                          <td className="px-4 py-3 text-dark-300 text-sm font-mono">
+                            {order.order?.orderNumber || (
+                              <span className="text-dark-500 italic">N/A</span>
+                            )}
+                          </td>
                           <td className="px-4 py-3 text-dark-300 text-sm">{new Date(order.createdAt).toLocaleDateString()}</td>
                           <td className="px-4 py-3 text-white">{order.agent?.name}</td>
                           <td className="px-4 py-3 text-dark-300">{order.product?.name}</td>
