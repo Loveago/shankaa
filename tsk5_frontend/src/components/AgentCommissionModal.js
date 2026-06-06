@@ -100,6 +100,15 @@ const AgentCommissionModal = ({ isOpen, onClose }) => {
     }
   };
 
+  // Safely check if commission is unpaid - handles boolean, string, null, undefined
+  // MUST be defined before useMemo hooks that reference it (const is not hoisted)
+  const isCommissionUnpaid = (order) => {
+    if (!order) return false;
+    // Convert to boolean: commissionPaid can be true/false (boolean), "true"/"false" (string), null, or undefined
+    const paid = order.commissionPaid === true || order.commissionPaid === 'true';
+    return order.paymentStatus === 'Paid' && !paid;
+  };
+
   const filteredOrders = useMemo(() => {
     let filtered = data.paginatedOrders || data.orders;
 
@@ -162,14 +171,6 @@ const AgentCommissionModal = ({ isOpen, onClose }) => {
         ? prev.filter(id => id !== orderId)
         : [...prev, orderId]
     );
-  };
-
-  // Safely check if commission is unpaid - handles boolean, string, null, undefined
-  const isCommissionUnpaid = (order) => {
-    if (!order) return false;
-    // Convert to boolean: commissionPaid can be true/false (boolean), "true"/"false" (string), null, or undefined
-    const paid = order.commissionPaid === true || order.commissionPaid === 'true';
-    return order.paymentStatus === 'Paid' && !paid;
   };
 
   const handleSelectAllUnpaid = (agentId) => {
