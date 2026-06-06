@@ -587,9 +587,9 @@ const AgentCommissionModal = ({ isOpen, onClose }) => {
                                       }`}>
                                         {order.paymentStatus}
                                       </span>
-                                      {order.commissionPaid && (
+                                      {(order.commissionPaid === true || order.commissionPaid === 'true') && (
                                         <span className="px-2 py-0.5 rounded text-xs font-medium bg-violet-500/20 text-violet-400 flex items-center gap-1">
-                                          <CheckCircle className="w-3 h-3" /> Paid
+                                          <CheckCircle className="w-3 h-3" /> Comm. Paid
                                         </span>
                                       )}
                                     </div>
@@ -678,7 +678,7 @@ const AgentCommissionModal = ({ isOpen, onClose }) => {
                               }`}>
                                 {order.paymentStatus}
                               </span>
-                              {order.commissionPaid && (
+                              {(order.commissionPaid === true || order.commissionPaid === 'true') && (
                                 <span className="px-2 py-1 rounded text-xs font-medium bg-violet-500/20 text-violet-400">
                                   Commission Paid
                                 </span>
