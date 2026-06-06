@@ -132,6 +132,7 @@ const exportPendingByNetwork = async (adminUserId, network) => {
 
 /**
  * Get all order batches with computed stats
+ * NOTE: items/relations are excluded for performance — they are loaded on demand via getBatchById
  */
 const getAllBatches = async (page = 1, limit = 20) => {
   const skip = (page - 1) * limit;
@@ -152,71 +153,21 @@ const getAllBatches = async (page = 1, limit = 20) => {
         status: true,
         createdAt: true,
         user: { select: { id: true, name: true } },
-        _count: { select: { items: true } },
-        items: {
-          select: {
-            id: true, status: true, productDescription: true, product: { select: { description: true } },
-            quantity: true,
-            order: { select: { id: true, user: { select: { id: true, name: true } } } }
-          }
-        }
       }
     })
   ]);
 
-  const result = batches.map(batch => {
-    const totalItems = batch.totalItems || batch._count.items;
-    let statusCounts = { Pending: 0, Processing: 0, Completed: 0, Cancelled: 0 };
-    let calculatedTotalGb = batch.totalGb || 0;
-
-    // Calculate GB from items if not stored
-    if (calculatedTotalGb === 0 && batch.items.length > 0) {
-      for (const item of batch.items) {
-        const desc = (item.productDescription || item.product?.description || "").toLowerCase();
-        const gbMatch = desc.match(/(\d+(?:\.\d+)?)\s*gb/i);
-        const gbValue = gbMatch ? parseFloat(gbMatch[1]) : 0;
-        calculatedTotalGb += gbValue * item.quantity;
-      }
-    }
-
-    for (const item of batch.items) {
-      const s = item.status === "Canceled" ? "Cancelled" : item.status;
-      if (statusCounts[s] !== undefined) statusCounts[s]++;
-    }
-
-    let overallStatus = batch.status;
-    if (totalItems > 0) {
-      if (statusCounts.Completed === totalItems) overallStatus = "Completed";
-      else if (statusCounts.Cancelled === totalItems) overallStatus = "Cancelled";
-      else if (statusCounts.Processing > 0) overallStatus = "Processing";
-      else overallStatus = "Pending";
-    }
-
-    const agents = [];
-    const seenAgents = new Set();
-    for (const item of batch.items) {
-      const user = item.order?.user;
-      if (user && !seenAgents.has(user.id)) {
-        seenAgents.add(user.id);
-        agents.push(user);
-      }
-    }
-
-    return {
-      id: batch.id,
-      filename: batch.filename,
-      network: batch.network,
-      totalItems,
-      totalPrice: batch.totalPrice,
-      totalGb: calculatedTotalGb,
-      status: overallStatus,
-      statusCounts,
-      createdAt: batch.createdAt,
-      exportedBy: batch.user,
-      agents,
-      orderIds: [...new Set(batch.items.map(i => i.order?.id).filter(Boolean))]
-    };
-  });
+  const result = batches.map(batch => ({
+    id: batch.id,
+    filename: batch.filename,
+    network: batch.network,
+    totalItems: batch.totalItems,
+    totalPrice: batch.totalPrice,
+    totalGb: batch.totalGb || 0,
+    status: batch.status,
+    createdAt: batch.createdAt,
+    exportedBy: batch.user,
+  }));
 
   return {
     batches: result,

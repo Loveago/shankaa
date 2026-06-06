@@ -112,7 +112,7 @@ const OrderFiles = () => {
     try {
       setLoading(true);
       const [batchRes, countRes] = await Promise.all([
-        axios.get(`${BASE_URL}/order/admin/batches`, { headers: getAuthHeaders() }),
+        axios.get(`${BASE_URL}/order/admin/batches?limit=10000`, { headers: getAuthHeaders() }),
         axios.get(`${BASE_URL}/order/admin/batches/pending-counts`, { headers: getAuthHeaders() }),
       ]);
       if (batchRes.data.success) setBatches(batchRes.data.batches);
