@@ -415,6 +415,46 @@ const AdminDashboard = () => {
     }
   };
 
+  // Reconcile Payments — recover paid orders that never landed in the panel
+  // (webhook + verify both failed). Verifies stuck/orphaned payments against
+  // Paystack and creates the missing orders.
+  const handleReconcilePayments = async () => {
+    const confirm = await Swal.fire({
+      title: 'Reconcile Payments?',
+      text: 'This checks recent payments against Paystack and creates any orders that were paid for but never placed.',
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonColor: '#06b6d4',
+      confirmButtonText: 'Run reconciliation',
+      background: '#1e293b',
+      color: '#f1f5f9'
+    });
+    if (!confirm.isConfirmed) return;
+
+    Swal.fire({ title: 'Reconciling...', allowOutsideClick: false, background: '#1e293b', color: '#f1f5f9', didOpen: () => Swal.showLoading() });
+    try {
+      const res = await axios.post(`${BASE_URL}/api/payment/reconcile`, {}, { headers: getAuthHeaders() });
+      const created = res.data?.ordersCreated ?? 0;
+      Swal.fire({
+        icon: 'success',
+        title: 'Reconciliation Complete',
+        text: created > 0 ? `Recovered ${created} paid order(s).` : 'No missing orders found. Everything is in sync.',
+        background: '#1e293b',
+        color: '#f1f5f9',
+        confirmButtonColor: '#06b6d4'
+      });
+      fetchData(false);
+    } catch (error) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Reconciliation Failed',
+        text: error.response?.data?.message || 'Could not reconcile payments.',
+        background: '#1e293b',
+        color: '#f1f5f9'
+      });
+    }
+  };
+
   // Reset Database
   const handleResetDatabase = async () => {
     const first = await Swal.fire({
@@ -604,11 +644,11 @@ const AdminDashboard = () => {
             className="w-full flex items-center gap-3 px-4 py-3 text-dark-300 hover:text-white hover:bg-dark-700/50 rounded-xl transition-all">
             <User className="w-5 h-5" /><span>Profile</span>
           </button>
-          <hr className="border-dark-700 my-2" />
-          <button onClick={handleResetDatabase}
-            className="w-full flex items-center gap-3 px-4 py-3 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-xl transition-all">
-            <RotateCcw className="w-5 h-5" /><span>Reset Database</span>
+          <button onClick={() => { handleReconcilePayments(); setIsSidebarOpen(false); }}
+            className="w-full flex items-center gap-3 px-4 py-3 text-dark-300 hover:text-white hover:bg-dark-700/50 rounded-xl transition-all">
+            <RefreshCw className="w-5 h-5" /><span>Reconcile Payments</span>
           </button>
+          <hr className="border-dark-700 my-2" />
           <button onClick={logoutUser}
             className="w-full flex items-center gap-3 px-4 py-3 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-xl transition-all">
             <LogOut className="w-5 h-5" /><span>Logout</span>

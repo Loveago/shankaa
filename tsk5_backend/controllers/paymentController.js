@@ -401,8 +401,24 @@ const reconcilePayments = async (req, res) => {
   try {
     console.log('[Payment Reconciliation] Starting reconciliation...');
     
-    const orphanedPayments = await paymentService.getOrphanedSuccessfulPayments();
-    console.log(`[Payment Reconciliation] Found ${orphanedPayments.length} orphaned payments`);
+    // Combine two sets:
+    //  1. SUCCESS payments missing an order (order creation failed after payment confirmed)
+    //  2. PENDING/INITIALIZED payments that may have been paid but never confirmed
+    //     in our DB (both webhook and frontend verify failed)
+    const [orphanedPayments, stuckPayments] = await Promise.all([
+      paymentService.getOrphanedSuccessfulPayments(),
+      paymentService.getStuckPendingPayments()
+    ]);
+
+    // De-duplicate by externalRef in case a payment appears in both sets
+    const seen = new Set();
+    const paymentsToProcess = [...orphanedPayments, ...stuckPayments].filter((p) => {
+      if (seen.has(p.externalRef)) return false;
+      seen.add(p.externalRef);
+      return true;
+    });
+
+    console.log(`[Payment Reconciliation] Found ${orphanedPayments.length} orphaned + ${stuckPayments.length} stuck = ${paymentsToProcess.length} to process`);
 
     const results = {
       processed: 0,
@@ -411,7 +427,7 @@ const reconcilePayments = async (req, res) => {
       details: []
     };
 
-    for (const payment of orphanedPayments) {
+    for (const payment of paymentsToProcess) {
       try {
         const result = await paymentService.verifyAndCreateOrder(payment.externalRef, shopService);
         results.processed++;

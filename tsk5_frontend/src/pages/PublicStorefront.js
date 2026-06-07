@@ -740,7 +740,7 @@ const PublicStorefront = () => {
                         onChange={(e) => setTrackingNumber(trackingMode === 'phone' ? e.target.value.replace(/\D/g, '') : e.target.value)}
                         placeholder={trackingMode === 'phone' ? 'Enter mobile number' : 'Enter order number'}
                         className="flex-1 bg-dark-900/50 border-2 border-dark-600 rounded-xl px-3 sm:px-4 py-2.5 sm:py-3 text-white text-sm sm:text-base placeholder-dark-500 focus:border-cyan-500 focus:outline-none"
-                        maxLength={trackingMode === 'phone' ? 10 : 20} />
+                        maxLength={trackingMode === 'phone' ? 10 : 50} />
                     </div>
                     <button onClick={trackOrder} disabled={isTracking}
                       className="px-4 sm:px-6 py-2.5 sm:py-3 bg-gradient-to-r from-cyan-500 to-cyan-600 text-white rounded-xl font-semibold disabled:opacity-50 flex items-center gap-2 flex-shrink-0">

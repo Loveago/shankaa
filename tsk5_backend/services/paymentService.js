@@ -370,6 +370,26 @@ const getOrphanedSuccessfulPayments = async () => {
   });
 };
 
+// Get transactions that may have been paid but never confirmed in our DB.
+// These are stuck in PENDING/INITIALIZED because BOTH the webhook AND the
+// frontend verify fallback failed. We actively re-verify these against Paystack.
+// Window: older than 3 minutes (give the normal flow time) and within the last 3 days.
+const getStuckPendingPayments = async () => {
+  const threeMinutesAgo = new Date(Date.now() - 3 * 60 * 1000);
+  const threeDaysAgo = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000);
+
+  return await prisma.paymentTransaction.findMany({
+    where: {
+      status: { in: ['PENDING', 'INITIALIZED'] },
+      orderId: null,
+      productId: { not: null },
+      createdAt: { lte: threeMinutesAgo, gte: threeDaysAgo }
+    },
+    orderBy: { createdAt: 'desc' },
+    take: 50
+  });
+};
+
 // Mark transaction as having order creation attempted
 const markOrderCreationAttempted = async (transactionId, success, errorMessage = null) => {
   return await prisma.paymentTransaction.update({
@@ -471,6 +491,7 @@ module.exports = {
   getAllPaymentTransactions,
   linkTransactionToOrder,
   getOrphanedSuccessfulPayments,
+  getStuckPendingPayments,
   verifyAndCreateOrder,
   generateStoreRef,
   generateBulkRef

@@ -233,11 +233,13 @@ const shopService = require('./services/shopService');
 
 const reconcileOrphanedPayments = async () => {
   try {
+    // Pass 1: payments already marked SUCCESS in our DB but missing an order
+    // (webhook/verify confirmed payment but order creation failed afterwards).
     const orphanedPayments = await paymentService.getOrphanedSuccessfulPayments();
-    
+
     if (orphanedPayments.length > 0) {
-      console.log(`[Auto-Reconciliation] Found ${orphanedPayments.length} orphaned payments`);
-      
+      console.log(`[Auto-Reconciliation] Found ${orphanedPayments.length} orphaned (SUCCESS) payments`);
+
       for (const payment of orphanedPayments) {
         try {
           const result = await paymentService.verifyAndCreateOrder(payment.externalRef, shopService);
@@ -246,6 +248,27 @@ const reconcileOrphanedPayments = async () => {
           }
         } catch (err) {
           console.error(`[Auto-Reconciliation] Failed for ${payment.externalRef}:`, err.message);
+        }
+      }
+    }
+
+    // Pass 2: payments still stuck in PENDING/INITIALIZED — the webhook AND the
+    // frontend verify fallback both failed, so the status was never updated.
+    // Actively re-verify these against Paystack; if Paystack says the customer
+    // paid, verifyAndCreateOrder flips the status to SUCCESS and places the order.
+    const stuckPayments = await paymentService.getStuckPendingPayments();
+
+    if (stuckPayments.length > 0) {
+      console.log(`[Auto-Reconciliation] Found ${stuckPayments.length} stuck PENDING/INITIALIZED payments`);
+
+      for (const payment of stuckPayments) {
+        try {
+          const result = await paymentService.verifyAndCreateOrder(payment.externalRef, shopService);
+          if (result.success && result.orderId) {
+            console.log(`[Auto-Reconciliation] Recovered stuck payment ${payment.externalRef} -> order ${result.orderId}`);
+          }
+        } catch (err) {
+          console.error(`[Auto-Reconciliation] Stuck-payment check failed for ${payment.externalRef}:`, err.message);
         }
       }
     }
