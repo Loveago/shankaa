@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import Swal from 'sweetalert2';
-import { Menu, X, Users, Package, ShoppingCart, Bell, RefreshCw, Loader2, Search, Plus, Edit, Trash2, CheckCircle, XCircle, BarChart3, Wallet, User, LogOut, RotateCcw, Eye, EyeOff, Save, Banknote, DollarSign, Table2, Key, AlertTriangle, Wifi, FileText, Landmark, Gift, Settings, Store } from 'lucide-react';
+import { Menu, X, Users, Package, ShoppingCart, Bell, RefreshCw, Loader2, Search, Plus, Edit, Trash2, CheckCircle, XCircle, BarChart3, Wallet, User, LogOut, Eye, EyeOff, Save, Banknote, DollarSign, Table2, Key, AlertTriangle, Wifi, FileText, Landmark, Gift, Settings, Store } from 'lucide-react';
 import BASE_URL from '../endpoints/endpoints';
 import { io as socketIO } from 'socket.io-client';
 import ProductDialog from '../components/ProductDialog';
@@ -454,32 +454,6 @@ const AdminDashboard = () => {
       });
     }
   };
-
-  // Reset Database
-  const handleResetDatabase = async () => {
-    const first = await Swal.fire({
-      title: 'Are you absolutely sure?', text: 'This will delete ALL data except users and products!',
-      icon: 'warning', showCancelButton: true, confirmButtonColor: '#ef4444', background: '#1e293b', color: '#f1f5f9'
-    });
-    if (!first.isConfirmed) return;
-    
-    const { value } = await Swal.fire({
-      title: 'Type RESET DATABASE to confirm', input: 'text', showCancelButton: true,
-      confirmButtonColor: '#ef4444', background: '#1e293b', color: '#f1f5f9',
-      inputValidator: (v) => v !== 'RESET DATABASE' ? 'Type exactly: RESET DATABASE' : null
-    });
-    if (!value) return;
-    
-    try {
-      const adminId = localStorage.getItem('userId');
-      await axios.post(`${BASE_URL}/api/reset/database`, { adminId: parseInt(adminId) }, { headers: getAuthHeaders() });
-      Swal.fire({ icon: 'success', title: 'Database Reset!', background: '#1e293b', color: '#f1f5f9' });
-      window.location.reload();
-    } catch (error) {
-      Swal.fire({ icon: 'error', title: 'Reset Failed', background: '#1e293b', color: '#f1f5f9' });
-    }
-  };
-
 
   const updateOrderStatus = async (itemId, status) => {
     try {
