@@ -333,6 +333,10 @@ const initializeReferralPayment = async (slug, storefrontProductId, customerName
   if (!storefrontProduct) throw new Error('Product not available');
   if (storefrontProduct.product.stock <= 0) throw new Error('Product out of stock');
 
+  // Validate before payment initialization so the customer is not charged
+  // and then blocked during post-payment verification.
+  await validatePhonesNotLocked([customerPhone]);
+
   const paymentRef = generateReferralRef();
   // Use the promo-aware effective price so the recorded basePrice, the
   // agent's commission, and the company revenue all line up with what
@@ -486,10 +490,6 @@ const verifyReferralPayment = async (reference) => {
           });
           return { alreadyProcessed: true, order: existingOrder };
         }
-
-        // --- PHONE NUMBER LOCK CHECK ---
-        await validatePhonesNotLocked([referralOrder.customerPhone], tx);
-        // --- END PHONE LOCK CHECK ---
 
         // Payment successful - create order in agent's name with Paystack reference
         const order = await tx.order.create({

@@ -37,19 +37,21 @@ async function findLockedPhones(phoneNumbers, tx = null) {
   for (const phone of phoneNumbers) {
     if (!phone) continue;
     const variants = getPhoneVariants(phone);
+    if (variants.length === 0) continue;
     phoneToVariants[phone] = variants;
     variants.forEach(v => allVariants.add(v));
   }
 
   if (allVariants.size === 0) return [];
 
-  // Find any order items with these phone numbers that are NOT in a final state
+  // Find any order items with these phone numbers that are NOT in a final state.
+  // The query already performs exact matching against normalized variants,
+  // so we should not do any substring matching afterwards.
   const lockedItems = await db.orderItem.findMany({
     where: {
       status: { in: ["Pending", "Processing"] },
       OR: [
         { mobileNumber: { in: [...allVariants] } },
-        // Also check the order-level mobile number
         { order: { mobileNumber: { in: [...allVariants] } } }
       ]
     },
@@ -61,20 +63,20 @@ async function findLockedPhones(phoneNumbers, tx = null) {
 
   if (lockedItems.length === 0) return [];
 
-  // Collect all locked phone numbers from the results
-  const lockedSet = new Set();
+  const matchedLockedVariants = new Set();
   for (const item of lockedItems) {
-    const itemPhone = item.mobileNumber || '';
-    const orderPhone = item.order?.mobileNumber || '';
-    const itemCleaned = itemPhone.replace(/\D/g, '');
-    const orderCleaned = orderPhone.replace(/\D/g, '');
+    for (const variant of getPhoneVariants(item.mobileNumber)) {
+      matchedLockedVariants.add(variant);
+    }
+    for (const variant of getPhoneVariants(item.order?.mobileNumber)) {
+      matchedLockedVariants.add(variant);
+    }
+  }
 
-    // Check if any of our input phone variants match this locked item
-    for (const [inputPhone, variants] of Object.entries(phoneToVariants)) {
-      if (variants.some(v => itemCleaned.includes(v) || orderCleaned.includes(v))) {
-        lockedSet.add(inputPhone);
-        break;
-      }
+  const lockedSet = new Set();
+  for (const [inputPhone, variants] of Object.entries(phoneToVariants)) {
+    if (variants.some(v => matchedLockedVariants.has(v))) {
+      lockedSet.add(inputPhone);
     }
   }
 
