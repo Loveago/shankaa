@@ -269,26 +269,58 @@ model SmsMessage {
 }
 
 model PaymentTransaction {
-  id               Int      @id @default(autoincrement())
-  externalRef      String   @unique @db.VarChar(255)
-  mobileNumber     String   @db.VarChar(20)
+  id               Int          @id @default(autoincrement())
+  externalRef      String       @unique @db.VarChar(255)
+  mobileNumber     String       @db.VarChar(20)
   amount           Float
-  currency         String   @default("GHS") @db.VarChar(10)
-  channel          String   @db.VarChar(50)
-  status           String   @db.VarChar(50)
+  currency         String       @default("GHS") @db.VarChar(10)
+  channel          String       @db.VarChar(50)
+  status           String       @db.VarChar(50)
   productId        Int?
-  productName      String?  @db.VarChar(255)
+  productName      String?      @db.VarChar(255)
   orderId          Int?
-  moolreCode       String?  @db.VarChar(255)
-  moolreMessage    String?  @db.Text
-  moolreSessionId  String?  @db.VarChar(255)
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @default(now()) @updatedAt
+  moolreCode       String?      @db.VarChar(255)
+  moolreMessage    String?      @db.Text
+  moolreSessionId  String?      @db.VarChar(255)
+  unpaidOrder      UnpaidOrder?
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @default(now()) @updatedAt
 
   @@index([externalRef], map: "PaymentTransaction_externalRef_idx")
   @@index([mobileNumber], map: "PaymentTransaction_mobileNumber_idx")
   @@index([status], map: "PaymentTransaction_status_idx")
   @@map("PaymentTransaction")
+}
+
+model UnpaidOrder {
+  id                   Int                 @id @default(autoincrement())
+  externalRef          String              @unique @db.VarChar(255)
+  productId            Int?
+  productName          String?             @db.VarChar(255)
+  mobileNumber         String              @db.VarChar(20)
+  customerEmail        String?             @db.VarChar(255)
+  amount               Float
+  currency             String              @default("GHS") @db.VarChar(10)
+  paymentUrl           String?             @db.VarChar(512)
+  paystackRef          String?             @db.VarChar(255)
+  status               String              @default("PENDING") @db.VarChar(50)
+  paymentStatus        String              @default("UNPAID") @db.VarChar(50)
+  paymentAttempts      Int                 @default(0)
+  lastAttemptAt        DateTime?
+  paymentTransactionId Int?                @unique
+  paymentTransaction   PaymentTransaction? @relation(fields: [paymentTransactionId], references: [id], onDelete: SetNull)
+  expiresAt            DateTime
+  createdAt            DateTime            @default(now())
+  updatedAt            DateTime            @default(now()) @updatedAt
+  paidAt               DateTime?
+
+  @@index([status])
+  @@index([paymentStatus])
+  @@index([externalRef])
+  @@index([mobileNumber])
+  @@index([expiresAt])
+  @@index([createdAt])
+  @@map("UnpaidOrder")
 }
 
 // Agent Storefront - Products listed by agents with custom prices

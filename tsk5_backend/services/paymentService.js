@@ -17,6 +17,85 @@ const getPaystackSecret = async () => {
   return fromDb || process.env.PAYSTACK_SECRET_KEY;
 };
 
+const UNPAID_ORDER_EXPIRY_HOURS = 24;
+
+const calculateUnpaidOrderExpiry = (createdAt = new Date()) => {
+  const expiresAt = new Date(createdAt);
+  expiresAt.setHours(expiresAt.getHours() + UNPAID_ORDER_EXPIRY_HOURS);
+  return expiresAt;
+};
+
+const createUnpaidOrderForTransaction = async ({
+  transactionId,
+  externalRef,
+  productId,
+  productName,
+  mobileNumber,
+  email,
+  amount,
+  currency = 'GHS',
+  paymentUrl = null,
+  paystackRef = null,
+  status = 'PENDING',
+  paymentStatus = 'UNPAID',
+  paidAt = null,
+  createdAt = new Date()
+}) => {
+  return prisma.unpaidOrder.upsert({
+    where: { externalRef },
+    update: {
+      productId: productId ? parseInt(productId) : null,
+      productName: productName || null,
+      mobileNumber,
+      customerEmail: email || null,
+      amount: parseFloat(amount),
+      currency,
+      paymentUrl,
+      paystackRef,
+      status,
+      paymentStatus,
+      paidAt,
+      paymentTransactionId: transactionId,
+      expiresAt: calculateUnpaidOrderExpiry(createdAt)
+    },
+    create: {
+      externalRef,
+      productId: productId ? parseInt(productId) : null,
+      productName: productName || null,
+      mobileNumber,
+      customerEmail: email || null,
+      amount: parseFloat(amount),
+      currency,
+      paymentUrl,
+      paystackRef,
+      status,
+      paymentStatus,
+      paidAt,
+      paymentTransactionId: transactionId,
+      expiresAt: calculateUnpaidOrderExpiry(createdAt)
+    }
+  });
+};
+
+const updateUnpaidOrderAfterVerification = async (externalRef, data = {}) => {
+  const unpaidOrder = await prisma.unpaidOrder.findUnique({ where: { externalRef } });
+  if (!unpaidOrder) return null;
+
+  return prisma.unpaidOrder.update({
+    where: { externalRef },
+    data: {
+      status: data.status ?? unpaidOrder.status,
+      paymentStatus: data.paymentStatus ?? unpaidOrder.paymentStatus,
+      paidAt: data.paidAt ?? unpaidOrder.paidAt,
+      paystackRef: data.paystackRef ?? unpaidOrder.paystackRef,
+      paymentAttempts: { increment: data.incrementAttempts ? 1 : 0 },
+      lastAttemptAt: data.lastAttemptAt ?? new Date(),
+      paymentUrl: data.paymentUrl ?? unpaidOrder.paymentUrl,
+      expiresAt: data.extendExpiry ? calculateUnpaidOrderExpiry(new Date()) : unpaidOrder.expiresAt
+    }
+  });
+};
+
 // Generate unique external reference for store orders
 const generateStoreRef = () => {
   const timestamp = Date.now();
@@ -55,6 +134,20 @@ const initializePayment = async (email, mobileNumber, amount, productId, product
       productId: productId ? parseInt(productId) : null,
       productName
     }
+  });
+
+  await createUnpaidOrderForTransaction({
+    transactionId: paymentTransaction.id,
+    externalRef,
+    productId,
+    productName,
+    mobileNumber: formattedPhone,
+    email,
+    amount,
+    currency: 'GHS',
+    status: 'PENDING',
+    paymentStatus: 'UNPAID',
+    createdAt: paymentTransaction.createdAt
   });
 
   try {
@@ -118,6 +211,14 @@ const initializePayment = async (email, mobileNumber, amount, productId, product
         }
       });
 
+      await updateUnpaidOrderAfterVerification(externalRef, {
+        status: 'PENDING',
+        paymentStatus: 'UNPAID',
+        paystackRef,
+        paymentUrl,
+        lastAttemptAt: new Date()
+      });
+
       return {
         success: true,
         transactionId: paymentTransaction.id,
@@ -134,6 +235,12 @@ const initializePayment = async (email, mobileNumber, amount, productId, product
           status: 'FAILED',
           moolreMessage: response.data.message || 'Failed to initialize payment'
         }
+      });
+
+      await updateUnpaidOrderAfterVerification(externalRef, {
+        status: 'FAILED',
+        paymentStatus: 'FAILED',
+        lastAttemptAt: new Date()
       });
 
       return {
@@ -153,6 +260,12 @@ const initializePayment = async (email, mobileNumber, amount, productId, product
         status: 'FAILED',
         moolreMessage: error.response?.data?.message || error.message
       }
+    });
+
+    await updateUnpaidOrderAfterVerification(externalRef, {
+      status: 'FAILED',
+      paymentStatus: 'FAILED',
+      lastAttemptAt: new Date()
     });
 
     return {
@@ -213,6 +326,15 @@ const verifyPayment = async (reference) => {
         moolreCode: paymentData?.gateway_response || paymentStatus,
         moolreMessage: paymentData?.message || `Payment ${paymentStatus}`
       }
+    });
+
+    await updateUnpaidOrderAfterVerification(reference, {
+      status: isSuccess ? 'PAID' : isFailed ? 'FAILED' : 'PENDING',
+      paymentStatus: isSuccess ? 'PAID' : isFailed ? 'FAILED' : 'UNPAID',
+      paidAt: isSuccess ? new Date() : null,
+      paystackRef: paymentData?.reference || transaction.moolreSessionId,
+      incrementAttempts: true,
+      lastAttemptAt: new Date()
     });
 
     return {
@@ -282,6 +404,15 @@ const handleWebhook = async (webhookData) => {
       moolreSessionId: data.id?.toString() || transaction.moolreSessionId,
       moolreMessage: data.gateway_response || transaction.moolreMessage
     }
+  });
+
+  await updateUnpaidOrderAfterVerification(externalRef, {
+    status: isSuccess ? 'PAID' : isFailed ? 'FAILED' : 'PENDING',
+    paymentStatus: isSuccess ? 'PAID' : isFailed ? 'FAILED' : 'UNPAID',
+    paidAt: isSuccess ? new Date() : null,
+    paystackRef: data.reference || transaction.moolreSessionId,
+    incrementAttempts: true,
+    lastAttemptAt: new Date()
   });
 
   return {
@@ -354,16 +485,17 @@ const linkTransactionToOrder = async (externalRef, orderId) => {
 // Get all successful payments that don't have orders (for reconciliation)
 // Excludes payments that already failed order creation (permanent failures like product unavailable)
 const getOrphanedSuccessfulPayments = async () => {
-  return await prisma.paymentTransaction.findMany({
+  return await prisma.unpaidOrder.findMany({
     where: {
-      status: 'SUCCESS',
-      orderId: null,
-      productId: { not: null },
-      OR: [
-        { moolreMessage: null },
-        { moolreMessage: { equals: '' } },
-        { moolreMessage: { not: { startsWith: 'Order creation failed' } } }
-      ]
+      status: 'PAID',
+      paymentStatus: 'PAID',
+      paymentTransaction: {
+        orderId: null,
+        productId: { not: null }
+      }
+    },
+    include: {
+      paymentTransaction: true
     },
     orderBy: { createdAt: 'desc' },
     take: 50
@@ -378,12 +510,19 @@ const getStuckPendingPayments = async () => {
   const threeMinutesAgo = new Date(Date.now() - 3 * 60 * 1000);
   const threeDaysAgo = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000);
 
-  return await prisma.paymentTransaction.findMany({
+  return await prisma.unpaidOrder.findMany({
     where: {
-      status: { in: ['PENDING', 'INITIALIZED'] },
-      orderId: null,
-      productId: { not: null },
-      createdAt: { lte: threeMinutesAgo, gte: threeDaysAgo }
+      status: 'PENDING',
+      paymentStatus: 'UNPAID',
+      createdAt: { lte: threeMinutesAgo, gte: threeDaysAgo },
+      paymentTransaction: {
+        orderId: null,
+        productId: { not: null },
+        status: { in: ['PENDING', 'INITIALIZED', 'SUCCESS'] }
+      }
+    },
+    include: {
+      paymentTransaction: true
     },
     orderBy: { createdAt: 'desc' },
     take: 50
@@ -405,8 +544,7 @@ const markOrderCreationAttempted = async (transactionId, success, errorMessage =
 // Verify payment directly with Paystack and create order if successful
 const verifyAndCreateOrder = async (reference, shopService) => {
   console.log('[Payment Reconciliation] Processing reference:', reference);
-  
-  // First check if transaction exists and already has an order
+
   const existingTransaction = await prisma.paymentTransaction.findUnique({
     where: { externalRef: reference }
   });
@@ -419,7 +557,6 @@ const verifyAndCreateOrder = async (reference, shopService) => {
     return { success: true, message: 'Order already exists', orderId: existingTransaction.orderId };
   }
 
-  // Verify with Paystack
   try {
     const secret = await getPaystackSecret();
     const response = await axios({
@@ -433,24 +570,45 @@ const verifyAndCreateOrder = async (reference, shopService) => {
     });
 
     const paymentData = response.data.data;
-    const isSuccess = paymentData?.status === 'success';
+    const paystackStatus = paymentData?.status;
+    const isSuccess = paystackStatus === 'success';
+    const isFailed = paystackStatus === 'failed' || paystackStatus === 'abandoned';
 
     if (!isSuccess) {
-      // Update transaction status
       await prisma.paymentTransaction.update({
         where: { id: existingTransaction.id },
-        data: { status: paymentData?.status === 'failed' ? 'FAILED' : existingTransaction.status }
+        data: { status: isFailed ? 'FAILED' : existingTransaction.status }
       });
-      return { success: false, error: 'Payment not successful', status: paymentData?.status };
+
+      await updateUnpaidOrderAfterVerification(reference, {
+        status: isFailed ? 'FAILED' : 'PENDING',
+        paymentStatus: isFailed ? 'FAILED' : 'UNPAID',
+        paystackRef: paymentData?.reference || existingTransaction.moolreSessionId,
+        incrementAttempts: true,
+        lastAttemptAt: new Date()
+      });
+
+      return { success: false, error: 'Payment not successful', status: paystackStatus };
     }
 
-    // Payment is successful - update status and create order
     await prisma.paymentTransaction.update({
       where: { id: existingTransaction.id },
-      data: { status: 'SUCCESS' }
+      data: {
+        status: 'SUCCESS',
+        moolreCode: paymentData?.gateway_response || existingTransaction.moolreCode,
+        moolreMessage: paymentData?.message || 'Payment verified by reconciliation'
+      }
     });
 
-    // Create order
+    await updateUnpaidOrderAfterVerification(reference, {
+      status: 'PAID',
+      paymentStatus: 'PAID',
+      paidAt: new Date(),
+      paystackRef: paymentData?.reference || existingTransaction.moolreSessionId,
+      incrementAttempts: true,
+      lastAttemptAt: new Date()
+    });
+
     if (existingTransaction.productId && existingTransaction.mobileNumber) {
       try {
         const order = await shopService.createShopOrder(
@@ -460,10 +618,11 @@ const verifyAndCreateOrder = async (reference, shopService) => {
         );
 
         await linkTransactionToOrder(reference, order.id);
+        await markOrderCreationAttempted(existingTransaction.id, true);
         console.log('[Payment Reconciliation] Order created:', order.id);
 
-        return { 
-          success: true, 
+        return {
+          success: true,
           message: 'Payment verified and order created',
           orderId: order.id,
           mobileNumber: existingTransaction.mobileNumber
@@ -473,12 +632,15 @@ const verifyAndCreateOrder = async (reference, shopService) => {
         await markOrderCreationAttempted(existingTransaction.id, false, orderError.message);
         return { success: false, error: 'Order creation failed', details: orderError.message };
       }
-    } else {
-      return { success: false, error: 'Missing product or mobile number' };
     }
 
+    return { success: false, error: 'Missing product or mobile number' };
   } catch (error) {
     console.error('[Payment Reconciliation] Verification error:', error.message);
+    await updateUnpaidOrderAfterVerification(reference, {
+      incrementAttempts: true,
+      lastAttemptAt: new Date()
+    });
     return { success: false, error: error.message };
   }
 };
@@ -493,6 +655,8 @@ module.exports = {
   getOrphanedSuccessfulPayments,
   getStuckPendingPayments,
   verifyAndCreateOrder,
+  createUnpaidOrderForTransaction,
+  updateUnpaidOrderAfterVerification,
   generateStoreRef,
   generateBulkRef
 };

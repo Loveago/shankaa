@@ -24,6 +24,8 @@ import ReferralCodeManager from '../components/ReferralCodeManager';
 import ManageStorefront from '../components/ManageStorefront';
 import AfaRegistrationAdmin from '../components/AfaRegistrationAdmin';
 import MtnExpressAdmin from '../components/MtnExpressAdmin';
+import UnpaidOrdersTable from '../components/UnpaidOrdersTable';
+import UnpaidOrderDetailsModal from '../components/UnpaidOrderDetailsModal';
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
@@ -74,6 +76,11 @@ const AdminDashboard = () => {
   const [showSuspiciousActivity, setShowSuspiciousActivity] = useState(false);
   const [showStorefrontWithdrawals, setShowStorefrontWithdrawals] = useState(false);
   const [showManageStorefront, setShowManageStorefront] = useState(false);
+  const [selectedUnpaidOrder, setSelectedUnpaidOrder] = useState(null);
+  const [showUnpaidOrderDetails, setShowUnpaidOrderDetails] = useState(false);
+  const [unpaidOrderStats, setUnpaidOrderStats] = useState({ total: 0, paid: 0, unpaid: 0, pending: 0, expired: 0, failed: 0 });
+  const [unpaidRefreshKey, setUnpaidRefreshKey] = useState(0);
+  const [unpaidReconcileLoading, setUnpaidReconcileLoading] = useState(false);
   const [fraudAlerts, setFraudAlerts] = useState([]);
   const [fraudBlinking, setFraudBlinking] = useState(false);
   // Settings state
@@ -519,9 +526,72 @@ const AdminDashboard = () => {
   const currentUsers = filteredUsers.slice(indexOfFirstUser, indexOfLastUser);
   const totalPages = Math.ceil(filteredUsers.length / usersPerPage);
 
+  const handleViewUnpaidOrderDetails = (order) => {
+    setSelectedUnpaidOrder(order);
+    setShowUnpaidOrderDetails(true);
+  };
+
+  const handleCloseUnpaidOrderDetails = () => {
+    setShowUnpaidOrderDetails(false);
+    setSelectedUnpaidOrder(null);
+  };
+
+  const handleUnpaidOrderReconciled = async (response, order) => {
+    if (selectedUnpaidOrder?.id === order?.id) {
+      setSelectedUnpaidOrder((prev) => ({
+        ...prev,
+        ...(response?.data || {}),
+        ...(response?.unpaidOrder || {})
+      }));
+    }
+    setUnpaidRefreshKey((prev) => prev + 1);
+    fetchData(false);
+  };
+
+  const handleReconcileSelectedUnpaidOrder = async (order) => {
+    if (!order?.id) return;
+
+    const confirm = await Swal.fire({
+      title: 'Reconcile unpaid order?',
+      text: `This will verify ${order.externalRef} with Paystack and create the real order if payment is confirmed.`,
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonColor: '#06b6d4',
+      background: '#1e293b',
+      color: '#f1f5f9'
+    });
+
+    if (!confirm.isConfirmed) return;
+
+    try {
+      setUnpaidReconcileLoading(true);
+      const response = await axios.post(`${BASE_URL}/api/payment/unpaid-orders/${order.id}/reconcile`, {}, { headers: getAuthHeaders() });
+      Swal.fire({
+        icon: 'success',
+        title: 'Reconciliation complete',
+        text: response.data?.message || 'The unpaid order was checked successfully.',
+        background: '#1e293b',
+        color: '#f1f5f9',
+        confirmButtonColor: '#06b6d4'
+      });
+      await handleUnpaidOrderReconciled(response.data, order);
+    } catch (error) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Reconciliation failed',
+        text: error.response?.data?.message || 'Could not reconcile this unpaid order.',
+        background: '#1e293b',
+        color: '#f1f5f9'
+      });
+    } finally {
+      setUnpaidReconcileLoading(false);
+    }
+  };
+
   const tabs = [
     { id: 'overview', label: 'Overview', icon: BarChart3 },
     { id: 'orders', label: 'Orders', icon: ShoppingCart },
+    { id: 'unpaidOrders', label: 'Unpaid Orders', icon: Wallet },
     { id: 'users', label: 'Users', icon: Users },
     { id: 'products', label: 'Products', icon: Package },
     { id: 'referralCodes', label: 'Referral Codes', icon: Gift },
@@ -577,6 +647,17 @@ const AdminDashboard = () => {
             className="w-full flex items-center gap-3 px-4 py-3 text-dark-300 hover:text-white hover:bg-dark-700/50 rounded-xl transition-all">
             <Banknote className="w-5 h-5" /><span>Payment Messages</span>
           </button>
+          <button onClick={() => { setActiveTab('unpaidOrders'); setIsSidebarOpen(false); }}
+            className="w-full flex items-center justify-between px-4 py-3 text-dark-300 hover:text-white hover:bg-dark-700/50 rounded-xl transition-all">
+            <div className="flex items-center gap-3">
+              <Wallet className="w-5 h-5" /><span>Unpaid Orders</span>
+            </div>
+            {unpaidOrderStats.total > 0 && (
+              <span className="bg-amber-500 text-dark-950 text-xs font-bold rounded-full min-w-5 h-5 px-1.5 flex items-center justify-center">
+                {unpaidOrderStats.total > 99 ? '99+' : unpaidOrderStats.total}
+              </span>
+            )}
+          </button>
           <button onClick={() => { setShowCommissionModal(true); setIsSidebarOpen(false); }}
             className="w-full flex items-center gap-3 px-4 py-3 text-dark-300 hover:text-white hover:bg-dark-700/50 rounded-xl transition-all">
             <DollarSign className="w-5 h-5" /><span>Commission Summary</span>
@@ -618,7 +699,10 @@ const AdminDashboard = () => {
             className="w-full flex items-center gap-3 px-4 py-3 text-dark-300 hover:text-white hover:bg-dark-700/50 rounded-xl transition-all">
             <User className="w-5 h-5" /><span>Profile</span>
           </button>
-          <button onClick={() => { handleReconcilePayments(); setIsSidebarOpen(false); }}
+          <button onClick={async () => {
+            setIsSidebarOpen(false);
+            await handleReconcilePayments();
+          }}
             className="w-full flex items-center gap-3 px-4 py-3 text-dark-300 hover:text-white hover:bg-dark-700/50 rounded-xl transition-all">
             <RefreshCw className="w-5 h-5" /><span>Reconcile Payments</span>
           </button>
@@ -666,9 +750,9 @@ const AdminDashboard = () => {
                 <div className="relative" ref={notificationRef}>
                   <button onClick={() => setShowNotificationDropdown(!showNotificationDropdown)} className="p-2 bg-dark-800 rounded-xl hover:bg-dark-700 relative">
                     <Bell className="w-5 h-5 text-dark-400" />
-                    {(orderCount + topupCount + complaintCount > 0) && (
+                    {(orderCount + topupCount + complaintCount + unpaidOrderStats.total > 0) && (
                       <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full min-w-5 h-5 px-1 flex items-center justify-center animate-pulse">
-                        {orderCount + topupCount + complaintCount > 99 ? '99+' : orderCount + topupCount + complaintCount}
+                        {orderCount + topupCount + complaintCount + unpaidOrderStats.total > 99 ? '99+' : orderCount + topupCount + complaintCount + unpaidOrderStats.total}
                       </span>
                     )}
                   </button>
@@ -696,7 +780,13 @@ const AdminDashboard = () => {
                             <div><p className="text-dark-300 text-sm">Pending Complaints</p><p className="text-dark-400 text-xs">{complaintCount} complaints</p></div>
                           </button>
                         )}
-                        {orderCount === 0 && topupCount === 0 && complaintCount === 0 && (
+                        {unpaidOrderStats.total > 0 && (
+                          <button onClick={() => { setActiveTab('unpaidOrders'); setShowNotificationDropdown(false); }} className="w-full p-3 text-left hover:bg-dark-700/50 flex items-center gap-3">
+                            <div className="p-2 bg-amber-500/10 rounded-lg"><Wallet className="w-4 h-4 text-amber-400" /></div>
+                            <div><p className="text-dark-300 text-sm">Unpaid Orders Queue</p><p className="text-dark-400 text-xs">{unpaidOrderStats.total} awaiting review</p></div>
+                          </button>
+                        )}
+                        {orderCount === 0 && topupCount === 0 && complaintCount === 0 && unpaidOrderStats.total === 0 && (
                           <div className="p-4 text-center"><p className="text-dark-400 text-sm">No notifications</p></div>
                         )}
                       </div>
@@ -767,6 +857,15 @@ const AdminDashboard = () => {
                       </div>
                       <p className="text-2xl sm:text-3xl font-bold text-white">{stats.orders}</p>
                       <p className="text-dark-400 text-xs sm:text-sm">Total Orders</p>
+                    </div>
+                    <div className="bg-dark-800/50 backdrop-blur rounded-xl sm:rounded-2xl border border-dark-700 p-4 sm:p-6 cursor-pointer active:scale-95 hover:border-amber-500/50 transition-all" onClick={() => setActiveTab('unpaidOrders')}>
+                      <div className="flex items-center gap-2 sm:gap-3 mb-2 sm:mb-3">
+                        <div className="p-2 sm:p-3 bg-amber-500/10 rounded-xl">
+                          <Wallet className="w-5 h-5 sm:w-6 sm:h-6 text-amber-500" />
+                        </div>
+                      </div>
+                      <p className="text-2xl sm:text-3xl font-bold text-white">{unpaidOrderStats.total}</p>
+                      <p className="text-dark-400 text-xs sm:text-sm">Unpaid Queue</p>
                     </div>
                   </div>
                   
@@ -945,6 +1044,17 @@ const AdminDashboard = () => {
                 </div>
                 );
               })()}
+
+              {activeTab === 'unpaidOrders' && (
+                <UnpaidOrdersTable
+                  isOpen={true}
+                  onClose={null}
+                  onViewDetails={handleViewUnpaidOrderDetails}
+                  refreshKey={unpaidRefreshKey}
+                  onStatsChange={setUnpaidOrderStats}
+                  onReconciled={handleUnpaidOrderReconciled}
+                />
+              )}
 
               {activeTab === 'users' && (
                 <div className="bg-dark-800/50 backdrop-blur rounded-2xl border border-dark-700 p-6 flex flex-col" style={{ height: 'calc(100vh - 280px)', minHeight: '500px' }}>
@@ -1335,6 +1445,15 @@ const AdminDashboard = () => {
 
       {/* Manage Storefront Modal */}
       <ManageStorefront isOpen={showManageStorefront} onClose={() => setShowManageStorefront(false)} />
+
+      {/* Unpaid Order Details Modal */}
+      <UnpaidOrderDetailsModal
+        isOpen={showUnpaidOrderDetails}
+        onClose={handleCloseUnpaidOrderDetails}
+        order={selectedUnpaidOrder}
+        onReconcile={handleReconcileSelectedUnpaidOrder}
+        reconciling={unpaidReconcileLoading}
+      />
 
       {/* Floating Chat */}
       <FloatingChatButton currentUser={{ id: parseInt(localStorage.getItem('userId')), name: localStorage.getItem('name'), role: 'admin' }} />

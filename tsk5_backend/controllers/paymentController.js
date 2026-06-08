@@ -396,6 +396,125 @@ const getAllTransactions = async (req, res) => {
   }
 };
 
+const getUnpaidOrders = async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
+    const status = req.query.status;
+    const mobileNumber = req.query.mobileNumber;
+
+    const skip = (page - 1) * limit;
+    const where = {};
+
+    if (status) {
+      where.status = status;
+    }
+
+    if (mobileNumber) {
+      where.mobileNumber = { contains: mobileNumber };
+    }
+
+    const [orders, total] = await Promise.all([
+      prisma.unpaidOrder.findMany({
+        where,
+        include: {
+          paymentTransaction: true
+        },
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit
+      }),
+      prisma.unpaidOrder.count({ where })
+    ]);
+
+    res.json({
+      success: true,
+      unpaidOrders: orders,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit)
+      }
+    });
+  } catch (error) {
+    console.error('Get unpaid orders error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Internal server error'
+    });
+  }
+};
+
+const getUnpaidOrderStats = async (req, res) => {
+  try {
+    const [pending, paidAwaitingProcessing, failed, expired] = await Promise.all([
+      prisma.unpaidOrder.count({ where: { status: 'PENDING', paymentStatus: 'UNPAID' } }),
+      prisma.unpaidOrder.count({ where: { status: 'PAID', paymentStatus: 'PAID', paymentTransaction: { orderId: null } } }),
+      prisma.unpaidOrder.count({ where: { status: 'FAILED' } }),
+      prisma.unpaidOrder.count({ where: { status: 'EXPIRED' } })
+    ]);
+
+    res.json({
+      success: true,
+      stats: {
+        pending,
+        paidAwaitingProcessing,
+        failed,
+        expired,
+        total: pending + paidAwaitingProcessing + failed + expired
+      }
+    });
+  } catch (error) {
+    console.error('Get unpaid order stats error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Internal server error'
+    });
+  }
+};
+
+const reconcileSingleUnpaidOrder = async (req, res) => {
+  try {
+    const unpaidOrderId = parseInt(req.params.id);
+
+    if (isNaN(unpaidOrderId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid unpaid order ID'
+      });
+    }
+
+    const unpaidOrder = await prisma.unpaidOrder.findUnique({
+      where: { id: unpaidOrderId },
+      include: { paymentTransaction: true }
+    });
+
+    if (!unpaidOrder) {
+      return res.status(404).json({
+        success: false,
+        message: 'Unpaid order not found'
+      });
+    }
+
+    const result = await paymentService.verifyAndCreateOrder(unpaidOrder.externalRef, shopService);
+
+    res.json({
+      success: !!result.success,
+      message: result.success
+        ? (result.orderId ? 'Unpaid order reconciled successfully' : result.message || 'Unpaid order checked successfully')
+        : (result.error || 'Failed to reconcile unpaid order'),
+      result
+    });
+  } catch (error) {
+    console.error('Reconcile single unpaid order error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Internal server error'
+    });
+  }
+};
+
 // Reconcile orphaned payments - process successful payments without orders
 const reconcilePayments = async (req, res) => {
   try {
@@ -503,6 +622,9 @@ module.exports = {
   verifyPaymentStatus,
   checkStatus,
   getAllTransactions,
+  getUnpaidOrders,
+  getUnpaidOrderStats,
+  reconcileSingleUnpaidOrder,
   reconcilePayments,
   getOrphanedPayments
 };

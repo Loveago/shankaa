@@ -27,6 +27,9 @@ router.get('/status/:externalRef', paymentController.checkStatus);
 
 // Admin-only routes - REQUIRE AUTHENTICATION
 router.get('/transactions', authMiddleware, adminMiddleware, paymentController.getAllTransactions);
+router.get('/unpaid-orders', authMiddleware, adminMiddleware, paymentController.getUnpaidOrders);
+router.get('/unpaid-orders/stats', authMiddleware, adminMiddleware, paymentController.getUnpaidOrderStats);
+router.post('/unpaid-orders/:id/reconcile', authMiddleware, adminMiddleware, paymentController.reconcileSingleUnpaidOrder);
 router.get('/orphaned', authMiddleware, adminMiddleware, paymentController.getOrphanedPayments);
 router.post('/reconcile', authMiddleware, adminMiddleware, paymentController.reconcilePayments);
 
