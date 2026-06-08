@@ -95,11 +95,11 @@ const UnpaidOrdersTable = ({
       const response = await axios.get(`${BASE_URL}/api/payment/unpaid-orders/stats`, {
         headers: getAuthHeaders()
       });
-      const payload = response.data?.data || response.data || {};
+      const payload = response.data?.stats || response.data?.data || response.data || {};
       const normalized = {
         total: payload.total || 0,
-        paid: payload.paid || 0,
-        unpaid: payload.unpaid || 0,
+        paid: payload.paid || payload.paidAwaitingProcessing || 0,
+        unpaid: payload.unpaid || payload.pending || 0,
         pending: payload.pending || 0,
         expired: payload.expired || 0,
         failed: payload.failed || 0
@@ -120,7 +120,7 @@ const UnpaidOrdersTable = ({
         headers: getAuthHeaders()
       });
 
-      const payload = response.data?.data || response.data?.orders || response.data || [];
+      const payload = response.data?.unpaidOrders || response.data?.data || response.data?.orders || response.data || [];
       setOrders(Array.isArray(payload) ? payload : []);
     } catch (error) {
       console.error('Error fetching unpaid orders:', error);
