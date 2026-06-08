@@ -292,10 +292,12 @@ setTimeout(() => {
 
 // Skanka5 background poller — check pending orders every 2 minutes
 const skanka5Service = require('./services/skanka5Service');
+console.log('[Skanka5 Poll] Worker scheduled: interval=120000ms, first_run=45000ms');
 setInterval(() => {
   skanka5Service.pollPendingOrders().catch((err) => console.error('[Skanka5 Poll] Error:', err.message));
 }, 2 * 60 * 1000);
 // Initial poll after 45 seconds
 setTimeout(() => {
+  console.log('[Skanka5 Poll] Running initial delayed poll');
   skanka5Service.pollPendingOrders().catch((err) => console.error('[Skanka5 Poll] Error:', err.message));
 }, 45 * 1000);

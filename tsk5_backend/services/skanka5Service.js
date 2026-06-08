@@ -250,8 +250,14 @@ const triggerProcessing = async (order) => {
 
 // Background poller: check all pending Skanka5 orders and update statuses
 const pollPendingOrders = async () => {
+  const startedAt = new Date().toISOString();
+  console.log(`[Skanka5 Poll] Tick at ${startedAt}`);
+
   const enabled = await isAutoProcessingEnabled();
-  if (!enabled) return { polled: 0, updated: 0, reason: 'disabled' };
+  if (!enabled) {
+    console.log('[Skanka5 Poll] Auto-processing disabled, skipping tick');
+    return { polled: 0, updated: 0, reason: 'disabled' };
+  }
 
   try {
     // Find all distinct references that are still pending
@@ -264,16 +270,21 @@ const pollPendingOrders = async () => {
       select: {
         id: true,
         skanka5Ref: true,
+        skanka5OrderCode: true,
         skanka5Status: true,
         mobileNumber: true
       },
       orderBy: { id: 'asc' }
     });
 
-    if (pendingItems.length === 0) return { polled: 0, updated: 0 };
+    if (pendingItems.length === 0) {
+      console.log('[Skanka5 Poll] No pending Skanka5 items found');
+      return { polled: 0, updated: 0 };
+    }
 
     // Deduplicate by reference
     const uniqueRefs = [...new Set(pendingItems.map(i => i.skanka5Ref).filter(Boolean))];
+    console.log(`[Skanka5 Poll] Found ${pendingItems.length} pending items across ${uniqueRefs.length} reference(s)`);
 
     let totalUpdated = 0;
 
@@ -282,17 +293,32 @@ const pollPendingOrders = async () => {
         const status = await checkOrderStatus(ref);
 
         if (status.notFound) {
-          console.log(`[Skanka5] Reference ${ref} not found on Skanka5`);
+          console.log(`[Skanka5 Poll] Reference ${ref} not found on Skanka5`);
           continue;
         }
 
-        if (!status.items || status.items.length === 0) continue;
+        if (!status.items || status.items.length === 0) {
+          console.log(`[Skanka5 Poll] Reference ${ref} returned no items`);
+          continue;
+        }
 
-        // Map Skanka5 items by beneficiary_number
+        const skanka5ByOrderCode = {};
+        const skanka5ByReference = {};
         const skanka5ByPhone = {};
+
         for (const skItem of status.items) {
-          const phone = cleanMsisdn(skItem.beneficiary_number);
-          skanka5ByPhone[phone] = skItem;
+          if (skItem.order_code) {
+            skanka5ByOrderCode[skItem.order_code] = skItem;
+          }
+
+          if (skItem.reference || status.reference) {
+            skanka5ByReference[skItem.reference || status.reference] = skItem;
+          }
+
+          const phone = cleanMsisdn(skItem.beneficiary_number || skItem.msisdn);
+          if (phone) {
+            skanka5ByPhone[phone] = skItem;
+          }
         }
 
         // Update our order items that match this reference
@@ -300,33 +326,60 @@ const pollPendingOrders = async () => {
 
         for (const item of ourItems) {
           const phone = cleanMsisdn(item.mobileNumber);
-          const match = skanka5ByPhone[phone];
+          let match = null;
+          let matchedBy = null;
 
-          if (match) {
-            const newStatus = mapSkanka5Status(match);
-
-            await prisma.orderItem.update({
-              where: { id: item.id },
-              data: {
-                skanka5Status: match.api_status || match.status?.toString() || 'unknown',
-                status: newStatus
-              }
-            });
-
-            if (newStatus === 'Completed' || newStatus === 'Cancelled') {
-              totalUpdated++;
-              console.log(`[Skanka5] Item ${item.id} → ${newStatus} (ref: ${ref}, phone: ${phone})`);
-            }
+          if (item.skanka5OrderCode && skanka5ByOrderCode[item.skanka5OrderCode]) {
+            match = skanka5ByOrderCode[item.skanka5OrderCode];
+            matchedBy = 'order_code';
           }
+
+          if (!match && item.skanka5Ref && skanka5ByReference[item.skanka5Ref]) {
+            match = skanka5ByReference[item.skanka5Ref];
+            matchedBy = 'reference';
+          }
+
+          if (!match && phone && skanka5ByPhone[phone]) {
+            match = skanka5ByPhone[phone];
+            matchedBy = 'phone';
+          }
+
+          if (!match) {
+            console.log(
+              `[Skanka5 Poll] No match for item ${item.id} ` +
+              `(ref=${item.skanka5Ref}, order_code=${item.skanka5OrderCode || 'null'}, phone=${phone || 'null'})`
+            );
+            continue;
+          }
+
+          const newStatus = mapSkanka5Status(match);
+          await prisma.orderItem.update({
+            where: { id: item.id },
+            data: {
+              skanka5Status: match.api_status || match.status?.toString() || 'unknown',
+              status: newStatus,
+              skanka5OrderCode: item.skanka5OrderCode || match.order_code || null
+            }
+          });
+
+          if (newStatus === 'Completed' || newStatus === 'Cancelled') {
+            totalUpdated++;
+          }
+
+          console.log(
+            `[Skanka5 Poll] Item ${item.id} → ${newStatus} ` +
+            `(matched by ${matchedBy}, ref: ${ref}, order_code: ${match.order_code || 'null'}, phone: ${phone || 'null'})`
+          );
         }
       } catch (error) {
-        console.error(`[Skanka5] Poll error for ref ${ref}:`, error.message);
+        console.error(`[Skanka5 Poll] Error for ref ${ref}:`, error.message);
       }
     }
 
+    console.log(`[Skanka5 Poll] Tick complete: polled ${uniqueRefs.length} reference(s), updated ${totalUpdated} item(s)`);
     return { polled: uniqueRefs.length, updated: totalUpdated };
   } catch (error) {
-    console.error('[Skanka5] Poll error:', error.message);
+    console.error('[Skanka5 Poll] Poll error:', error.message);
     return { polled: 0, updated: 0, error: error.message };
   }
 };
