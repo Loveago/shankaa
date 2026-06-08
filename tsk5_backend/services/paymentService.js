@@ -5,6 +5,8 @@ const prisma = require('../config/db');
 const PAYSTACK_INITIALIZE_URL = 'https://api.paystack.co/transaction/initialize';
 const PAYSTACK_VERIFY_URL = 'https://api.paystack.co/transaction/verify';
 const settingsService = require('./settingsService');
+const shopService = require('./shopService');
+const { resolvePrice } = require('../utils/priceRouter');
 
 // Paystack charges a 2% fee on all transactions.
 // We add this fee on top so the seller receives the full base amount.
@@ -108,6 +110,49 @@ const generateBulkRef = () => {
   const timestamp = Date.now();
   const random = Math.random().toString(36).substring(2, 8).toUpperCase();
   return `BULK-${timestamp}-${random}`;
+};
+
+// Create a real Order only if the payment has been verified by Paystack.
+// Atomic guard: checks transaction exists, no order linked yet, product available.
+const createOrderIfNotExists = async (externalRef, productId, mobileNumber) => {
+  const shopUser = await shopService.getOrCreateShopUser();
+  return await prisma.$transaction(async (tx) => {
+    const transaction = await tx.paymentTransaction.findUnique({ where: { externalRef } });
+    if (!transaction) return { created: false, error: 'Transaction not found' };
+    if (transaction.orderId) {
+      const existingOrder = await tx.order.findUnique({ where: { id: transaction.orderId } });
+      return { created: false, alreadyExists: true, orderId: transaction.orderId, order: existingOrder };
+    }
+    const product = await tx.product.findUnique({
+      where: { id: productId },
+      include: { rolePrices: { select: { role: true, price: true } } },
+    });
+    if (!product) return { created: false, error: 'Product not found' };
+    if (product.shopStockClosed) return { created: false, error: 'Product is currently closed for purchases' };
+    if (!product.showInShop) return { created: false, error: 'Product is not available in shop' };
+    const order = await tx.order.create({
+      data: {
+        userId: shopUser.id,
+        mobileNumber,
+        status: 'Pending',
+        orderNumber: externalRef,
+        items: {
+          create: [{
+            productId,
+            quantity: 1,
+            mobileNumber,
+            status: 'Pending',
+            productName: product.name,
+            productPrice: resolvePrice(product, null),
+            productDescription: product.description
+          }]
+        }
+      },
+      include: { items: true }
+    });
+    await tx.paymentTransaction.update({ where: { externalRef }, data: { orderId: order.id } });
+    return { created: true, orderId: order.id, order };
+  }, { timeout: 15000 });
 };
 
 // Initialize Paystack transaction and get payment URL
