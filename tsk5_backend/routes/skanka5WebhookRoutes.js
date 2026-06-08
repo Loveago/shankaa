@@ -1,6 +1,7 @@
 // POST /api/skanka5/webhook — HMAC-SHA256 signed webhook from Skanka5
-// Fires for bulk orders (5+ recipients) with event: orders.processed
-// Matches items by order_code (stored as skanka5OrderCode on OrderItem)
+// Accepts both bulk (items[]) and single-order (flat) payload formats.
+// Matches items first by order_code (skanka5OrderCode), then falls back
+// to reference (skanka5Ref) — ensuring single orders update automatically.
 
 const express = require('express');
 const router = express.Router();

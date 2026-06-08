@@ -204,19 +204,25 @@ const processOrderItems = async (orderItems) => {
       if (response.success && response.reference) {
         results.references.push(response.reference);
 
-        const skOrder = response.orders && response.orders[0] ? response.orders[0] : null;
+        // Single-order endpoint returns order_code at the top level,
+        // while bulk endpoint wraps it inside response.orders[0]
+        const orderCode = response.order_code
+          || (response.orders && response.orders[0] ? response.orders[0].order_code : null);
+        const orderStatus = response.orders && response.orders[0]
+          ? response.orders[0].status
+          : (response.status || 'accepted');
 
         await prisma.orderItem.update({
           where: { id: si.itemId },
           data: {
             skanka5Ref: response.reference,
-            skanka5OrderCode: skOrder?.order_code || null,
-            skanka5Status: skOrder?.status || 'accepted',
+            skanka5OrderCode: orderCode,
+            skanka5Status: orderStatus,
             status: 'Processing'
           }
         });
 
-        console.log(`[Skanka5] Submitted item ${si.itemId} to network ${si.networkId}, ref: ${response.reference}, phone: ${si.msisdn}, volume: ${si.volumeMb}MB`);
+        console.log(`[Skanka5] Submitted item ${si.itemId} to network ${si.networkId}, ref: ${response.reference}, phone: ${si.msisdn}, volume: ${si.volumeMb}MB${orderCode ? ', order_code: ' + orderCode : ''}`);
       } else {
         results.errors.push({ itemId: si.itemId, error: 'No reference returned' });
       }
@@ -340,8 +346,11 @@ const verifyWebhookSignature = (payload, signature, secret) => {
   return crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(signature));
 };
 
-// Process incoming Skanka5 webhook — expects JSON body with items[]
-// Webhook fires only for bulk orders (5+ recipients), matching by order_code
+// Process incoming Skanka5 webhook
+// Accepts two payload formats:
+//   1. Single-order: { reference, order_code, msisdn, status, api_status, ... }
+//   2. Bulk/array:   { items: [{ order_code, reference, msisdn, ... }, ...] }
+// Matches items by skanka5OrderCode first, then falls back to skanka5Ref
 const processWebhook = async (payload, signature) => {
   const enabled = await isAutoProcessingEnabled();
   if (!enabled) {
@@ -358,41 +367,81 @@ const processWebhook = async (payload, signature) => {
     }
   }
 
-  const items = payload.items;
-  if (!items || !Array.isArray(items) || items.length === 0) {
+  // Normalize payload into a list of items to process
+  let items = [];
+  if (payload.items && Array.isArray(payload.items)) {
+    // Bulk webhook format: { items: [...] }
+    items = payload.items;
+  } else if (payload.order_code || payload.reference) {
+    // Single-order webhook format: flat object with order fields
+    items = [payload];
+  }
+
+  if (items.length === 0) {
+    console.log('[Skanka5 Webhook] No items found in payload, payload keys:', Object.keys(payload));
     return { processed: false, reason: 'no-items' };
   }
 
   let updated = 0;
   for (const skItem of items) {
-    if (!skItem.order_code) continue;
-
     try {
-      // Match by skanka5OrderCode stored during initial submission
-      const ourItem = await prisma.orderItem.findFirst({
-        where: { skanka5OrderCode: skItem.order_code },
-        select: { id: true, status: true }
-      });
+      // First, try to match by skanka5OrderCode (used by bulk orders)
+      let ourItem = null;
+      if (skItem.order_code) {
+        ourItem = await prisma.orderItem.findFirst({
+          where: { skanka5OrderCode: skItem.order_code },
+          select: { id: true, status: true, skanka5Ref: true }
+        });
+      }
 
-      if (!ourItem) continue;
+      // Fallback: match by skanka5Ref (reference) — works for single orders
+      // where order_code may be null. Also works for bulk items that
+      // happen to include a reference in the webhook payload.
+      if (!ourItem && (skItem.reference || payload.reference)) {
+        const ref = skItem.reference || payload.reference;
+        ourItem = await prisma.orderItem.findFirst({
+          where: { skanka5Ref: ref },
+          select: { id: true, status: true, skanka5Ref: true }
+        });
+      }
+
+      if (!ourItem) {
+        console.log(`[Skanka5 Webhook] No matching OrderItem for order_code=${skItem.order_code}, reference=${skItem.reference || payload.reference}`);
+        continue;
+      }
 
       const newStatus = mapSkanka5Status({
         api_status: skItem.api_status,
         status: skItem.status
       });
 
+      const updateData = {
+        skanka5Status: skItem.api_status || skItem.status?.toString() || 'unknown',
+        status: newStatus
+      };
+
+      // Also store order_code if the webhook provides it and we didn't have one stored yet
+      if (skItem.order_code) {
+        const currentItem = await prisma.orderItem.findUnique({
+          where: { id: ourItem.id },
+          select: { skanka5OrderCode: true }
+        });
+        if (!currentItem.skanka5OrderCode) {
+          updateData.skanka5OrderCode = skItem.order_code;
+        }
+      }
+
       await prisma.orderItem.update({
         where: { id: ourItem.id },
-        data: {
-          skanka5Status: skItem.api_status || skItem.status?.toString() || 'unknown',
-          status: newStatus
-        }
+        data: updateData
       });
 
-      console.log(`[Skanka5 Webhook] Item ${ourItem.id} (${skItem.order_code}) → ${newStatus}`);
+      const matchedBy = skItem.order_code ? 'order_code' : 'skanka5Ref';
+      console.log(`[Skanka5 Webhook] Item ${ourItem.id} → ${newStatus} (matched by ${matchedBy})`);
       updated++;
     } catch (error) {
-      console.error(`[Skanka5 Webhook] Error processing ${skItem.order_code}:`, error.message);
+      const code = skItem.order_code || 'no-order-code';
+      console.error(`[Skanka5 Webhook] Error processing ${code}:`, error.message);
     }
   }
 
