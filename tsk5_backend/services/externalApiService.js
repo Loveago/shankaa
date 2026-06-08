@@ -1,6 +1,7 @@
 const prisma = require('../config/db');
 const { resolvePrice } = require('../utils/priceRouter');
 const crypto = require('crypto');
+const { validatePhonesNotLocked } = require('./phoneLockService');
 
 // Generate a secure API key
 const generateApiKey = () => {
@@ -137,6 +138,16 @@ const createExternalOrder = async (partnerId, items) => {
         productDescription: product.description
       });
     }
+
+    // --- PHONE NUMBER LOCK CHECK ---
+    const phonesToCheck = [];
+    for (const item of items) {
+      if (item.mobileNumber) phonesToCheck.push(item.mobileNumber);
+    }
+    if (phonesToCheck.length > 0) {
+      await validatePhonesNotLocked(phonesToCheck, tx);
+    }
+    // --- END PHONE LOCK CHECK ---
 
     // Get or create partner user account (used to link orders in the system)
     let partnerUser = await tx.user.findFirst({

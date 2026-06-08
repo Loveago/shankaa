@@ -6,6 +6,7 @@ const cache = require("../utils/cache");
 const { createTransaction } = require("./transactionService");
 const userService = require("./userService");
 const { fireOrderUpdated } = require("./userApiWebhook");
+const { validatePhonesNotLocked } = require("./phoneLockService");
 
 const submitCart = async (userId, mobileNumber = null, retries = 3) => {
   // Look up user role for role-based price resolution
@@ -75,6 +76,15 @@ const submitCartInner = async (userId, mobileNumber = null, userRole = null) => 
         data: { mobileNumber },
       });
     }
+
+    // --- PHONE NUMBER LOCK CHECK ---
+    // Collect all phone numbers from cart items + the cart-level mobile number
+    const phonesToCheck = [cart.mobileNumber || mobileNumber];
+    for (const item of cart.items) {
+      if (item.mobileNumber) phonesToCheck.push(item.mobileNumber);
+    }
+    await validatePhonesNotLocked(phonesToCheck.filter(Boolean), tx);
+    // --- END PHONE LOCK CHECK ---
 
     // Validate each product is still available for agents and not closed
     for (const item of cart.items) {
@@ -1050,6 +1060,14 @@ const orderService = {
       if (user.loanBalance < totalAmount) {
         throw new Error("Insufficient balance to place order");
       }
+
+      // --- PHONE NUMBER LOCK CHECK ---
+      const phonesToCheck = [items[0]?.mobileNumber];
+      for (const item of items) {
+        if (item.mobileNumber) phonesToCheck.push(item.mobileNumber);
+      }
+      await validatePhonesNotLocked(phonesToCheck.filter(Boolean), tx);
+      // --- END PHONE LOCK CHECK ---
 
       // Validate products are available for agents and not closed
       const productIds = items.map(item => parseInt(item.productId)).filter(id => !isNaN(id));

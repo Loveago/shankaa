@@ -4,6 +4,7 @@ const { resolvePrice } = require('../utils/priceRouter');
 const { generateWalletRef } = require('../utils/orderNumberGenerator');
 const settingsService = require('./settingsService');
 const cache = require('../utils/cache');
+const { validatePhonesNotLocked } = require('./phoneLockService');
 
 // Paystack API URLs
 const PAYSTACK_INITIALIZE_URL = 'https://api.paystack.co/transaction/initialize';
@@ -485,6 +486,10 @@ const verifyReferralPayment = async (reference) => {
           });
           return { alreadyProcessed: true, order: existingOrder };
         }
+
+        // --- PHONE NUMBER LOCK CHECK ---
+        await validatePhonesNotLocked([referralOrder.customerPhone], tx);
+        // --- END PHONE LOCK CHECK ---
 
         // Payment successful - create order in agent's name with Paystack reference
         const order = await tx.order.create({

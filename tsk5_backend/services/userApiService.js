@@ -5,6 +5,7 @@ const crypto = require('crypto');
 const axios = require('axios');
 const { createTransaction } = require('./transactionService');
 const { fireOrderCreated } = require('./userApiWebhook');
+const { validatePhonesNotLocked } = require('./phoneLockService');
 
 // ============================================================
 //  KEY MANAGEMENT
@@ -383,6 +384,16 @@ const createApiOrder = async (userId, items, apiKeyId) => {
         `Insufficient wallet balance. Required: GHS ${totalPrice.toFixed(2)}, Available: GHS ${balance.toFixed(2)}`
       );
     }
+
+    // --- PHONE NUMBER LOCK CHECK ---
+    const phonesToCheck = [];
+    for (const item of items) {
+      if (item.mobileNumber) phonesToCheck.push(item.mobileNumber);
+    }
+    if (phonesToCheck.length > 0) {
+      await validatePhonesNotLocked(phonesToCheck, tx);
+    }
+    // --- END PHONE LOCK CHECK ---
 
     // Create the order with items — linked to the API key for webhook support
     const orderNumber = generateWalletRef();

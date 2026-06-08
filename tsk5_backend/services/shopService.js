@@ -1,6 +1,7 @@
 const prisma = require("../config/db");
 const { resolvePrice } = require("../utils/priceRouter");
 const { generateWalletRef } = require("../utils/orderNumberGenerator");
+const { validatePhonesNotLocked } = require("./phoneLockService");
 
 // Get or create the "shop" user for guest orders
 const getOrCreateShopUser = async () => {
@@ -52,7 +53,11 @@ const createShopOrder = async (productId, mobileNumber, customerName) => {
   if (product.shopStockClosed) {
     throw new Error("Product is currently closed for purchases");
   }
-  
+
+  // --- PHONE NUMBER LOCK CHECK ---
+  await validatePhonesNotLocked([mobileNumber]);
+  // --- END PHONE LOCK CHECK ---
+
   // Create the order
   const orderNumber = generateWalletRef();
   const order = await prisma.order.create({
