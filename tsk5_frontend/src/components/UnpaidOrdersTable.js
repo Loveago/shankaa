@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { AlertTriangle, CheckCircle2, ChevronLeft, ChevronRight, Clock3, ExternalLink, Eye, Loader2, RefreshCw, Search, Wallet, XCircle } from 'lucide-react';
 import axios from 'axios';
 import Swal from 'sweetalert2';
@@ -90,7 +90,7 @@ const UnpaidOrdersTable = ({
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
-  const fetchStats = async () => {
+  const fetchStats = useCallback(async () => {
     try {
       const response = await axios.get(`${BASE_URL}/api/payment/unpaid-orders/stats`, {
         headers: getAuthHeaders()
@@ -109,7 +109,7 @@ const UnpaidOrdersTable = ({
     } catch (error) {
       console.error('Error fetching unpaid order stats:', error);
     }
-  };
+  }, [onStatsChange]);
 
   const fetchOrders = async (background = false) => {
     try {
@@ -135,7 +135,7 @@ const UnpaidOrdersTable = ({
     if (!isOpen) return;
     fetchOrders();
     fetchStats();
-  }, [isOpen, refreshKey]);
+  }, [isOpen, refreshKey, fetchStats]);
 
   const filteredOrders = useMemo(() => {
     const search = filters.search.trim().toLowerCase();
