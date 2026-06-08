@@ -122,32 +122,51 @@ const initializePayment = async (email, mobileNumber, amount, productId, product
     formattedPhone = '233' + formattedPhone;
   }
 
-  // Create payment transaction record
-  const paymentTransaction = await prisma.paymentTransaction.create({
-    data: {
-      externalRef,
-      mobileNumber: formattedPhone,
-      amount: parseFloat(amount),
-      currency: 'GHS',
-      channel: 'PAYSTACK',
-      status: 'PENDING',
-      productId: productId ? parseInt(productId) : null,
-      productName
-    }
-  });
+  // Create payment transaction + unpaid order together before redirecting to Paystack
+  const paymentTransaction = await prisma.$transaction(async (tx) => {
+    const createdTransaction = await tx.paymentTransaction.create({
+      data: {
+        externalRef,
+        mobileNumber: formattedPhone,
+        amount: parseFloat(amount),
+        currency: 'GHS',
+        channel: 'PAYSTACK',
+        status: 'PENDING',
+        productId: productId ? parseInt(productId) : null,
+        productName
+      }
+    });
 
-  await createUnpaidOrderForTransaction({
-    transactionId: paymentTransaction.id,
-    externalRef,
-    productId,
-    productName,
-    mobileNumber: formattedPhone,
-    email,
-    amount,
-    currency: 'GHS',
-    status: 'PENDING',
-    paymentStatus: 'UNPAID',
-    createdAt: paymentTransaction.createdAt
+    await tx.unpaidOrder.upsert({
+      where: { externalRef },
+      update: {
+        productId: productId ? parseInt(productId) : null,
+        productName: productName || null,
+        mobileNumber: formattedPhone,
+        customerEmail: email || null,
+        amount: parseFloat(amount),
+        currency: 'GHS',
+        status: 'PENDING',
+        paymentStatus: 'UNPAID',
+        paymentTransactionId: createdTransaction.id,
+        expiresAt: calculateUnpaidOrderExpiry(createdTransaction.createdAt)
+      },
+      create: {
+        externalRef,
+        productId: productId ? parseInt(productId) : null,
+        productName: productName || null,
+        mobileNumber: formattedPhone,
+        customerEmail: email || null,
+        amount: parseFloat(amount),
+        currency: 'GHS',
+        status: 'PENDING',
+        paymentStatus: 'UNPAID',
+        paymentTransactionId: createdTransaction.id,
+        expiresAt: calculateUnpaidOrderExpiry(createdTransaction.createdAt)
+      }
+    });
+
+    return createdTransaction;
   });
 
   try {
@@ -611,22 +630,27 @@ const verifyAndCreateOrder = async (reference, shopService) => {
 
     if (existingTransaction.productId && existingTransaction.mobileNumber) {
       try {
-        const order = await shopService.createShopOrder(
+        const orderResult = await createOrderIfNotExists(
+          reference,
           existingTransaction.productId,
-          existingTransaction.mobileNumber,
-          'Shop Customer'
+          existingTransaction.mobileNumber
         );
 
-        await linkTransactionToOrder(reference, order.id);
-        await markOrderCreationAttempted(existingTransaction.id, true);
-        console.log('[Payment Reconciliation] Order created:', order.id);
+        if (orderResult.created || orderResult.alreadyExists) {
+          const resolvedOrderId = orderResult.orderId;
+          await markOrderCreationAttempted(existingTransaction.id, true);
+          console.log('[Payment Reconciliation] Order created/linked:', resolvedOrderId);
 
-        return {
-          success: true,
-          message: 'Payment verified and order created',
-          orderId: order.id,
-          mobileNumber: existingTransaction.mobileNumber
-        };
+          return {
+            success: true,
+            message: orderResult.created ? 'Payment verified and order created' : 'Payment verified and order already existed',
+            orderId: resolvedOrderId,
+            mobileNumber: existingTransaction.mobileNumber
+          };
+        }
+
+        await markOrderCreationAttempted(existingTransaction.id, false, orderResult.error || 'Unknown order creation error');
+        return { success: false, error: orderResult.error || 'Order creation failed' };
       } catch (orderError) {
         console.error('[Payment Reconciliation] Order creation failed:', orderError);
         await markOrderCreationAttempted(existingTransaction.id, false, orderError.message);
@@ -657,6 +681,7 @@ module.exports = {
   verifyAndCreateOrder,
   createUnpaidOrderForTransaction,
   updateUnpaidOrderAfterVerification,
+  createOrderIfNotExists,
   generateStoreRef,
   generateBulkRef
 };
