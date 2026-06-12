@@ -277,8 +277,35 @@ const reconcileOrphanedPayments = async () => {
   }
 };
 
-setInterval(reconcileOrphanedPayments, 2 * 60 * 1000);
-setTimeout(reconcileOrphanedPayments, 30 * 1000);
+setInterval(reconcileOrphanedPayments, 60 * 1000);
+setTimeout(reconcileOrphanedPayments, 15 * 1000);
+
+// Auto-expire old pending unpaid orders (>24h) — run every 10 minutes
+const expireOldUnpaidOrders = async () => {
+  try {
+    const prisma = require('./config/db');
+    const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const result = await prisma.unpaidOrder.updateMany({
+      where: {
+        status: 'PENDING',
+        paymentStatus: 'UNPAID',
+        expiresAt: { lt: new Date() },
+        createdAt: { lt: twentyFourHoursAgo }
+      },
+      data: {
+        status: 'EXPIRED',
+        paymentStatus: 'EXPIRED'
+      }
+    });
+    if (result.count > 0) {
+      console.log(`[Auto-Expiry] Marked ${result.count} old pending unpaid orders as EXPIRED`);
+    }
+  } catch (error) {
+    console.error('[Auto-Expiry] Error:', error.message);
+  }
+};
+setInterval(expireOldUnpaidOrders, 10 * 60 * 1000);
+setTimeout(expireOldUnpaidOrders, 20 * 1000);
 
 // Auto-delete stale pending referral orders (>24h) — run hourly
 const storefrontService = require('./services/storefrontService');

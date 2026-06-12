@@ -104,19 +104,37 @@ const handleWebhook = async (req, res) => {
 
     if (result.success && result.productId && result.mobileNumber) {
       // Payment successful - create order atomically (prevents duplicates with verify endpoint)
-      try {
-        const orderResult = await createOrderIfNotExists(
-          result.externalRef,
-          result.productId,
-          result.mobileNumber
-        );
-        if (orderResult.created) {
-          console.log('[Webhook] Order created:', orderResult.orderId);
-        } else if (orderResult.alreadyExists) {
-          console.log('[Webhook] Order already exists:', orderResult.orderId);
+      // Retry up to 3 times to handle transient network failures
+      let orderResult = null;
+      let lastOrderError = null;
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        try {
+          orderResult = await createOrderIfNotExists(
+            result.externalRef,
+            result.productId,
+            result.mobileNumber
+          );
+          if (orderResult.created || orderResult.alreadyExists) {
+            console.log(`[Webhook] Order created (attempt ${attempt}):`, orderResult.orderId);
+            break;
+          }
+          // Order creation returned false without error - wait and retry
+          if (attempt < 3) {
+            await new Promise(resolve => setTimeout(resolve, 1500));
+          }
+        } catch (orderError) {
+          lastOrderError = orderError;
+          console.error(`[Webhook] Order creation attempt ${attempt} failed:`, orderError.message);
+          if (attempt < 3) {
+            await new Promise(resolve => setTimeout(resolve, 1500));
+          }
         }
-      } catch (orderError) {
-        console.error('[Webhook] Order creation error:', orderError.message);
+      }
+
+      if (!orderResult && lastOrderError) {
+        console.error('[Webhook] All order creation attempts failed:', lastOrderError.message);
+      } else if (orderResult && !orderResult.created && !orderResult.alreadyExists) {
+        console.error('[Webhook] Order creation failed permanently:', orderResult.error || 'Unknown error');
       }
     }
 
@@ -342,18 +360,36 @@ const getUnpaidOrders = async (req, res) => {
       where.mobileNumber = { contains: mobileNumber };
     }
 
-    const [orders, total] = await Promise.all([
-      prisma.unpaidOrder.findMany({
-        where,
-        include: {
-          paymentTransaction: true
-        },
-        orderBy: { createdAt: 'desc' },
-        skip,
-        take: limit
-      }),
-      prisma.unpaidOrder.count({ where })
-    ]);
+    let orders = [];
+    let total = 0;
+
+    try {
+      // Primary query with paymentTransaction include
+      [orders, total] = await Promise.all([
+        prisma.unpaidOrder.findMany({
+          where,
+          include: {
+            paymentTransaction: true
+          },
+          orderBy: { createdAt: 'desc' },
+          skip,
+          take: limit
+        }),
+        prisma.unpaidOrder.count({ where })
+      ]);
+    } catch (primaryError) {
+      console.warn('[GetUnpaidOrders] Primary query with include failed, falling back:', primaryError.message);
+      // Fallback: query without relation include so admin can still see the list
+      [orders, total] = await Promise.all([
+        prisma.unpaidOrder.findMany({
+          where,
+          orderBy: { createdAt: 'desc' },
+          skip,
+          take: limit
+        }),
+        prisma.unpaidOrder.count({ where })
+      ]);
+    }
 
     res.json({
       success: true,
@@ -376,12 +412,31 @@ const getUnpaidOrders = async (req, res) => {
 
 const getUnpaidOrderStats = async (req, res) => {
   try {
-    const [pending, paidAwaitingProcessing, failed, expired] = await Promise.all([
-      prisma.unpaidOrder.count({ where: { status: 'PENDING', paymentStatus: 'UNPAID' } }),
-      prisma.unpaidOrder.count({ where: { status: 'PAID', paymentStatus: 'PAID', paymentTransaction: { orderId: null } } }),
-      prisma.unpaidOrder.count({ where: { status: 'FAILED' } }),
-      prisma.unpaidOrder.count({ where: { status: 'EXPIRED' } })
-    ]);
+    let pending = 0;
+    let paidAwaitingProcessing = 0;
+    let failed = 0;
+    let expired = 0;
+    let reconciled = 0;
+
+    try {
+      [pending, paidAwaitingProcessing, failed, expired, reconciled] = await Promise.all([
+        prisma.unpaidOrder.count({ where: { status: 'PENDING', paymentStatus: 'UNPAID' } }),
+        prisma.unpaidOrder.count({ where: { status: 'PAID', paymentStatus: 'PAID', paymentTransaction: { orderId: null } } }),
+        prisma.unpaidOrder.count({ where: { status: 'FAILED' } }),
+        prisma.unpaidOrder.count({ where: { status: 'EXPIRED' } }),
+        prisma.unpaidOrder.count({ where: { status: { in: ['RECONCILED', 'COMPLETED'] } } })
+      ]);
+    } catch (primaryError) {
+      console.warn('[GetUnpaidOrderStats] Primary query failed, falling back:', primaryError.message);
+      // Fallback without relation filter
+      [pending, paidAwaitingProcessing, failed, expired, reconciled] = await Promise.all([
+        prisma.unpaidOrder.count({ where: { status: 'PENDING', paymentStatus: 'UNPAID' } }),
+        prisma.unpaidOrder.count({ where: { status: 'PAID', paymentStatus: 'PAID' } }),
+        prisma.unpaidOrder.count({ where: { status: 'FAILED' } }),
+        prisma.unpaidOrder.count({ where: { status: 'EXPIRED' } }),
+        prisma.unpaidOrder.count({ where: { status: { in: ['RECONCILED', 'COMPLETED'] } } })
+      ]);
+    }
 
     res.json({
       success: true,
@@ -390,7 +445,8 @@ const getUnpaidOrderStats = async (req, res) => {
         paidAwaitingProcessing,
         failed,
         expired,
-        total: pending + paidAwaitingProcessing + failed + expired
+        reconciled,
+        total: pending + paidAwaitingProcessing + failed + expired + reconciled
       }
     });
   } catch (error) {
@@ -413,10 +469,18 @@ const reconcileSingleUnpaidOrder = async (req, res) => {
       });
     }
 
-    const unpaidOrder = await prisma.unpaidOrder.findUnique({
-      where: { id: unpaidOrderId },
-      include: { paymentTransaction: true }
-    });
+    let unpaidOrder = null;
+    try {
+      unpaidOrder = await prisma.unpaidOrder.findUnique({
+        where: { id: unpaidOrderId },
+        include: { paymentTransaction: true }
+      });
+    } catch (includeError) {
+      console.warn('[ReconcileSingle] Include query failed, falling back:', includeError.message);
+      unpaidOrder = await prisma.unpaidOrder.findUnique({
+        where: { id: unpaidOrderId }
+      });
+    }
 
     if (!unpaidOrder) {
       return res.status(404).json({

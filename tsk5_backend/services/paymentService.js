@@ -549,21 +549,34 @@ const linkTransactionToOrder = async (externalRef, orderId) => {
 // Get all successful payments that don't have orders (for reconciliation)
 // Excludes payments that already failed order creation (permanent failures like product unavailable)
 const getOrphanedSuccessfulPayments = async () => {
-  return await prisma.unpaidOrder.findMany({
-    where: {
-      status: 'PAID',
-      paymentStatus: 'PAID',
-      paymentTransaction: {
-        orderId: null,
-        productId: { not: null }
-      }
-    },
-    include: {
-      paymentTransaction: true
-    },
-    orderBy: { createdAt: 'desc' },
-    take: 50
-  });
+  try {
+    return await prisma.unpaidOrder.findMany({
+      where: {
+        status: 'PAID',
+        paymentStatus: 'PAID',
+        paymentTransaction: {
+          orderId: null,
+          productId: { not: null }
+        }
+      },
+      include: {
+        paymentTransaction: true
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 50
+    });
+  } catch (error) {
+    console.warn('[getOrphanedSuccessfulPayments] Relation query failed, falling back:', error.message);
+    // Fallback: return PAID orders without relation filter
+    return await prisma.unpaidOrder.findMany({
+      where: {
+        status: 'PAID',
+        paymentStatus: 'PAID'
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 50
+    });
+  }
 };
 
 // Get transactions that may have been paid but never confirmed in our DB.
@@ -574,23 +587,37 @@ const getStuckPendingPayments = async () => {
   const threeMinutesAgo = new Date(Date.now() - 3 * 60 * 1000);
   const threeDaysAgo = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000);
 
-  return await prisma.unpaidOrder.findMany({
-    where: {
-      status: 'PENDING',
-      paymentStatus: 'UNPAID',
-      createdAt: { lte: threeMinutesAgo, gte: threeDaysAgo },
-      paymentTransaction: {
-        orderId: null,
-        productId: { not: null },
-        status: { in: ['PENDING', 'INITIALIZED', 'SUCCESS'] }
-      }
-    },
-    include: {
-      paymentTransaction: true
-    },
-    orderBy: { createdAt: 'desc' },
-    take: 50
-  });
+  try {
+    return await prisma.unpaidOrder.findMany({
+      where: {
+        status: 'PENDING',
+        paymentStatus: 'UNPAID',
+        createdAt: { lte: threeMinutesAgo, gte: threeDaysAgo },
+        paymentTransaction: {
+          orderId: null,
+          productId: { not: null },
+          status: { in: ['PENDING', 'INITIALIZED', 'SUCCESS'] }
+        }
+      },
+      include: {
+        paymentTransaction: true
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 50
+    });
+  } catch (error) {
+    console.warn('[getStuckPendingPayments] Relation query failed, falling back:', error.message);
+    // Fallback: return PENDING orders without relation filter
+    return await prisma.unpaidOrder.findMany({
+      where: {
+        status: 'PENDING',
+        paymentStatus: 'UNPAID',
+        createdAt: { lte: threeMinutesAgo, gte: threeDaysAgo }
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 50
+    });
+  }
 };
 
 // Mark transaction as having order creation attempted

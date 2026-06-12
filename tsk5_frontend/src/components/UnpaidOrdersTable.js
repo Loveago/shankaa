@@ -82,6 +82,7 @@ const UnpaidOrdersTable = ({
   const [isLoading, setIsLoading] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [reconcilingId, setReconcilingId] = useState(null);
+  const [error, setError] = useState(null);
   const [filters, setFilters] = useState({
     search: '',
     status: '',
@@ -113,6 +114,7 @@ const UnpaidOrdersTable = ({
 
   const fetchOrders = async (background = false) => {
     try {
+      setError(null);
       if (background) setIsRefreshing(true);
       else setIsLoading(true);
 
@@ -124,6 +126,7 @@ const UnpaidOrdersTable = ({
       setOrders(Array.isArray(payload) ? payload : []);
     } catch (error) {
       console.error('Error fetching unpaid orders:', error);
+      setError(error.response?.data?.message || 'Failed to load unpaid orders. Please refresh or check your connection.');
       setOrders([]);
     } finally {
       setIsLoading(false);
@@ -339,7 +342,22 @@ const UnpaidOrdersTable = ({
         </div>
 
         <div className="p-4 sm:p-6">
-          {isLoading ? (
+          {error ? (
+            <div className="text-center py-12 px-4">
+              <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-red-500/10 flex items-center justify-center">
+                <AlertTriangle className="w-8 h-8 text-red-400" />
+              </div>
+              <h3 className="text-white text-lg font-semibold mb-2">Failed to load unpaid orders</h3>
+              <p className="text-dark-400 text-sm max-w-md mx-auto mb-4">{error}</p>
+              <button
+                onClick={() => { fetchOrders(true); fetchStats(); }}
+                className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-sm font-medium inline-flex items-center gap-2"
+              >
+                <RefreshCw className="w-4 h-4" />
+                <span>Retry</span>
+              </button>
+            </div>
+          ) : isLoading ? (
             <div className="flex items-center justify-center py-16">
               <Loader2 className="w-8 h-8 animate-spin text-amber-500" />
             </div>
