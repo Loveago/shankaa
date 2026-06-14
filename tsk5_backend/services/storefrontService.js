@@ -362,6 +362,7 @@ const initializeReferralPayment = async (slug, storefrontProductId, customerName
       currency: 'GHS',
       status: 'INITIALIZED',
       paymentMethod: 'paystack',
+      channel: 'storefront',
       email: `${formattedPhone}@tsk5.com`,
       mobileNumber: formattedPhone
     }
