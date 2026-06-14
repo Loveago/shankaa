@@ -8,8 +8,10 @@ const { createOrderIfNotExists } = paymentService;
 const initializePayment = async (req, res) => {
   try {
     const { email, mobileNumber, amount, productId, productName } = req.body;
+    console.log('[Controller] initializePayment called with:', { email, mobileNumber, amount, productId, productName });
 
     if (!mobileNumber || !amount) {
+      console.log('[Controller] Missing required fields');
       return res.status(400).json({
         success: false,
         message: 'Mobile number and amount are required'
@@ -18,24 +20,31 @@ const initializePayment = async (req, res) => {
 
     // Check product availability before initializing payment
     if (productId) {
+      console.log('[Controller] Checking product availability for ID:', productId);
       const product = await prisma.product.findUnique({ where: { id: parseInt(productId) } });
       if (!product) {
+        console.log('[Controller] Product not found');
         return res.status(400).json({ success: false, message: 'Product not found' });
       }
       if (product.stock <= 0) {
+        console.log('[Controller] Product out of stock');
         return res.status(400).json({ success: false, message: 'Product is out of stock' });
       }
       if (product.shopStockClosed) {
+        console.log('[Controller] Product shop closed');
         return res.status(400).json({ success: false, message: 'Product is currently unavailable for purchase' });
       }
       if (!product.showInShop) {
+        console.log('[Controller] Product not shown in shop');
         return res.status(400).json({ success: false, message: 'Product is not available in shop' });
       }
+      console.log('[Controller] Product check passed');
     }
 
     // Build callback URL
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
     const callbackUrl = `${frontendUrl}/shop?payment=callback`;
+    console.log('[Controller] Calling paymentService.initializePayment');
 
     const result = await paymentService.initializePayment(
       email,
@@ -46,7 +55,10 @@ const initializePayment = async (req, res) => {
       callbackUrl
     );
 
+    console.log('[Controller] initializePayment result:', { success: result.success, externalRef: result.externalRef, error: result.error });
+
     if (result.success) {
+      console.log('[Controller] Returning success response');
       res.json({
         success: true,
         message: 'Payment initialized',
@@ -57,6 +69,7 @@ const initializePayment = async (req, res) => {
         reference: result.reference
       });
     } else {
+      console.log('[Controller] Returning error response:', result.error);
       res.status(400).json({
         success: false,
         message: result.error || 'Failed to initialize payment',
@@ -65,7 +78,7 @@ const initializePayment = async (req, res) => {
       });
     }
   } catch (error) {
-    console.error('Payment initialization error:', error);
+    console.error('[Controller] Payment initialization error:', error);
     res.status(500).json({
       success: false,
       message: error.message || 'Internal server error'
