@@ -228,11 +228,13 @@ const startServer = async () => {
 
 startServer();
 
+const prisma = require('./config/db');
 const paymentService = require('./services/paymentService');
 const shopService = require('./services/shopService');
 
 const reconcileOrphanedPayments = async () => {
   try {
+    console.log('[Auto-Reconciliation] Running reconciliation check...');
     // Pass 1: payments already marked SUCCESS in our DB but missing an order
     // (webhook/verify confirmed payment but order creation failed afterwards).
     const orphanedPayments = await paymentService.getOrphanedSuccessfulPayments();
@@ -307,13 +309,13 @@ const reconcileOrphanedPayments = async () => {
   }
 };
 
+console.log('[Auto-Reconciliation] Scheduled: runs every 60 seconds, first run after 15 seconds');
 setInterval(reconcileOrphanedPayments, 60 * 1000);
 setTimeout(reconcileOrphanedPayments, 15 * 1000);
 
 // Auto-expire old pending unpaid orders (>24h) — run every 10 minutes
 const expireOldUnpaidOrders = async () => {
   try {
-    const prisma = require('./config/db');
     const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
     const result = await prisma.unpaidOrder.updateMany({
       where: {
