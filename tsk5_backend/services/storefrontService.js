@@ -353,6 +353,20 @@ const initializeReferralPayment = async (slug, storefrontProductId, customerName
     formattedPhone = '233' + formattedPhone;
   }
 
+  // Create payment transaction record
+  const paymentTransaction = await prisma.paymentTransaction.create({
+    data: {
+      externalRef: paymentRef,
+      reference: paymentRef,
+      amount: agentPrice,
+      currency: 'GHS',
+      status: 'INITIALIZED',
+      paymentMethod: 'paystack',
+      email: `${formattedPhone}@tsk5.com`,
+      mobileNumber: formattedPhone
+    }
+  });
+
   // Create unpaid order record (unified with shop orders)
   const unpaidOrder = await prisma.unpaidOrder.create({
     data: {
@@ -365,6 +379,7 @@ const initializeReferralPayment = async (slug, storefrontProductId, customerName
       currency: 'GHS',
       status: 'PENDING',
       paymentStatus: 'UNPAID',
+      paymentTransactionId: paymentTransaction.id,
       expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000)
     }
   });
@@ -438,8 +453,12 @@ const initializeReferralPayment = async (slug, storefrontProductId, customerName
       throw new Error('Failed to initialize payment');
     }
   } catch (error) {
-    // Update both order records on failure
+    // Update all order records on failure
     await Promise.all([
+      prisma.paymentTransaction.update({
+        where: { id: paymentTransaction.id },
+        data: { status: 'FAILED' }
+      }),
       prisma.referralOrder.update({
         where: { id: referralOrder.id },
         data: { paymentStatus: 'Failed' }
