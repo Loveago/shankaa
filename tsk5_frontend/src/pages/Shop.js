@@ -200,6 +200,7 @@ const Shop = () => {
 
     try {
       const response = await axios.post(`${BASE_URL}/api/payment/initialize`, {
+        email: `${mobileNumber}@shankaa.com`,
         mobileNumber,
         amount: (selectedProduct.usePromoPrice && selectedProduct.promoPrice != null) ? selectedProduct.promoPrice : selectedProduct.price,
         productId: selectedProduct.id,

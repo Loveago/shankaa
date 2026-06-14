@@ -66,6 +66,7 @@ const PaymentModal = ({ isOpen, onClose, product, onSuccess }) => {
 
     try {
       const response = await axios.post(`${BASE_URL}/api/payment/initialize`, {
+        email: `${mobileNumber}@shankaa.com`,
         mobileNumber,
         amount: product.price,
         productId: product.id,
