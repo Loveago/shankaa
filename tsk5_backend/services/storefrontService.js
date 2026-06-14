@@ -353,7 +353,23 @@ const initializeReferralPayment = async (slug, storefrontProductId, customerName
     formattedPhone = '233' + formattedPhone;
   }
 
-  // Create referral order record
+  // Create unpaid order record (unified with shop orders)
+  const unpaidOrder = await prisma.unpaidOrder.create({
+    data: {
+      externalRef: paymentRef,
+      productId: storefrontProduct.product.id,
+      productName: storefrontProduct.product.name,
+      mobileNumber: formattedPhone,
+      customerEmail: `${formattedPhone}@tsk5.com`,
+      amount: agentPrice,
+      currency: 'GHS',
+      status: 'PENDING',
+      paymentStatus: 'UNPAID',
+      expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000)
+    }
+  });
+
+  // Also create referral order for agent commission tracking
   const referralOrder = await prisma.referralOrder.create({
     data: {
       agentId: agent.id,
@@ -391,6 +407,7 @@ const initializeReferralPayment = async (slug, storefrontProductId, customerName
         metadata: {
           type: 'referral_order',
           referralOrderId: referralOrder.id,
+          unpaidOrderId: unpaidOrder.id,
           agentId: agent.id,
           agentName: agent.name,
           productId: storefrontProduct.product.id,
@@ -414,17 +431,24 @@ const initializeReferralPayment = async (slug, storefrontProductId, customerName
         success: true,
         paymentUrl: response.data.data.authorization_url,
         reference: paymentRef,
-        referralOrderId: referralOrder.id
+        referralOrderId: referralOrder.id,
+        unpaidOrderId: unpaidOrder.id
       };
     } else {
       throw new Error('Failed to initialize payment');
     }
   } catch (error) {
-    // Update referral order status
-    await prisma.referralOrder.update({
-      where: { id: referralOrder.id },
-      data: { paymentStatus: 'Failed' }
-    });
+    // Update both order records on failure
+    await Promise.all([
+      prisma.referralOrder.update({
+        where: { id: referralOrder.id },
+        data: { paymentStatus: 'Failed' }
+      }),
+      prisma.unpaidOrder.update({
+        where: { id: unpaidOrder.id },
+        data: { status: 'FAILED', paymentStatus: 'FAILED' }
+      })
+    ]);
     throw error;
   }
 };
