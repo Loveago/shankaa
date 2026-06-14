@@ -112,6 +112,13 @@ const generateBulkRef = () => {
   return `BULK-${timestamp}-${random}`;
 };
 
+// Generate a unique order number
+const generateOrderNumber = () => {
+  const timestamp = Date.now();
+  const random = Math.random().toString(36).substring(2, 8).toUpperCase();
+  return `ORD-${timestamp}-${random}`;
+};
+
 // Create a real Order only if the payment has been verified by Paystack.
 // Atomic guard: checks transaction exists, no order linked yet, product available.
 const createOrderIfNotExists = async (externalRef, productId, mobileNumber) => {
@@ -130,12 +137,13 @@ const createOrderIfNotExists = async (externalRef, productId, mobileNumber) => {
     if (!product) return { created: false, error: 'Product not found' };
     if (product.shopStockClosed) return { created: false, error: 'Product is currently closed for purchases' };
     if (!product.showInShop) return { created: false, error: 'Product is not available in shop' };
+    const orderNumber = generateOrderNumber();
     const order = await tx.order.create({
       data: {
         userId: shopUser.id,
         mobileNumber,
         status: 'Pending',
-        orderNumber: externalRef,
+        orderNumber,
         items: {
           create: [{
             productId,
