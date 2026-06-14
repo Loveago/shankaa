@@ -360,10 +360,10 @@ const initializeReferralPayment = async (slug, storefrontProductId, customerName
       amount: agentPrice,
       currency: 'GHS',
       status: 'INITIALIZED',
-      paymentMethod: 'paystack',
       channel: 'storefront',
-      email: `${formattedPhone}@tsk5.com`,
-      mobileNumber: formattedPhone
+      mobileNumber: formattedPhone,
+      productId: storefrontProduct.product.id,
+      productName: storefrontProduct.product.name
     }
   });
 
