@@ -492,6 +492,21 @@ const PublicStorefront = () => {
         </div>
       </nav>
 
+      {/* Payment Notice Banner */}
+      <div className="bg-gradient-to-r from-amber-500/10 to-orange-500/10 border-b border-amber-500/20 backdrop-blur">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 sm:py-4">
+          <div className="flex items-start gap-3">
+            <Icons.AlertTriangle className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
+            <div className="flex-1 min-w-0">
+              <p className="text-amber-300 text-sm sm:text-base font-semibold">⚠️ Important Notice</p>
+              <p className="text-amber-200/80 text-xs sm:text-sm mt-1">
+                If you experience any issues after payment, please wait 5 minutes and then check your order status using the mobile number you provided. Click "Track Order" at the top right to check.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Main Content */}
       <main id="products-section" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-12">
         {/* Filter Section */}
