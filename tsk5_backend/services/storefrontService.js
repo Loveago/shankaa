@@ -456,19 +456,20 @@ const initializeReferralPayment = async (slug, storefrontProductId, customerName
     console.error('[Storefront Payment] Initialization failed:', error.message);
     console.error('[Storefront Payment] Error details:', error.response?.data || error);
     
-    // Update all order records on failure
+    // Keep orders as PENDING so auto-reconciliation can retry later
+    // Don't mark as FAILED - the user hasn't had a chance to pay yet
     await Promise.all([
       prisma.paymentTransaction.update({
         where: { id: paymentTransaction.id },
-        data: { status: 'FAILED' }
+        data: { status: 'PENDING' }
       }),
       prisma.referralOrder.update({
         where: { id: referralOrder.id },
-        data: { paymentStatus: 'Failed' }
+        data: { paymentStatus: 'Pending' }
       }),
       prisma.unpaidOrder.update({
         where: { id: unpaidOrder.id },
-        data: { status: 'FAILED', paymentStatus: 'FAILED' }
+        data: { status: 'PENDING', paymentStatus: 'UNPAID' }
       })
     ]);
     throw error;

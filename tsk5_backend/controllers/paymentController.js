@@ -603,6 +603,89 @@ const reconcilePayments = async (req, res) => {
   }
 };
 
+// Reconcile ALL unpaid orders including FAILED ones
+const reconcileAllUnpaidOrders = async (req, res) => {
+  try {
+    console.log('[Reconcile All] Starting bulk reconciliation of all unpaid orders...');
+
+    // Get ALL unpaid orders regardless of status
+    const unpaidOrders = await prisma.unpaidOrder.findMany({
+      where: {
+        externalRef: { not: '' }
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 100
+    });
+
+    console.log(`[Reconcile All] Found ${unpaidOrders.length} unpaid orders to check`);
+
+    const results = {
+      total: unpaidOrders.length,
+      processed: 0,
+      ordersCreated: 0,
+      alreadyExisted: 0,
+      failed: 0,
+      errors: 0,
+      details: []
+    };
+
+    for (const order of unpaidOrders) {
+      try {
+        const result = await paymentService.verifyAndCreateOrder(order.externalRef, shopService);
+        results.processed++;
+
+        if (result.success && result.orderId) {
+          results.ordersCreated++;
+          results.details.push({
+            reference: order.externalRef,
+            status: 'success',
+            orderId: result.orderId,
+            previousStatus: order.status
+          });
+        } else if (result.success && result.alreadyExists) {
+          results.alreadyExisted++;
+          results.details.push({
+            reference: order.externalRef,
+            status: 'already_exists',
+            orderId: result.orderId,
+            previousStatus: order.status
+          });
+        } else {
+          results.failed++;
+          results.details.push({
+            reference: order.externalRef,
+            status: 'failed',
+            error: result.error,
+            previousStatus: order.status
+          });
+        }
+      } catch (error) {
+        results.errors++;
+        results.details.push({
+          reference: order.externalRef,
+          status: 'error',
+          error: error.message,
+          previousStatus: order.status
+        });
+      }
+    }
+
+    console.log('[Reconcile All] Complete:', results);
+
+    res.json({
+      success: true,
+      message: `Bulk reconciliation complete. Created ${results.ordersCreated} new orders, ${results.alreadyExisted} already existed, ${results.failed} failed, ${results.errors} errors.`,
+      ...results
+    });
+  } catch (error) {
+    console.error('[Reconcile All] Error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Bulk reconciliation failed'
+    });
+  }
+};
+
 // Get orphaned payments (successful payments without orders)
 const getOrphanedPayments = async (req, res) => {
   try {
@@ -630,6 +713,7 @@ module.exports = {
   getUnpaidOrders,
   getUnpaidOrderStats,
   reconcileSingleUnpaidOrder,
+  reconcileAllUnpaidOrders,
   reconcilePayments,
   getOrphanedPayments
 };

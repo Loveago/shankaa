@@ -30,6 +30,7 @@ router.get('/transactions', authMiddleware, adminMiddleware, paymentController.g
 router.get('/unpaid-orders', authMiddleware, adminMiddleware, paymentController.getUnpaidOrders);
 router.get('/unpaid-orders/stats', authMiddleware, adminMiddleware, paymentController.getUnpaidOrderStats);
 router.post('/unpaid-orders/:id/reconcile', authMiddleware, adminMiddleware, paymentController.reconcileSingleUnpaidOrder);
+router.post('/unpaid-orders/reconcile-all', authMiddleware, adminMiddleware, paymentController.reconcileAllUnpaidOrders);
 router.get('/orphaned', authMiddleware, adminMiddleware, paymentController.getOrphanedPayments);
 router.post('/reconcile', authMiddleware, adminMiddleware, paymentController.reconcilePayments);
 

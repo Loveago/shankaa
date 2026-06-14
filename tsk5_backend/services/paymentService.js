@@ -112,13 +112,6 @@ const generateBulkRef = () => {
   return `BULK-${timestamp}-${random}`;
 };
 
-// Generate a unique order number
-const generateOrderNumber = () => {
-  const timestamp = Date.now();
-  const random = Math.random().toString(36).substring(2, 8).toUpperCase();
-  return `ORD-${timestamp}-${random}`;
-};
-
 // Create a real Order only if the payment has been verified by Paystack.
 // Atomic guard: checks transaction exists, no order linked yet, product available.
 const createOrderIfNotExists = async (externalRef, productId, mobileNumber) => {
@@ -130,6 +123,18 @@ const createOrderIfNotExists = async (externalRef, productId, mobileNumber) => {
       const existingOrder = await tx.order.findUnique({ where: { id: transaction.orderId } });
       return { created: false, alreadyExists: true, orderId: transaction.orderId, order: existingOrder };
     }
+    
+    // Check if order with this externalRef already exists (avoid duplicate orderNumber)
+    const existingByRef = await tx.order.findUnique({ where: { orderNumber: externalRef } });
+    if (existingByRef) {
+      // Link the transaction to the existing order
+      await tx.paymentTransaction.update({
+        where: { externalRef },
+        data: { orderId: existingByRef.id }
+      });
+      return { created: false, alreadyExists: true, orderId: existingByRef.id, order: existingByRef };
+    }
+    
     const product = await tx.product.findUnique({
       where: { id: productId },
       include: { rolePrices: { select: { role: true, price: true } } },
@@ -137,13 +142,13 @@ const createOrderIfNotExists = async (externalRef, productId, mobileNumber) => {
     if (!product) return { created: false, error: 'Product not found' };
     if (product.shopStockClosed) return { created: false, error: 'Product is currently closed for purchases' };
     if (!product.showInShop) return { created: false, error: 'Product is not available in shop' };
-    const orderNumber = generateOrderNumber();
+    
     const order = await tx.order.create({
       data: {
         userId: shopUser.id,
         mobileNumber,
         status: 'Pending',
-        orderNumber,
+        orderNumber: externalRef,
         items: {
           create: [{
             productId,
@@ -674,17 +679,26 @@ const verifyAndCreateOrder = async (reference, shopService) => {
     const paymentData = response.data.data;
     const paystackStatus = paymentData?.status;
     const isSuccess = paystackStatus === 'success';
-    const isFailed = paystackStatus === 'failed' || paystackStatus === 'abandoned';
+    // Only mark as FAILED if Paystack explicitly says 'failed'
+    // 'abandoned' means user left the page - they might come back, so keep as PENDING
+    const isFailed = paystackStatus === 'failed';
+    const isAbandoned = paystackStatus === 'abandoned';
 
     if (!isSuccess) {
+      // If abandoned, don't change status - user might still pay
+      // Only mark as FAILED if Paystack explicitly says failed
+      const newTransactionStatus = isFailed ? 'FAILED' : (isAbandoned ? existingTransaction.status : existingTransaction.status);
+      const newUnpaidStatus = isFailed ? 'FAILED' : (isAbandoned ? 'PENDING' : 'PENDING');
+      const newPaymentStatus = isFailed ? 'FAILED' : (isAbandoned ? 'UNPAID' : 'UNPAID');
+
       await prisma.paymentTransaction.update({
         where: { id: existingTransaction.id },
-        data: { status: isFailed ? 'FAILED' : existingTransaction.status }
+        data: { status: newTransactionStatus }
       });
 
       await updateUnpaidOrderAfterVerification(reference, {
-        status: isFailed ? 'FAILED' : 'PENDING',
-        paymentStatus: isFailed ? 'FAILED' : 'UNPAID',
+        status: newUnpaidStatus,
+        paymentStatus: newPaymentStatus,
         paystackRef: paymentData?.reference || existingTransaction.moolreSessionId,
         incrementAttempts: true,
         lastAttemptAt: new Date()

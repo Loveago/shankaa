@@ -82,6 +82,7 @@ const UnpaidOrdersTable = ({
   const [isLoading, setIsLoading] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [reconcilingId, setReconcilingId] = useState(null);
+  const [isReconcilingAll, setIsReconcilingAll] = useState(false);
   const [error, setError] = useState(null);
   const [filters, setFilters] = useState({
     search: '',
@@ -217,6 +218,55 @@ const UnpaidOrdersTable = ({
     }
   };
 
+  const handleReconcileAll = async () => {
+    const confirm = await Swal.fire({
+      title: 'Reconcile ALL unpaid orders?',
+      text: 'This will check all unpaid orders (including FAILED) with Paystack and create real orders for any that were actually paid. This may take a moment.',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#06b6d4',
+      background: '#1e293b',
+      color: '#f1f5f9'
+    });
+
+    if (!confirm.isConfirmed) return;
+
+    try {
+      setIsReconcilingAll(true);
+      const response = await axios.post(`${BASE_URL}/api/payment/unpaid-orders/reconcile-all`, {}, {
+        headers: getAuthHeaders()
+      });
+
+      const result = response.data;
+      Swal.fire({
+        icon: 'success',
+        title: 'Bulk reconciliation complete',
+        html: `<div style="text-align:left">
+          <p>Created: <b>${result.ordersCreated}</b> new orders</p>
+          <p>Already existed: <b>${result.alreadyExisted}</b></p>
+          <p>Failed: <b>${result.failed}</b></p>
+          <p>Errors: <b>${result.errors}</b></p>
+          <p>Total checked: <b>${result.total}</b></p>
+        </div>`,
+        background: '#1e293b',
+        color: '#f1f5f9',
+        confirmButtonColor: '#06b6d4'
+      });
+
+      await Promise.all([fetchOrders(true), fetchStats()]);
+    } catch (error) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Bulk reconciliation failed',
+        text: error.response?.data?.message || 'Could not reconcile all unpaid orders.',
+        background: '#1e293b',
+        color: '#f1f5f9'
+      });
+    } finally {
+      setIsReconcilingAll(false);
+    }
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -243,6 +293,14 @@ const UnpaidOrdersTable = ({
             >
               <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
               <span>Refresh</span>
+            </button>
+            <button
+              onClick={handleReconcileAll}
+              disabled={isReconcilingAll || orders.length === 0}
+              className="px-4 py-2 bg-emerald-600/80 hover:bg-emerald-600 text-white rounded-xl flex items-center gap-2 text-sm font-medium disabled:opacity-50"
+            >
+              {isReconcilingAll ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+              <span>Reconcile All</span>
             </button>
             {onClose && (
               <button
