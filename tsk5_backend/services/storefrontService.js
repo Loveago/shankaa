@@ -374,7 +374,7 @@ const initializeReferralPayment = async (slug, storefrontProductId, customerName
       productId: storefrontProduct.product.id,
       productName: storefrontProduct.product.name,
       mobileNumber: formattedPhone,
-      customerEmail: `${formattedPhone}@tsk5.com`,
+      customerEmail: `guest@tsk5.com`,
       amount: agentPrice,
       currency: 'GHS',
       status: 'PENDING',
@@ -414,7 +414,7 @@ const initializeReferralPayment = async (slug, storefrontProductId, customerName
         'Content-Type': 'application/json'
       },
       data: {
-        email: `${formattedPhone}@tsk5.com`,
+        email: `guest@tsk5.com`,
         amount: amountInPesewas,
         currency: 'GHS',
         reference: paymentRef,
