@@ -453,6 +453,9 @@ const initializeReferralPayment = async (slug, storefrontProductId, customerName
       throw new Error('Failed to initialize payment');
     }
   } catch (error) {
+    console.error('[Storefront Payment] Initialization failed:', error.message);
+    console.error('[Storefront Payment] Error details:', error.response?.data || error);
+    
     // Update all order records on failure
     await Promise.all([
       prisma.paymentTransaction.update({
