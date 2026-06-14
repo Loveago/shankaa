@@ -312,14 +312,14 @@ const initializePayment = async (email, mobileNumber, amount, productId, product
       await prisma.paymentTransaction.update({
         where: { id: paymentTransaction.id },
         data: {
-          status: 'FAILED',
+          status: 'PENDING',
           moolreMessage: response.data.message || 'Failed to initialize payment'
         }
       });
 
       await updateUnpaidOrderAfterVerification(externalRef, {
-        status: 'FAILED',
-        paymentStatus: 'FAILED',
+        status: 'PENDING',
+        paymentStatus: 'UNPAID',
         lastAttemptAt: new Date()
       });
 
@@ -337,14 +337,14 @@ const initializePayment = async (email, mobileNumber, amount, productId, product
     await prisma.paymentTransaction.update({
       where: { id: paymentTransaction.id },
       data: {
-        status: 'FAILED',
+        status: 'PENDING',
         moolreMessage: error.response?.data?.message || error.message
       }
     });
 
     await updateUnpaidOrderAfterVerification(externalRef, {
-      status: 'FAILED',
-      paymentStatus: 'FAILED',
+      status: 'PENDING',
+      paymentStatus: 'UNPAID',
       lastAttemptAt: new Date()
     });
 
