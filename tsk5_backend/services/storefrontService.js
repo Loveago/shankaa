@@ -367,6 +367,9 @@ const initializeReferralPayment = async (slug, storefrontProductId, customerName
     }
   });
 
+  // Generate unique guest email per purchase
+  const uniqueGuestEmail = `guest+${Date.now()}-${Math.random().toString(36).substring(2, 8)}@tsk5.com`;
+
   // Create unpaid order record (unified with shop orders)
   const unpaidOrder = await prisma.unpaidOrder.create({
     data: {
@@ -374,7 +377,7 @@ const initializeReferralPayment = async (slug, storefrontProductId, customerName
       productId: storefrontProduct.product.id,
       productName: storefrontProduct.product.name,
       mobileNumber: formattedPhone,
-      customerEmail: `guest@tsk5.com`,
+      customerEmail: uniqueGuestEmail,
       amount: agentPrice,
       currency: 'GHS',
       status: 'PENDING',
@@ -414,7 +417,7 @@ const initializeReferralPayment = async (slug, storefrontProductId, customerName
         'Content-Type': 'application/json'
       },
       data: {
-        email: `guest@tsk5.com`,
+        email: uniqueGuestEmail,
         amount: amountInPesewas,
         currency: 'GHS',
         reference: paymentRef,
