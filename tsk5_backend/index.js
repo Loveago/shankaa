@@ -280,7 +280,7 @@ const reconcileOrphanedPayments = async () => {
       where: {
         status: 'PENDING',
         paymentStatus: 'UNPAID',
-        externalRef: { not: null }
+        externalRef: { not: '' }
       },
       orderBy: { createdAt: 'desc' },
       take: 50
