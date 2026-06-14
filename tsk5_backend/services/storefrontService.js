@@ -357,7 +357,6 @@ const initializeReferralPayment = async (slug, storefrontProductId, customerName
   const paymentTransaction = await prisma.paymentTransaction.create({
     data: {
       externalRef: paymentRef,
-      reference: paymentRef,
       amount: agentPrice,
       currency: 'GHS',
       status: 'INITIALIZED',
