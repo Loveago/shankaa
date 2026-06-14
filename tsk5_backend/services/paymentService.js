@@ -158,6 +158,7 @@ const createOrderIfNotExists = async (externalRef, productId, mobileNumber) => {
 // Initialize Paystack transaction and get payment URL
 const initializePayment = async (email, mobileNumber, amount, productId, productName, callbackUrl) => {
   const externalRef = generateStoreRef();
+  console.log('[Payment Initialize] Starting with ref:', externalRef, 'product:', productId, 'mobile:', mobileNumber);
   
   // Format phone number
   let formattedPhone = mobileNumber.replace(/\D/g, '');
@@ -166,6 +167,7 @@ const initializePayment = async (email, mobileNumber, amount, productId, product
   } else if (!formattedPhone.startsWith('233')) {
     formattedPhone = '233' + formattedPhone;
   }
+  console.log('[Payment Initialize] Formatted phone:', formattedPhone);
 
   // Create payment transaction + unpaid order together before redirecting to Paystack
   const paymentTransaction = await prisma.$transaction(async (tx) => {
@@ -182,7 +184,7 @@ const initializePayment = async (email, mobileNumber, amount, productId, product
       }
     });
 
-    await tx.unpaidOrder.upsert({
+    const unpaidOrder = await tx.unpaidOrder.upsert({
       where: { externalRef },
       update: {
         productId: productId ? parseInt(productId) : null,
@@ -211,6 +213,7 @@ const initializePayment = async (email, mobileNumber, amount, productId, product
       }
     });
 
+    console.log('[Payment Initialize] Created unpaid order:', unpaidOrder.id, 'ref:', externalRef);
     return createdTransaction;
   });
 

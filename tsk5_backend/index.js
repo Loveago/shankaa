@@ -272,6 +272,36 @@ const reconcileOrphanedPayments = async () => {
         }
       }
     }
+
+    // Pass 3: unpaid orders still in PENDING status — user clicked pay but payment
+    // verification never happened (webhook failed, fallback failed, or user never completed payment).
+    // Re-verify each unpaid order's payment with Paystack and create order if paid.
+    const pendingUnpaidOrders = await prisma.unpaidOrder.findMany({
+      where: {
+        status: 'PENDING',
+        paymentStatus: 'UNPAID',
+        externalRef: { not: null }
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 50
+    });
+
+    if (pendingUnpaidOrders.length > 0) {
+      console.log(`[Auto-Reconciliation] Found ${pendingUnpaidOrders.length} pending unpaid orders to check`);
+
+      for (const unpaidOrder of pendingUnpaidOrders) {
+        try {
+          const result = await paymentService.verifyAndCreateOrder(unpaidOrder.externalRef, shopService);
+          if (result.success && result.orderId) {
+            console.log(`[Auto-Reconciliation] Unpaid order ${unpaidOrder.externalRef} -> order ${result.orderId}`);
+          } else if (result.success) {
+            console.log(`[Auto-Reconciliation] Unpaid order ${unpaidOrder.externalRef} verified but no order created:`, result.message);
+          }
+        } catch (err) {
+          console.error(`[Auto-Reconciliation] Unpaid order check failed for ${unpaidOrder.externalRef}:`, err.message);
+        }
+      }
+    }
   } catch (error) {
     console.error('[Auto-Reconciliation] Error:', error.message);
   }
