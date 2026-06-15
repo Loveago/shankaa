@@ -153,12 +153,13 @@ const mapSkanka5Status = (skanka5Item) => {
   // This is the most reliable indicator of actual delivery status
   if (skanka5Item.api_status === 'success') return 'Completed';
   if (skanka5Item.api_status === 'failed') return 'Cancelled';
-  if (skanka5Item.api_status === 'pending') return 'Processing';
+  if (skanka5Item.api_status === 'pending') return 'Pending';
   
   // Fallback: check string status values (e.g., "PENDING", "PROCESSING", "DELIVERED")
   if (typeof skanka5Item.status === 'string') {
     const statusStr = skanka5Item.status.toUpperCase();
-    if (statusStr === 'PENDING' || statusStr === 'PROCESSING' || statusStr === 'ACCEPTED') return 'Processing';
+    if (statusStr === 'PENDING' || statusStr === 'ACCEPTED') return 'Pending';
+    if (statusStr === 'PROCESSING') return 'Processing';
     if (statusStr === 'DELIVERED' || statusStr === 'COMPLETED' || statusStr === 'SUCCESS') return 'Completed';
     if (statusStr === 'FAILED' || statusStr === 'CANCELLED') return 'Cancelled';
   }
@@ -178,8 +179,8 @@ const mapSkanka5Status = (skanka5Item) => {
     if (statusNum < 0) return 'Cancelled';
   }
   
-  // Default to Processing for accepted orders
-  return 'Processing';
+  // Default to Pending for accepted orders
+  return 'Pending';
 };
 
 // Process a list of order items through Skanka5
