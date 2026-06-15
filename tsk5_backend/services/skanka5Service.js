@@ -157,7 +157,7 @@ const mapSkanka5Status = (skanka5Item) => {
     const statusStr = skanka5Item.status.toUpperCase();
     if (statusStr === 'PENDING' || statusStr === 'ACCEPTED') return 'Pending';
     if (statusStr === 'PROCESSING') return 'Processing';
-    if (statusStr === 'DELIVERED' || statusStr === 'COMPLETED' || statusStr === 'SUCCESS') return 'Completed';
+    if (statusStr === 'PROCESSED' || statusStr === 'DELIVERED' || statusStr === 'COMPLETED' || statusStr === 'SUCCESS') return 'Completed';
     if (statusStr === 'FAILED' || statusStr === 'CANCELLED') return 'Cancelled';
   }
 
