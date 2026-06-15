@@ -216,6 +216,18 @@ const processOrderItems = async (orderItems) => {
   // (bulk endpoint requires minimum 5 recipients per API docs)
   for (const si of skanka5Items) {
     try {
+      // Atomic claim: set status to Processing only if skanka5Ref is still null.
+      // If another concurrent call already claimed this item, count will be 0 and we skip.
+      // This prevents duplicate submissions in race conditions (e.g. two reconciler ticks overlapping).
+      const claimed = await prisma.orderItem.updateMany({
+        where: { id: si.itemId, skanka5Ref: null },
+        data: { status: 'Processing' }
+      });
+      if (claimed.count === 0) {
+        console.log(`[Skanka5] Item ${si.itemId} already claimed or submitted by another process, skipping`);
+        continue;
+      }
+
       const response = await submitOrder(si.networkId, si.msisdn, si.volumeMb);
 
       if (response.success && response.reference) {
@@ -246,6 +258,12 @@ const processOrderItems = async (orderItems) => {
     } catch (error) {
       console.error(`[Skanka5] Failed item ${si.itemId}:`, error.message);
       results.errors.push({ itemId: si.itemId, error: error.message });
+      // Best-effort reset: put status back to Pending so the item can be retried
+      // Only reset if skanka5Ref is still null (submission didn't actually succeed)
+      await prisma.orderItem.updateMany({
+        where: { id: si.itemId, skanka5Ref: null },
+        data: { status: 'Pending' }
+      }).catch(resetErr => console.error(`[Skanka5] Failed to reset item ${si.itemId} status:`, resetErr.message));
     }
   }
 
@@ -283,7 +301,9 @@ const triggerProcessingById = async (orderId) => {
       console.error(`[Skanka5] triggerProcessingById: order ${orderId} not found`);
       return;
     }
-    const unprocessed = order.items.filter(item => !item.skanka5Ref);
+    const unprocessed = order.items.filter(
+      item => !item.skanka5Ref && item.status !== 'Processing' && item.status !== 'Completed' && item.status !== 'Cancelled'
+    );
     if (unprocessed.length === 0) {
       console.log(`[Skanka5] triggerProcessingById: all items for order ${orderId} already submitted`);
       return;
