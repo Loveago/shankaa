@@ -371,7 +371,10 @@ const pollPendingOrders = async () => {
 
           const newStatus = mapSkanka5Status(match);
           
-          // Log the raw values for debugging
+          // Log ALL raw fields from Skanka5 for debugging
+          console.log(
+            `[Skanka5 Poll] DEBUG Item ${item.id} FULL RESPONSE: ${JSON.stringify(match)}`
+          );
           console.log(
             `[Skanka5 Poll] DEBUG Item ${item.id}: api_status=${match.api_status}, status=${match.status} (type: ${typeof match.status}), mapped to: ${newStatus}`
           );
