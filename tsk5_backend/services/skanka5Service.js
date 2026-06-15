@@ -265,6 +265,36 @@ const triggerProcessing = async (order) => {
   }
 };
 
+// Trigger processing by order ID - fetches order fresh from DB, only submits
+// items that have NOT yet been sent to Skanka5 (skanka5Ref is null).
+// Covers reconciler cases where the order object is stale or items were not loaded.
+const triggerProcessingById = async (orderId) => {
+  try {
+    const enabled = await isAutoProcessingEnabled();
+    if (!enabled) {
+      console.log('[Skanka5] Auto-processing disabled, skipping triggerProcessingById');
+      return;
+    }
+    const order = await prisma.order.findUnique({
+      where: { id: orderId },
+      include: { items: true }
+    });
+    if (!order) {
+      console.error(`[Skanka5] triggerProcessingById: order ${orderId} not found`);
+      return;
+    }
+    const unprocessed = order.items.filter(item => !item.skanka5Ref);
+    if (unprocessed.length === 0) {
+      console.log(`[Skanka5] triggerProcessingById: all items for order ${orderId} already submitted`);
+      return;
+    }
+    console.log(`[Skanka5] triggerProcessingById: submitting ${unprocessed.length} unprocessed item(s) for order ${orderId}`);
+    await processOrderItems(unprocessed);
+  } catch (error) {
+    console.error('[Skanka5] triggerProcessingById error:', error.message);
+  }
+};
+
 // Background poller: check all pending Skanka5 orders and update statuses
 const pollPendingOrders = async () => {
   const startedAt = new Date().toISOString();
@@ -532,6 +562,7 @@ module.exports = {
   checkOrderStatus,
   processOrderItems,
   triggerProcessing,
+  triggerProcessingById,
   pollPendingOrders,
   processWebhook,
   isAutoProcessingEnabled,

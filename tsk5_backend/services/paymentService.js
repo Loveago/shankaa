@@ -661,6 +661,15 @@ const verifyAndCreateOrder = async (reference, shopService) => {
   }
 
   if (existingTransaction.orderId) {
+    // Order was already created — ensure skanka5 processed it (fire-and-forget)
+    try {
+      const skanka5Service = require('./skanka5Service');
+      skanka5Service.triggerProcessingById(existingTransaction.orderId).catch(err =>
+        console.error('[Skanka5] Re-trigger (existing orderId) error:', err.message)
+      );
+    } catch (e) {
+      console.error('[Skanka5] Re-trigger (existing orderId) load error:', e.message);
+    }
     return { success: true, message: 'Order already exists', orderId: existingTransaction.orderId };
   }
 
@@ -738,14 +747,15 @@ const verifyAndCreateOrder = async (reference, shopService) => {
           await markOrderCreationAttempted(existingTransaction.id, true);
           console.log('[Payment Reconciliation] Order created/linked:', resolvedOrderId);
 
-          // Trigger Skanka5 auto-processing for newly created orders (fire-and-forget)
-          if (orderResult.created && orderResult.order) {
-            try {
-              const skanka5Service = require('./skanka5Service');
-              skanka5Service.triggerProcessing(orderResult.order).catch(err =>
-                console.error('[Skanka5] Reconciliation trigger error:', err.message)
-              );
-            } catch (e) { /* non-blocking */ }
+          // Trigger Skanka5 for all resolved orders — created or already existing.
+          // triggerProcessingById fetches items fresh and only submits unprocessed ones.
+          try {
+            const skanka5Service = require('./skanka5Service');
+            skanka5Service.triggerProcessingById(resolvedOrderId).catch(err =>
+              console.error('[Skanka5] Reconciliation trigger error:', err.message)
+            );
+          } catch (e) {
+            console.error('[Skanka5] Reconciliation trigger load error:', e.message);
           }
 
           return {
