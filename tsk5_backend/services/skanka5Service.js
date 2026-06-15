@@ -156,10 +156,17 @@ const mapSkanka5Status = (skanka5Item) => {
   if (skanka5Item.api_status === 'pending') return 'Processing';
   
   // Check numeric status value
-  const statusNum = typeof skanka5Item.status === 'string' ? parseInt(skanka5Item.status) : skanka5Item.status;
-  if (statusNum === 0) return 'Processing';
-  if (statusNum > 0) return 'Completed';
-  if (statusNum < 0) return 'Cancelled';
+  let statusNum = null;
+  if (skanka5Item.status !== null && skanka5Item.status !== undefined) {
+    statusNum = typeof skanka5Item.status === 'string' ? parseInt(skanka5Item.status, 10) : skanka5Item.status;
+  }
+  
+  // Only process if we have a valid number
+  if (typeof statusNum === 'number' && !isNaN(statusNum)) {
+    if (statusNum === 0) return 'Processing';
+    if (statusNum > 0) return 'Completed';
+    if (statusNum < 0) return 'Cancelled';
+  }
   
   // Default to Processing for accepted orders
   return 'Processing';
@@ -360,6 +367,12 @@ const pollPendingOrders = async () => {
           }
 
           const newStatus = mapSkanka5Status(match);
+          
+          // Log the raw values for debugging
+          console.log(
+            `[Skanka5 Poll] DEBUG Item ${item.id}: api_status=${match.api_status}, status=${match.status} (type: ${typeof match.status}), mapped to: ${newStatus}`
+          );
+          
           await prisma.orderItem.update({
             where: { id: item.id },
             data: {
