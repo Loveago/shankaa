@@ -220,7 +220,7 @@ const processOrderItems = async (orderItems) => {
       // If another concurrent call already claimed this item, count will be 0 and we skip.
       // This prevents duplicate submissions in race conditions (e.g. two reconciler ticks overlapping).
       const claimed = await prisma.orderItem.updateMany({
-        where: { id: si.itemId, skanka5Ref: null },
+        where: { id: si.itemId, skanka5Ref: null, status: 'Pending' },
         data: { status: 'Processing' }
       });
       if (claimed.count === 0) {
@@ -258,10 +258,11 @@ const processOrderItems = async (orderItems) => {
     } catch (error) {
       console.error(`[Skanka5] Failed item ${si.itemId}:`, error.message);
       results.errors.push({ itemId: si.itemId, error: error.message });
-      // Best-effort reset: put status back to Pending so the item can be retried
-      // Only reset if skanka5Ref is still null (submission didn't actually succeed)
+      // Best-effort reset: put status back to Pending so the item can be retried.
+      // Only reset if skanka5Ref is still null AND status is still Processing
+      // (guards against accidentally clobbering a successful submission from another concurrent call).
       await prisma.orderItem.updateMany({
-        where: { id: si.itemId, skanka5Ref: null },
+        where: { id: si.itemId, skanka5Ref: null, status: 'Processing' },
         data: { status: 'Pending' }
       }).catch(resetErr => console.error(`[Skanka5] Failed to reset item ${si.itemId} status:`, resetErr.message));
     }
