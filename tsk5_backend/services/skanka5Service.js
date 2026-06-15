@@ -153,9 +153,14 @@ const mapSkanka5Status = (skanka5Item) => {
   // status: positive (>0) = delivered/completed, 0 = processing/pending, negative (<0) = failed
   if (skanka5Item.api_status === 'success') return 'Completed';
   if (skanka5Item.api_status === 'failed') return 'Cancelled';
-  if (skanka5Item.api_status === 'pending' || skanka5Item.status === 0) return 'Processing';
-  if (skanka5Item.status > 0) return 'Completed';
-  if (skanka5Item.status < 0) return 'Cancelled';
+  if (skanka5Item.api_status === 'pending') return 'Processing';
+  
+  // Check numeric status value
+  const statusNum = typeof skanka5Item.status === 'string' ? parseInt(skanka5Item.status) : skanka5Item.status;
+  if (statusNum === 0) return 'Processing';
+  if (statusNum > 0) return 'Completed';
+  if (statusNum < 0) return 'Cancelled';
+  
   // Default to Processing for accepted orders
   return 'Processing';
 };
