@@ -150,15 +150,25 @@ const checkOrderStatus = async (reference) => {
 // Map Skanka5 status to our OrderItem status
 const mapSkanka5Status = (skanka5Item) => {
   // api_status takes precedence: "success", "failed", "pending"
-  // status: positive (>0) = delivered/completed, 0 = processing/pending, negative (<0) = failed
+  // This is the most reliable indicator of actual delivery status
   if (skanka5Item.api_status === 'success') return 'Completed';
   if (skanka5Item.api_status === 'failed') return 'Cancelled';
   if (skanka5Item.api_status === 'pending') return 'Processing';
   
-  // Check numeric status value
+  // Fallback: check string status values (e.g., "PENDING", "PROCESSING", "DELIVERED")
+  if (typeof skanka5Item.status === 'string') {
+    const statusStr = skanka5Item.status.toUpperCase();
+    if (statusStr === 'PENDING' || statusStr === 'PROCESSING' || statusStr === 'ACCEPTED') return 'Processing';
+    if (statusStr === 'DELIVERED' || statusStr === 'COMPLETED' || statusStr === 'SUCCESS') return 'Completed';
+    if (statusStr === 'FAILED' || statusStr === 'CANCELLED') return 'Cancelled';
+  }
+  
+  // Fallback: check numeric status value
   let statusNum = null;
-  if (skanka5Item.status !== null && skanka5Item.status !== undefined) {
-    statusNum = typeof skanka5Item.status === 'string' ? parseInt(skanka5Item.status, 10) : skanka5Item.status;
+  if (skanka5Item.status !== null && skanka5Item.status !== undefined && typeof skanka5Item.status !== 'string') {
+    statusNum = skanka5Item.status;
+  } else if (typeof skanka5Item.status === 'string') {
+    statusNum = parseInt(skanka5Item.status, 10);
   }
   
   // Only process if we have a valid number
