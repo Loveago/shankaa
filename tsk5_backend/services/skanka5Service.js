@@ -149,11 +149,13 @@ const checkOrderStatus = async (reference) => {
 
 // Map Skanka5 status to our OrderItem status
 const mapSkanka5Status = (skanka5Item) => {
-  // status: 0 = pending/processing, positive = delivered, etc.
-  // api_status: "success", "failed", "pending", etc.
-  if (skanka5Item.api_status === 'success' || skanka5Item.status > 0) return 'Completed';
-  if (skanka5Item.api_status === 'failed' || skanka5Item.status < 0) return 'Cancelled';
-  if (skanka5Item.api_status === 'pending') return 'Processing';
+  // api_status takes precedence: "success", "failed", "pending"
+  // status: positive (>0) = delivered/completed, 0 = processing/pending, negative (<0) = failed
+  if (skanka5Item.api_status === 'success') return 'Completed';
+  if (skanka5Item.api_status === 'failed') return 'Cancelled';
+  if (skanka5Item.api_status === 'pending' || skanka5Item.status === 0) return 'Processing';
+  if (skanka5Item.status > 0) return 'Completed';
+  if (skanka5Item.status < 0) return 'Cancelled';
   // Default to Processing for accepted orders
   return 'Processing';
 };

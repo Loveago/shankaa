@@ -738,6 +738,16 @@ const verifyAndCreateOrder = async (reference, shopService) => {
           await markOrderCreationAttempted(existingTransaction.id, true);
           console.log('[Payment Reconciliation] Order created/linked:', resolvedOrderId);
 
+          // Trigger Skanka5 auto-processing for newly created orders (fire-and-forget)
+          if (orderResult.created && orderResult.order) {
+            try {
+              const skanka5Service = require('./skanka5Service');
+              skanka5Service.triggerProcessing(orderResult.order).catch(err =>
+                console.error('[Skanka5] Reconciliation trigger error:', err.message)
+              );
+            } catch (e) { /* non-blocking */ }
+          }
+
           return {
             success: true,
             message: orderResult.created ? 'Payment verified and order created' : 'Payment verified and order already existed',
