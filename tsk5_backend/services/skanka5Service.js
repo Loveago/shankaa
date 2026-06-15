@@ -281,7 +281,6 @@ const pollPendingOrders = async () => {
     const pendingItems = await prisma.orderItem.findMany({
       where: {
         skanka5Ref: { not: null },
-        skanka5Status: { notIn: ['success', 'failed', 'Completed', 'Cancelled'] },
         status: { in: ['Processing', 'Pending'] }
       },
       select: {
@@ -382,7 +381,7 @@ const pollPendingOrders = async () => {
           await prisma.orderItem.update({
             where: { id: item.id },
             data: {
-              skanka5Status: match.api_status || match.status?.toString() || 'unknown',
+              skanka5Status: match.status?.toString() || match.api_status || 'unknown',
               status: newStatus,
               skanka5OrderCode: item.skanka5OrderCode || match.order_code || null
             }
