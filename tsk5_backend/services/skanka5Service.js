@@ -148,14 +148,11 @@ const checkOrderStatus = async (reference) => {
 };
 
 // Map Skanka5 status to our OrderItem status
+// The `status` field is the real-time delivery state and is used as primary indicator.
+// `api_status` only means the API call was accepted — NOT that data was delivered, so
+// it is used only as a last-resort fallback when `status` is absent.
 const mapSkanka5Status = (skanka5Item) => {
-  // api_status takes precedence: "success", "failed", "pending"
-  // This is the most reliable indicator of actual delivery status
-  if (skanka5Item.api_status === 'success') return 'Completed';
-  if (skanka5Item.api_status === 'failed') return 'Cancelled';
-  if (skanka5Item.api_status === 'pending') return 'Pending';
-  
-  // Fallback: check string status values (e.g., "PENDING", "PROCESSING", "DELIVERED")
+  // Primary: use the `status` string field (real-time delivery state)
   if (typeof skanka5Item.status === 'string') {
     const statusStr = skanka5Item.status.toUpperCase();
     if (statusStr === 'PENDING' || statusStr === 'ACCEPTED') return 'Pending';
@@ -163,23 +160,18 @@ const mapSkanka5Status = (skanka5Item) => {
     if (statusStr === 'DELIVERED' || statusStr === 'COMPLETED' || statusStr === 'SUCCESS') return 'Completed';
     if (statusStr === 'FAILED' || statusStr === 'CANCELLED') return 'Cancelled';
   }
-  
-  // Fallback: check numeric status value
-  let statusNum = null;
-  if (skanka5Item.status !== null && skanka5Item.status !== undefined && typeof skanka5Item.status !== 'string') {
-    statusNum = skanka5Item.status;
-  } else if (typeof skanka5Item.status === 'string') {
-    statusNum = parseInt(skanka5Item.status, 10);
+
+  // Primary: use the `status` numeric field
+  if (typeof skanka5Item.status === 'number' && !isNaN(skanka5Item.status)) {
+    if (skanka5Item.status === 0) return 'Pending';
+    if (skanka5Item.status > 0) return 'Completed';
+    if (skanka5Item.status < 0) return 'Cancelled';
   }
-  
-  // Only process if we have a valid number
-  if (typeof statusNum === 'number' && !isNaN(statusNum)) {
-    if (statusNum === 0) return 'Processing';
-    if (statusNum > 0) return 'Completed';
-    if (statusNum < 0) return 'Cancelled';
-  }
-  
-  // Default to Pending for accepted orders
+
+  // Last resort fallback: use api_status only if status field is absent/null
+  if (skanka5Item.api_status === 'failed') return 'Cancelled';
+  if (skanka5Item.api_status === 'pending') return 'Pending';
+
   return 'Pending';
 };
 
