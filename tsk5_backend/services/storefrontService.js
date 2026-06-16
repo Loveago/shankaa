@@ -312,7 +312,7 @@ const getPublicStorefront = async (slug) => {
 // ==================== REFERRAL ORDER PROCESSING ====================
 
 // Initialize payment for referral order
-const initializeReferralPayment = async (slug, storefrontProductId, customerName, customerPhone, callbackUrl) => {
+const initializeReferralPayment = async (slug, storefrontProductId, customerName, customerPhone, callbackUrl, customerEmail) => {
   // Get agent and storefront product
   const agent = await prisma.user.findFirst({
     where: { storefrontSlug: slug },
@@ -367,8 +367,9 @@ const initializeReferralPayment = async (slug, storefrontProductId, customerName
     }
   });
 
-  // Generate unique guest email per purchase
-  const uniqueGuestEmail = `guest+${Date.now()}-${Math.random().toString(36).substring(2, 8)}@tsk5.com`;
+  // Use the customer's real email so Paystack can send a receipt.
+  // Fall back to a generated guest email only if none was provided (backwards compatibility).
+  const uniqueGuestEmail = customerEmail || `guest+${Date.now()}-${Math.random().toString(36).substring(2, 8)}@tsk5.com`;
 
   // Create unpaid order record (unified with shop orders)
   const unpaidOrder = await prisma.unpaidOrder.create({

@@ -128,12 +128,19 @@ const getPublicStorefront = async (req, res) => {
 const initializeReferralPayment = async (req, res) => {
   try {
     const { slug } = req.params;
-    const { storefrontProductId, customerName, customerPhone } = req.body;
+    const { storefrontProductId, customerName, customerPhone, customerEmail } = req.body;
 
     if (!storefrontProductId || !customerName || !customerPhone) {
       return res.status(400).json({
         success: false,
         message: 'Product ID, customer name, and phone number are required'
+      });
+    }
+
+    if (!customerEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customerEmail.trim())) {
+      return res.status(400).json({
+        success: false,
+        message: 'A valid email address is required to receive your Paystack receipt'
       });
     }
 
@@ -143,7 +150,8 @@ const initializeReferralPayment = async (req, res) => {
       storefrontProductId,
       customerName,
       customerPhone,
-      callbackUrl
+      callbackUrl,
+      customerEmail.trim()
     );
 
     res.status(200).json(result);

@@ -19,6 +19,7 @@ const Shop = () => {
   const [shopAlert, setShopAlert] = useState(null);
   const [showShopAlert, setShowShopAlert] = useState(false);
   const [mobileNumber, setMobileNumber] = useState('');
+  const [email, setEmail] = useState('');
   const [trackingNumber, setTrackingNumber] = useState('');
   const [trackingMode, setTrackingMode] = useState('phone'); // 'phone' | 'order'
   const [trackedOrders, setTrackedOrders] = useState([]);
@@ -147,6 +148,7 @@ const Shop = () => {
     setSelectedProduct(product);
     setShowPaymentModal(true);
     setMobileNumber('');
+    setEmail('');
     setExternalRef('');
     setPaymentStep('initiate');
     setPaymentMessage('');
@@ -156,6 +158,7 @@ const Shop = () => {
     setShowPaymentModal(false);
     setSelectedProduct(null);
     setMobileNumber('');
+    setEmail('');
     setExternalRef('');
     setPaymentStep('initiate');
     setPaymentMessage('');
@@ -171,6 +174,17 @@ const Shop = () => {
   };
 
   const initiatePayment = async () => {
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      Swal.fire({
+        title: 'Email Required',
+        text: 'Please enter a valid email address to receive your Paystack receipt',
+        icon: 'warning',
+        background: '#1e293b',
+        color: '#f1f5f9',
+        confirmButtonColor: '#06b6d4'
+      });
+      return;
+    }
     if (!mobileNumber || mobileNumber.length !== 10) {
       Swal.fire({
         title: 'Invalid Number',
@@ -200,7 +214,7 @@ const Shop = () => {
 
     try {
       const response = await axios.post(`${BASE_URL}/api/payment/initialize`, {
-        email: `${mobileNumber}@shankaa.com`,
+        email: email.trim(),
         mobileNumber,
         amount: (selectedProduct.usePromoPrice && selectedProduct.promoPrice != null) ? selectedProduct.promoPrice : selectedProduct.price,
         productId: selectedProduct.id,
@@ -575,6 +589,21 @@ const Shop = () => {
 
               {paymentStep === 'initiate' && (
                 <>
+                  <div className="mb-4">
+                    <label className="flex items-center gap-2 text-sm font-medium text-dark-300 mb-2">
+                      <svg className="w-4 h-4 text-cyan-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
+                      Email Address <span className="text-red-400 ml-0.5">*</span>
+                    </label>
+                    <input
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="your@email.com"
+                      className="w-full bg-dark-900/50 border border-dark-600 rounded-xl px-4 py-3 text-white placeholder-dark-500 focus:border-cyan-500 focus:outline-none transition-all"
+                      disabled={isProcessingPayment}
+                    />
+                    <p className="text-xs text-dark-500 mt-1">Paystack will send your receipt to this email</p>
+                  </div>
                   <div className="mb-4">
                     <label className="flex items-center gap-2 text-sm font-medium text-dark-300 mb-2">
                       <Phone className="w-4 h-4 text-cyan-500" />

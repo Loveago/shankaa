@@ -57,6 +57,7 @@ const Icons = {
   ExternalLink: (p) => <svg {...p} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4m-6-6l6-6m0 0v6m0-6h-6"/></svg>,
   Calendar: (p) => <svg {...p} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>,
   ChevronLeft: (p) => <svg {...p} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7"/></svg>,
+  Mail: (p) => <svg {...p} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>,
 };
 
 // ==================== TOAST SYSTEM (~1KB, replaces 15KB SweetAlert2 for notifications) ====================
@@ -157,6 +158,7 @@ const PublicStorefront = () => {
   const [activeFilter, setActiveFilter] = useState('all');
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [mobileNumber, setMobileNumber] = useState('');
+  const [email, setEmail] = useState('');
   const [processing, setProcessing] = useState(false);
   const [showTrackingModal, setShowTrackingModal] = useState(false);
   const [trackingNumber, setTrackingNumber] = useState('');
@@ -326,7 +328,7 @@ const PublicStorefront = () => {
   }, [gradientMap]);
 
   const handleCloseModal = () => {
-    setSelectedProduct(null); setMobileNumber(''); setProcessing(false);
+    setSelectedProduct(null); setMobileNumber(''); setEmail(''); setProcessing(false);
   };
 
   const validatePhoneNumber = (phone) => {
@@ -335,6 +337,10 @@ const PublicStorefront = () => {
   };
 
   const handlePurchase = async () => {
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      showConfirm({ title: 'Email Required', message: 'Please enter a valid email address to receive your Paystack receipt', icon: 'warning', confirmText: 'OK', cancelText: false, confirmColor: '#06b6d4' });
+      return;
+    }
     if (!mobileNumber || mobileNumber.length !== 10) {
       showConfirm({ title: 'Invalid Number', message: 'Please enter a valid mobile number (10 digits)', icon: 'warning', confirmText: 'OK', cancelText: false, confirmColor: '#06b6d4' });
       return;
@@ -346,7 +352,7 @@ const PublicStorefront = () => {
     setProcessing(true);
     try {
       const data = await apiFetch('POST', `${BASE_URL}/api/storefront/public/${slug}/pay`, {
-        storefrontProductId: selectedProduct.id, customerName: storefront?.agent?.name || 'Customer', customerPhone: mobileNumber.trim()
+        storefrontProductId: selectedProduct.id, customerName: storefront?.agent?.name || 'Customer', customerPhone: mobileNumber.trim(), customerEmail: email.trim()
       }, { timeout: 30000 });
       if (data.success && data.paymentUrl) {
         window.location.href = data.paymentUrl;
@@ -611,6 +617,18 @@ const PublicStorefront = () => {
                   <span className="text-dark-400 text-sm">Amount</span>
                   <span className="text-xl font-bold text-white">GHS {selectedProduct.price.toFixed(2)}</span>
                 </div>
+              </div>
+              <div className="mb-4">
+                <label className="flex items-center gap-2 text-sm font-medium text-dark-300 mb-2">
+                  <Icons.Mail className="w-4 h-4 text-cyan-500" />
+                  Email Address <span className="text-red-400 ml-0.5">*</span>
+                </label>
+                <input type="email" value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="your@email.com"
+                  className="w-full bg-dark-900/50 border border-dark-600 rounded-xl px-4 py-3 text-white placeholder-dark-500 focus:border-cyan-500 focus:outline-none transition-all"
+                  disabled={processing} />
+                <p className="text-xs text-dark-500 mt-1">Paystack will send your receipt to this email</p>
               </div>
               <div className="mb-4">
                 <label className="flex items-center gap-2 text-sm font-medium text-dark-300 mb-2">
