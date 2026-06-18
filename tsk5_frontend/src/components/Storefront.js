@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
-  X, Store, Plus, Trash2, Edit2, Copy, Check, ExternalLink, Loader2, RefreshCw, DollarSign, Package, TrendingUp, Link2, Eye, EyeOff, Landmark, Settings, Wallet, MessageCircle, ArrowUpRight, Clock, ShoppingBag
+  X, Store, Plus, Trash2, Edit2, Copy, Check, ExternalLink, Loader2, RefreshCw, DollarSign, Package, TrendingUp, Link2, Eye, EyeOff, Landmark, Settings, Wallet, MessageCircle, ArrowUpRight, Clock, ShoppingBag, Calendar, Target, List
 } from 'lucide-react';
 import axios from 'axios';
 import Swal from 'sweetalert2';
@@ -445,6 +445,7 @@ const Storefront = ({ isOpen, onClose, userId }) => {
               <div className="flex bg-slate-800/80 backdrop-blur-sm rounded-2xl p-1.5 border border-slate-700/50">
                 {[
                   { id: 'products', label: 'Products', icon: Package },
+                  { id: 'total-orders', label: 'Total Orders', icon: ShoppingBag },
                   { id: 'earnings', label: 'Earnings', icon: TrendingUp },
                   { id: 'orders', label: 'Orders', icon: ShoppingBag },
                   { id: 'wallet', label: 'Wallet', icon: Landmark },
@@ -454,6 +455,7 @@ const Storefront = ({ isOpen, onClose, userId }) => {
                     key={tab.id}
                     onClick={() => {
                       if (tab.id === 'orders') fetchStorefrontOrders();
+                      if (tab.id === 'total-orders') fetchOrderCounts();
                       if (tab.id === 'wallet' || tab.id === 'settings') fetchWalletData();
                       setActiveTab(tab.id);
                     }}
@@ -569,6 +571,125 @@ const Storefront = ({ isOpen, onClose, userId }) => {
                   ))}
                 </div>
               )}
+            </div>
+          ) : activeTab === 'total-orders' ? (
+            <div>
+              {/* Total Orders Header */}
+              <div className="mb-6">
+                <h3 className="text-white font-semibold text-lg flex items-center gap-2">
+                  <ShoppingBag className="w-5 h-5 text-cyan-400" />
+                  Total Orders Overview
+                </h3>
+                <p className="text-slate-500 text-sm mt-0.5">Comprehensive order statistics for your storefront</p>
+              </div>
+
+              {/* Order Stats Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+                <div className="bg-gradient-to-br from-violet-600/20 to-purple-600/20 border border-violet-500/30 rounded-2xl p-5">
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="p-2.5 bg-violet-500/20 rounded-xl">
+                      <Clock className="w-5 h-5 text-violet-400" />
+                    </div>
+                    <div>
+                      <p className="text-violet-300 text-xs font-medium uppercase tracking-wide">Today's Orders</p>
+                      <p className="text-3xl font-bold text-white">{orderCounts.today}</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="bg-gradient-to-br from-cyan-600/20 to-blue-600/20 border border-cyan-500/30 rounded-2xl p-5">
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="p-2.5 bg-cyan-500/20 rounded-xl">
+                      <Calendar className="w-5 h-5 text-cyan-400" />
+                    </div>
+                    <div>
+                      <p className="text-cyan-300 text-xs font-medium uppercase tracking-wide">This Month</p>
+                      <p className="text-3xl font-bold text-white">{orderCounts.month}</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="bg-gradient-to-br from-emerald-600/20 to-teal-600/20 border border-emerald-500/30 rounded-2xl p-5">
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="p-2.5 bg-emerald-500/20 rounded-xl">
+                      <Target className="w-5 h-5 text-emerald-400" />
+                    </div>
+                    <div>
+                      <p className="text-emerald-300 text-xs font-medium uppercase tracking-wide">This Year</p>
+                      <p className="text-3xl font-bold text-white">{orderCounts.year}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Summary Cards */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+                <div className="bg-gradient-to-br from-slate-800/80 to-slate-900/80 border border-slate-700/50 rounded-2xl p-5">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-slate-400 text-sm font-medium">Total Products Sold</p>
+                    <Package className="w-4 h-4 text-violet-400" />
+                  </div>
+                  <p className="text-2xl font-bold text-white">{referralSummary.stats.totalOrders || 0}</p>
+                </div>
+                <div className="bg-gradient-to-br from-slate-800/80 to-slate-900/80 border border-slate-700/50 rounded-2xl p-5">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-slate-400 text-sm font-medium">Total Revenue Generated</p>
+                    <DollarSign className="w-4 h-4 text-cyan-400" />
+                  </div>
+                  <p className="text-2xl font-bold text-cyan-400">
+                    {formatAmount(referralSummary.orders.reduce((sum, order) => sum + order.agentPrice, 0))}
+                  </p>
+                </div>
+              </div>
+
+              {/* Recent Orders Table */}
+              <div className="bg-gradient-to-br from-slate-800/80 to-slate-900/80 border border-slate-700/50 rounded-2xl overflow-hidden">
+                <div className="px-5 py-4 border-b border-slate-700/50">
+                  <h4 className="text-white font-semibold flex items-center gap-2">
+                    <List className="w-4 h-4 text-slate-400" />
+                    Recent Orders
+                  </h4>
+                </div>
+                {referralSummary.orders.length === 0 ? (
+                  <div className="text-center py-12">
+                    <ShoppingBag className="w-12 h-12 text-slate-600 mx-auto mb-3" />
+                    <p className="text-slate-400 text-sm">No orders yet</p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead className="bg-slate-900/50">
+                        <tr className="text-left">
+                          <th className="px-4 py-3 text-slate-400 text-xs font-semibold uppercase tracking-wider">Date</th>
+                          <th className="px-4 py-3 text-slate-400 text-xs font-semibold uppercase tracking-wider">Product</th>
+                          <th className="px-4 py-3 text-slate-400 text-xs font-semibold uppercase tracking-wider">Customer</th>
+                          <th className="px-4 py-3 text-slate-400 text-xs font-semibold uppercase tracking-wider">Amount</th>
+                          <th className="px-4 py-3 text-slate-400 text-xs font-semibold uppercase tracking-wider">Commission</th>
+                          <th className="px-4 py-3 text-slate-400 text-xs font-semibold uppercase tracking-wider">Status</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-700/50">
+                        {referralSummary.orders.slice(0, 10).map((order) => (
+                          <tr key={order.id} className="hover:bg-slate-800/30 transition-colors">
+                            <td className="px-4 py-3 text-slate-400 text-sm">{new Date(order.createdAt).toLocaleDateString()}</td>
+                            <td className="px-4 py-3 text-white font-medium">{order.product?.name}</td>
+                            <td className="px-4 py-3 text-slate-400 text-sm">{order.customerName}</td>
+                            <td className="px-4 py-3 text-cyan-400 font-medium">{formatAmount(order.agentPrice)}</td>
+                            <td className="px-4 py-3 text-emerald-400 font-bold">{formatAmount(order.commission)}</td>
+                            <td className="px-4 py-3">
+                              <span className={`px-2.5 py-1 rounded-lg text-xs font-semibold ${
+                                order.paymentStatus === 'Paid' ? 'bg-emerald-500/20 text-emerald-400' :
+                                order.paymentStatus === 'Pending' ? 'bg-amber-500/20 text-amber-400' :
+                                'bg-red-500/20 text-red-400'
+                              }`}>
+                                {order.paymentStatus}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
             </div>
           ) : activeTab === 'earnings' ? (
             <div>
