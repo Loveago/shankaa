@@ -267,6 +267,27 @@ const updateStorefrontWhatsapp = async (req, res) => {
 
 // ==================== AGENT STOREFRONT ORDERS ====================
 
+// Get agent's storefront order counts (today, this month, this year)
+const getAgentOrderCounts = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    if (!userId) {
+      return res.status(400).json({
+        success: false,
+        message: 'User ID is required'
+      });
+    }
+    const counts = await storefrontService.getAgentOrderCounts(userId);
+    res.status(200).json({ success: true, ...counts });
+  } catch (error) {
+    console.error('Error getting order counts:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Internal server error'
+    });
+  }
+};
+
 const getAgentStorefrontOrders = async (req, res) => {
   try {
     const { userId } = req.params;
@@ -378,6 +399,9 @@ module.exports = {
   getAgentWithdrawals,
   getAllWithdrawalRequests,
   processWithdrawalRequest,
+
+  // Order Counts
+  getAgentOrderCounts,
 
   // Admin functions
   getAllReferralOrders,

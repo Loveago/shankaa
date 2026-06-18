@@ -37,6 +37,9 @@ const Storefront = ({ isOpen, onClose, userId }) => {
   const [withdrawalMobile, setWithdrawalMobile] = useState('');
   const [requestingWithdrawal, setRequestingWithdrawal] = useState(false);
 
+  // Order counts state
+  const [orderCounts, setOrderCounts] = useState({ today: 0, month: 0, year: 0 });
+
   // WhatsApp settings state
   const [whatsappNumber, setWhatsappNumber] = useState('');
   const [savingWhatsapp, setSavingWhatsapp] = useState(false);
@@ -55,6 +58,18 @@ const Storefront = ({ isOpen, onClose, userId }) => {
       console.error('Error fetching storefront orders:', error);
     } finally {
       setOrdersLoading(false);
+    }
+  }, [userId]);
+
+  const fetchOrderCounts = useCallback(async () => {
+    if (!userId) return;
+    try {
+      const res = await axios.get(`${BASE_URL}/api/storefront/agent/${userId}/order-counts`, { headers: getAuthHeaders() });
+      if (res.data.success) {
+        setOrderCounts({ today: res.data.today, month: res.data.month, year: res.data.year });
+      }
+    } catch (error) {
+      console.error('Error fetching order counts:', error);
     }
   }, [userId]);
 
@@ -114,8 +129,9 @@ const Storefront = ({ isOpen, onClose, userId }) => {
       fetchReferralSummary();
       fetchWalletData();
       fetchStorefrontOrders();
+      fetchOrderCounts();
     }
-  }, [isOpen, fetchStorefrontData, fetchReferralSummary, fetchWalletData, fetchStorefrontOrders]);
+  }, [isOpen, fetchStorefrontData, fetchReferralSummary, fetchWalletData, fetchStorefrontOrders, fetchOrderCounts]);
 
   const copyStoreLink = () => {
     const storeUrl = `${window.location.origin}/store/${storefrontSlug}`;
@@ -333,7 +349,7 @@ const Storefront = ({ isOpen, onClose, userId }) => {
             </div>
           </div>
           <div className="flex gap-2">
-            <button onClick={() => { fetchStorefrontData(); fetchReferralSummary(); fetchWalletData(); }} className="p-2 bg-white/20 hover:bg-white/30 rounded-lg">
+            <button onClick={() => { fetchStorefrontData(); fetchReferralSummary(); fetchWalletData(); fetchOrderCounts(); }} className="p-2 bg-white/20 hover:bg-white/30 rounded-lg">
               <RefreshCw className={`w-5 h-5 text-white ${loading ? 'animate-spin' : ''}`} />
             </button>
             <button onClick={onClose} className="p-2 bg-white/20 hover:bg-white/30 rounded-lg">
@@ -366,7 +382,7 @@ const Storefront = ({ isOpen, onClose, userId }) => {
         )}
 
         {/* Stats */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4 p-3 sm:p-4 bg-dark-900/30">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-4 p-3 sm:p-4 bg-dark-900/30">
           <div className="bg-dark-800 border border-violet-500/30 rounded-xl p-3">
             <p className="text-violet-400 text-xs">Products Listed</p>
             <p className="text-xl font-bold text-white">{storefrontProducts.length}</p>
@@ -379,9 +395,21 @@ const Storefront = ({ isOpen, onClose, userId }) => {
             <p className="text-emerald-400 text-xs">Total Commission</p>
             <p className="text-lg font-bold text-emerald-400">{formatAmount(referralSummary.stats.totalCommission || 0)}</p>
           </div>
-          <div className="bg-dark-800 border border-amber-500/30 rounded-xl p-3">
-            <p className="text-amber-400 text-xs">Unpaid Commission</p>
-            <p className="text-lg font-bold text-amber-400">{formatAmount(referralSummary.stats.unpaidCommission || 0)}</p>
+        </div>
+
+        {/* Order Counts (Day / Month / Year) */}
+        <div className="grid grid-cols-3 gap-2 sm:gap-3 px-3 sm:px-4 pb-3 sm:pb-4">
+          <div className="bg-dark-800/60 border border-dark-700 rounded-xl p-2.5 sm:p-3 text-center">
+            <p className="text-dark-400 text-[10px] sm:text-xs uppercase tracking-wider">Today</p>
+            <p className="text-lg sm:text-2xl font-bold text-white">{orderCounts.today}</p>
+          </div>
+          <div className="bg-dark-800/60 border border-dark-700 rounded-xl p-2.5 sm:p-3 text-center">
+            <p className="text-dark-400 text-[10px] sm:text-xs uppercase tracking-wider">This Month</p>
+            <p className="text-lg sm:text-2xl font-bold text-white">{orderCounts.month}</p>
+          </div>
+          <div className="bg-dark-800/60 border border-dark-700 rounded-xl p-2.5 sm:p-3 text-center">
+            <p className="text-dark-400 text-[10px] sm:text-xs uppercase tracking-wider">This Year</p>
+            <p className="text-lg sm:text-2xl font-bold text-white">{orderCounts.year}</p>
           </div>
         </div>
 

@@ -1101,6 +1101,54 @@ const processWithdrawalRequest = async (requestId, status, adminNotes = null) =>
   return result;
 };
 
+// ==================== ORDER COUNTS (DAY / MONTH / YEAR) ====================
+// Get the total number of referral orders placed through the agent's storefront
+// for today, this month, and this year.
+const getAgentOrderCounts = async (agentId) => {
+  const id = parseInt(agentId);
+
+  const now = new Date();
+
+  // Start of today (00:00:00.000)
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+  // Start of this month (1st at 00:00:00.000)
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+
+  // Start of this year (Jan 1st at 00:00:00.000)
+  const yearStart = new Date(now.getFullYear(), 0, 1);
+
+  // End of today (23:59:59.999) — essentially the current moment for "day" range
+  const nowEnd = now;
+
+  const [todayCount, monthCount, yearCount] = await Promise.all([
+    prisma.referralOrder.count({
+      where: {
+        agentId: id,
+        createdAt: { gte: todayStart, lte: nowEnd }
+      }
+    }),
+    prisma.referralOrder.count({
+      where: {
+        agentId: id,
+        createdAt: { gte: monthStart, lte: nowEnd }
+      }
+    }),
+    prisma.referralOrder.count({
+      where: {
+        agentId: id,
+        createdAt: { gte: yearStart, lte: nowEnd }
+      }
+    })
+  ]);
+
+  return {
+    today: todayCount,
+    month: monthCount,
+    year: yearCount
+  };
+};
+
 module.exports = {
   // Agent storefront management
   getOrCreateStorefrontSlug,
@@ -1139,6 +1187,9 @@ module.exports = {
   getAgentWithdrawalRequests,
   getAllWithdrawalRequests,
   processWithdrawalRequest,
+
+  // Order Counts
+  getAgentOrderCounts,
 
   // Cache management
   invalidateStorefrontCache,
