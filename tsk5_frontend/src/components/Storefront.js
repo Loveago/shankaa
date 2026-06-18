@@ -405,20 +405,20 @@ const Storefront = ({ isOpen, onClose, userId }) => {
         )}
 
         {/* Stats Cards - Only Products & Commission */}
-        <div className="relative grid grid-cols-2 gap-2 sm:gap-3 p-3 sm:p-4 bg-slate-900/30">
-          <div className="group bg-gradient-to-br from-violet-600/20 to-purple-600/20 border border-violet-500/30 rounded-xl p-3 hover:border-violet-500/50 transition-all hover:shadow-md hover:shadow-violet-500/10">
-            <div className="flex items-center gap-1.5 mb-1.5">
-              <Package className="w-3.5 h-3.5 text-violet-400" />
-              <p className="text-violet-300 text-[10px] font-medium uppercase tracking-wide">Products Listed</p>
+        <div className="relative grid grid-cols-2 gap-1.5 sm:gap-2 p-2 sm:p-3 bg-slate-900/30">
+          <div className="group bg-gradient-to-br from-violet-600/20 to-purple-600/20 border border-violet-500/30 rounded-lg p-2 hover:border-violet-500/50 transition-all">
+            <div className="flex items-center gap-1 mb-1">
+              <Package className="w-3 h-3 text-violet-400" />
+              <p className="text-violet-300 text-[9px] font-medium uppercase tracking-wide">Products Listed</p>
             </div>
-            <p className="text-xl sm:text-2xl font-bold text-white">{storefrontProducts.length}</p>
+            <p className="text-lg sm:text-xl font-bold text-white">{storefrontProducts.length}</p>
           </div>
-          <div className="group bg-gradient-to-br from-emerald-600/20 to-teal-600/20 border border-emerald-500/30 rounded-xl p-3 hover:border-emerald-500/50 transition-all hover:shadow-md hover:shadow-emerald-500/10">
-            <div className="flex items-center gap-1.5 mb-1.5">
-              <DollarSign className="w-3.5 h-3.5 text-emerald-400" />
-              <p className="text-emerald-300 text-[10px] font-medium uppercase tracking-wide">Total Commission</p>
+          <div className="group bg-gradient-to-br from-emerald-600/20 to-teal-600/20 border border-emerald-500/30 rounded-lg p-2 hover:border-emerald-500/50 transition-all">
+            <div className="flex items-center gap-1 mb-1">
+              <DollarSign className="w-3 h-3 text-emerald-400" />
+              <p className="text-emerald-300 text-[9px] font-medium uppercase tracking-wide">Total Commission</p>
             </div>
-            <p className="text-base sm:text-lg font-bold text-emerald-400">{formatAmount(referralSummary.stats.totalCommission || 0)}</p>
+            <p className="text-sm sm:text-base font-bold text-emerald-400">{formatAmount(referralSummary.stats.totalCommission || 0)}</p>
           </div>
         </div>
 
