@@ -404,21 +404,14 @@ const Storefront = ({ isOpen, onClose, userId }) => {
           </div>
         )}
 
-        {/* Stats Cards */}
-        <div className="relative grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4 p-4 sm:p-6 bg-slate-900/30">
+        {/* Stats Cards - Only Products & Commission */}
+        <div className="relative grid grid-cols-2 gap-3 sm:gap-4 p-4 sm:p-6 bg-slate-900/30">
           <div className="group bg-gradient-to-br from-violet-600/20 to-purple-600/20 border border-violet-500/30 rounded-2xl p-4 hover:border-violet-500/50 transition-all hover:shadow-lg hover:shadow-violet-500/10">
             <div className="flex items-center gap-2 mb-2">
               <Package className="w-4 h-4 text-violet-400" />
               <p className="text-violet-300 text-xs font-medium uppercase tracking-wide">Products Listed</p>
             </div>
             <p className="text-2xl sm:text-3xl font-bold text-white">{storefrontProducts.length}</p>
-          </div>
-          <div className="group bg-gradient-to-br from-cyan-600/20 to-blue-600/20 border border-cyan-500/30 rounded-2xl p-4 hover:border-cyan-500/50 transition-all hover:shadow-lg hover:shadow-cyan-500/10">
-            <div className="flex items-center gap-2 mb-2">
-              <ShoppingBag className="w-4 h-4 text-cyan-400" />
-              <p className="text-cyan-300 text-xs font-medium uppercase tracking-wide">Total Orders</p>
-            </div>
-            <p className="text-2xl sm:text-3xl font-bold text-white">{referralSummary.stats.totalOrders || 0}</p>
           </div>
           <div className="group bg-gradient-to-br from-emerald-600/20 to-teal-600/20 border border-emerald-500/30 rounded-2xl p-4 hover:border-emerald-500/50 transition-all hover:shadow-lg hover:shadow-emerald-500/10">
             <div className="flex items-center gap-2 mb-2">
@@ -429,19 +422,19 @@ const Storefront = ({ isOpen, onClose, userId }) => {
           </div>
         </div>
 
-        {/* Order Counts */}
-        <div className="relative grid grid-cols-3 gap-3 sm:gap-4 px-4 sm:px-6 pb-4 sm:pb-6">
-          <div className="group bg-gradient-to-br from-slate-800/80 to-slate-900/80 border border-slate-700/50 rounded-2xl p-3.5 text-center hover:border-violet-500/30 transition-all">
-            <p className="text-slate-500 text-xs uppercase tracking-wider font-medium">Today</p>
-            <p className="text-2xl sm:text-3xl font-bold text-white mt-1">{orderCounts.today}</p>
+        {/* Order Counts - Smaller compact design */}
+        <div className="relative grid grid-cols-3 gap-2 sm:gap-3 px-4 sm:px-6 py-3 bg-slate-900/20">
+          <div className="group bg-slate-800/50 border border-slate-700/30 rounded-xl p-2.5 text-center hover:border-violet-500/30 transition-all">
+            <p className="text-slate-500 text-[10px] uppercase tracking-wider font-medium">Today</p>
+            <p className="text-xl sm:text-2xl font-bold text-white mt-0.5">{orderCounts.today}</p>
           </div>
-          <div className="group bg-gradient-to-br from-slate-800/80 to-slate-900/80 border border-slate-700/50 rounded-2xl p-3.5 text-center hover:border-cyan-500/30 transition-all">
-            <p className="text-slate-500 text-xs uppercase tracking-wider font-medium">This Month</p>
-            <p className="text-2xl sm:text-3xl font-bold text-white mt-1">{orderCounts.month}</p>
+          <div className="group bg-slate-800/50 border border-slate-700/30 rounded-xl p-2.5 text-center hover:border-cyan-500/30 transition-all">
+            <p className="text-slate-500 text-[10px] uppercase tracking-wider font-medium">Month</p>
+            <p className="text-xl sm:text-2xl font-bold text-white mt-0.5">{orderCounts.month}</p>
           </div>
-          <div className="group bg-gradient-to-br from-slate-800/80 to-slate-900/80 border border-slate-700/50 rounded-2xl p-3.5 text-center hover:border-emerald-500/30 transition-all">
-            <p className="text-slate-500 text-xs uppercase tracking-wider font-medium">This Year</p>
-            <p className="text-2xl sm:text-3xl font-bold text-white mt-1">{orderCounts.year}</p>
+          <div className="group bg-slate-800/50 border border-slate-700/30 rounded-xl p-2.5 text-center hover:border-emerald-500/30 transition-all">
+            <p className="text-slate-500 text-[10px] uppercase tracking-wider font-medium">Year</p>
+            <p className="text-xl sm:text-2xl font-bold text-white mt-0.5">{orderCounts.year}</p>
           </div>
         </div>
 
