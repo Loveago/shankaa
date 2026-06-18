@@ -422,22 +422,6 @@ const Storefront = ({ isOpen, onClose, userId }) => {
           </div>
         </div>
 
-        {/* Order Counts - Smaller compact design */}
-        <div className="relative grid grid-cols-3 gap-2 sm:gap-3 px-4 sm:px-6 py-3 bg-slate-900/20">
-          <div className="group bg-slate-800/50 border border-slate-700/30 rounded-xl p-2.5 text-center hover:border-violet-500/30 transition-all">
-            <p className="text-slate-500 text-[10px] uppercase tracking-wider font-medium">Today</p>
-            <p className="text-xl sm:text-2xl font-bold text-white mt-0.5">{orderCounts.today}</p>
-          </div>
-          <div className="group bg-slate-800/50 border border-slate-700/30 rounded-xl p-2.5 text-center hover:border-cyan-500/30 transition-all">
-            <p className="text-slate-500 text-[10px] uppercase tracking-wider font-medium">Month</p>
-            <p className="text-xl sm:text-2xl font-bold text-white mt-0.5">{orderCounts.month}</p>
-          </div>
-          <div className="group bg-slate-800/50 border border-slate-700/30 rounded-xl p-2.5 text-center hover:border-emerald-500/30 transition-all">
-            <p className="text-slate-500 text-[10px] uppercase tracking-wider font-medium">Year</p>
-            <p className="text-xl sm:text-2xl font-bold text-white mt-0.5">{orderCounts.year}</p>
-          </div>
-        </div>
-
         {/* Tabs */}
         <div className="relative border-b border-slate-700/50">
           <div className="overflow-x-auto scrollbar-hide">
